@@ -126,6 +126,55 @@
       .then(function (pt) { return new TextDecoder().decode(pt); })
       .catch(function () { return ''; });
   }
+  /* Пароль хранится свёрткой PBKDF2 с личной солью. Раньше это был простой
+     SHA-256; такие записи ещё проверяются, но при первом же удачном входе
+     пересчитываются по-новому. Список пользователей едет вместе с деревом,
+     поэтому свёртка должна быть дорогой для подбора. */
+  var KDF_ITERS = 210000;
+
+  function hashPassword(password, saltB64, iters) {
+    saltB64 = saltB64 || bytesToB64(crypto.getRandomValues(new Uint8Array(16)));
+    iters = iters || KDF_ITERS;
+    if (!subtle) {
+      return sha256hex(password + '::' + saltB64).then(function (h) {
+        return { algo: 'sha256-plain', salt: saltB64, iters: 1, hash: h };
+      });
+    }
+    return subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits'])
+      .then(function (base) {
+        return subtle.deriveBits(
+          { name: 'PBKDF2', salt: b64ToBytes(saltB64), iterations: iters, hash: 'SHA-256' },
+          base, 256);
+      })
+      .then(function (bits) {
+        return { algo: 'pbkdf2-sha256', salt: saltB64, iters: iters, hash: bytesToB64(bits) };
+      });
+  }
+
+  /** одинаковы ли две строки — без подсказок по времени сравнения */
+  function sameSecret(a, b) {
+    a = String(a || ''); b = String(b || '');
+    if (a.length !== b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return diff === 0;
+  }
+
+  function verifyPassword(user, password) {
+    if (!user) return Promise.resolve(false);
+    if (user.kdf && user.kdf.algo === 'pbkdf2-sha256') {
+      return hashPassword(password, user.kdf.salt, user.kdf.iters)
+        .then(function (r) { return sameSecret(r.hash, user.kdf.hash); });
+    }
+    if (user.kdf && user.kdf.algo === 'sha256-plain') {
+      return sha256hex(password + '::' + user.kdf.salt)
+        .then(function (h) { return sameSecret(h, user.kdf.hash); });
+    }
+    // записи старого образца
+    return sha256hex(password + '::' + user.login)
+      .then(function (h) { return sameSecret(h, user.hash); });
+  }
+
   function sha256hex(str) {
     if (!subtle) return Promise.resolve('plain:' + str);
     return subtle.digest('SHA-256', new TextEncoder().encode(str)).then(function (b) {
@@ -155,6 +204,10 @@
         { id: 'photos', title: 'Фото', icon: 'photo', builtin: true },
         { id: 'changes', title: 'Изменения', icon: 'clock', builtin: true }
       ],
+      /* Учётные записи лежат в самом дереве, а не на устройстве: иначе
+         логин, заведённый на компьютере, не существовал бы на телефоне.
+         Пароли хранятся только как PBKDF2-свёртка с личной солью. */
+      users: [],
       /* следы удалённых записей: id -> когда удалили.
          Без них удаление, сделанное на одном устройстве, вернулось бы
          обратно при первой же синхронизации с другого. */
@@ -209,7 +262,6 @@
   /* ---------- Store ---------- */
   var Store = {
     tree: emptyTree(),
-    users: [],
     session: null,
     prefs: null,
     listeners: [],
@@ -238,10 +290,22 @@
         }
         this.sync = JSON.parse(localStorage.getItem(LS_SYNC) || 'null') || defaultSync();
       } catch (e) { this.deviceId = uid('dev'); this.sync = defaultSync(); }
+      if (!Array.isArray(this.tree.users)) this.tree.users = [];
+      // перенос со старых версий, где список лежал отдельно на устройстве
       try {
-        var u = localStorage.getItem(LS_USERS);
-        this.users = u ? JSON.parse(u) : [];
-      } catch (e) { this.users = []; }
+        var old = localStorage.getItem(LS_USERS);
+        if (old && !this.tree.users.length) {
+          var list = JSON.parse(old);
+          if (Array.isArray(list) && list.length) {
+            this.tree.users = list.map(function (u) {
+              u.updated = u.updated || u.created || nowISO();
+              return u;
+            });
+            this.save(true);
+          }
+        }
+        if (old) localStorage.removeItem(LS_USERS);
+      } catch (e) {}
       try {
         var s = localStorage.getItem(LS_SESSION);
         this.session = s ? JSON.parse(s) : null;
@@ -258,9 +322,7 @@
       catch (e) { console.error('Не удалось сохранить дерево', e); }
       if (!silent) this.emit('tree');
     },
-    saveUsers: function () {
-      try { localStorage.setItem(LS_USERS, JSON.stringify(this.users)); } catch (e) {}
-    },
+    saveUsers: function () { this.save(true); },
     saveSync: function () {
       try { localStorage.setItem(LS_SYNC, JSON.stringify(this.sync)); } catch (e) {}
       this.emit('sync');
@@ -289,6 +351,9 @@
         ui: { fontSize: 14, tabSize: 14, iconSize: 17 },
         treeBg: 'auto',      // 'auto' — как у страницы, иначе цвет
         treeGrid: false,     // точечная сетка на полотне
+        treeImage: false,    // своя картинка под деревом
+        treeImageFit: 'cover',   // cover | tile
+        treeImageFade: 35,   // насколько приглушить, %
         showPhotos: true,
         showDates: true
       };
@@ -604,6 +669,10 @@
       if (!acl) return true;
       if (this.isAdmin()) return true;
       if (acl.level === 'admin' || acl.level === 'owner') return false;
+      // «только выбранным»: поимённый список тех, кому запись открыта
+      if (acl.level === 'chosen') {
+        return !!(this.session && (acl.allow || []).indexOf(this.session.userId) >= 0);
+      }
       if (acl.level === 'group') return !!this.session;
       return true;
     },
@@ -611,32 +680,60 @@
       if (this.isAdmin()) return true;
       if (!acl) return !!this.session;
       if (acl.locked) return false;
-      return acl.level !== 'admin' && acl.level !== 'owner' && !!this.session;
+      if (acl.level === 'admin' || acl.level === 'owner') return false;
+      if (acl.level === 'chosen') return this.canSee(acl);
+      return !!this.session;
+    },
+    /** имена тех, кому открыта запись */
+    allowedNames: function (acl) {
+      var self = this;
+      return ((acl && acl.allow) || []).map(function (id) {
+        var u = self.users.filter(function (x) { return x.id === id; })[0];
+        return u ? u.displayName : null;
+      }).filter(Boolean);
     },
 
     /* --- пользователи --- */
     createUser: function (login, password, role, displayName) {
       var self = this;
-      return sha256hex(password + '::' + login.toLowerCase()).then(function (h) {
+      return hashPassword(password).then(function (kdf) {
         var u = {
-          id: uid('U'), login: login.toLowerCase(), hash: h,
+          id: uid('U'), login: String(login).toLowerCase().trim(), kdf: kdf,
           role: role || 'user', displayName: displayName || login,
-          created: nowISO(), invite: uid('inv'), active: true, webauthn: null
+          created: nowISO(), updated: nowISO(),
+          invite: uid('inv'), active: true, webauthn: null
         };
         self.users.push(u);
-        self.saveUsers();
-        self.log('user', 'Создан пользователь ' + u.displayName + ' (' + (u.role === 'admin' ? 'администратор' : 'пользователь') + ')');
+        self.log('user', 'Создан пользователь ' + u.displayName + ' (' +
+          (u.role === 'admin' ? 'администратор' : 'пользователь') + ')');
         self.save();
         return u;
       });
     },
+    /** задать новый пароль (приглашение, смена) */
+    setPassword: function (user, password) {
+      var self = this;
+      return hashPassword(password).then(function (kdf) {
+        user.kdf = kdf;
+        delete user.hash;
+        user.updated = nowISO();
+        self.save();
+        return user;
+      });
+    },
     auth: function (login, password) {
       var self = this;
-      var u = this.users.filter(function (x) { return x.login === String(login).toLowerCase(); })[0];
-      if (!u) return Promise.resolve(null);
-      if (!u.active) return Promise.resolve(null);
-      return sha256hex(password + '::' + u.login).then(function (h) {
-        return h === u.hash ? u : null;
+      var u = this.users.filter(function (x) {
+        return x.login === String(login).toLowerCase().trim();
+      })[0];
+      if (!u || !u.active) return Promise.resolve(null);
+      return verifyPassword(u, password).then(function (ok) {
+        if (!ok) return null;
+        // запись старого образца — пересчитать по-новому
+        if (!u.kdf || u.kdf.algo !== 'pbkdf2-sha256') {
+          return self.setPassword(u, password).then(function () { return u; });
+        }
+        return u;
       });
     },
     unlockCrypto: function (passphrase) {
@@ -768,9 +865,19 @@
     return d.d + ' ' + mon[d.m - 1] + ' ' + d.y;
   }
 
+  // список пользователей — это всегда tree.users, какое бы дерево ни подставили
+  Object.defineProperty(Store, 'users', {
+    get: function () {
+      if (!Array.isArray(this.tree.users)) this.tree.users = [];
+      return this.tree.users;
+    },
+    set: function (v) { this.tree.users = Array.isArray(v) ? v : []; }
+  });
+
   Store.util = {
     uid: uid, clone: clone, nowISO: nowISO, parseDate: parseDate, formatDate: formatDate,
     yr: yr, kindOf: kindOf, sha256hex: sha256hex,
+    hashPassword: hashPassword, verifyPassword: verifyPassword,
     encryptText: encryptText, decryptText: decryptText,
     encryptBlob: encryptBlob, decryptBlob: decryptBlob,
     blobPut: blobPut, blobGet: blobGet, blobDel: blobDel,

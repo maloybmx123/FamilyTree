@@ -33,6 +33,7 @@
   --neutral-bot:  #ded7c8;
   --neutral-edge: #bdb3a1;
   --mourn:        #15120f;
+  --line-tree:    #a69c89;
   --good:         #3f7d5a;
   --warn:         #a9741f;
   --bad:          #a4402f;
@@ -72,6 +73,7 @@
     --neutral-bot:  #1f1b16;
     --neutral-edge: #4d463c;
     --mourn:        #000000;
+    --line-tree:    #6b6353;
     --good:         #6fae89;
     --warn:         #d3a55c;
     --bad:          #d47a68;
@@ -101,6 +103,7 @@
   --neutral-bot:  #1f1b16;
   --neutral-edge: #4d463c;
   --mourn:        #000000;
+  --line-tree:    #6b6353;
   --good:         #6fae89;
   --warn:         #d3a55c;
   --bad:          #d47a68;
@@ -237,6 +240,17 @@ a { color: var(--accent); }
   background: var(--tree-bg);
   cursor: grab;
 }
+/* своя картинка под деревом; приглушается слоем цвета сверху */
+#treeBgImage {
+  position: absolute; inset: 0; pointer-events: none;
+  background-position: center; background-repeat: no-repeat;
+  background-size: cover;
+}
+#treeBgImage.tile { background-repeat: repeat; background-size: auto; }
+#treeBgImage::after {
+  content: ""; position: absolute; inset: 0;
+  background: var(--tree-bg); opacity: var(--tree-fade, .35);
+}
 #treeHost.grid {
   background:
     radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/28px 28px,
@@ -245,8 +259,11 @@ a { color: var(--accent); }
 #treeHost.grabbing { cursor: grabbing; }
 #treeCanvas, #treeLines { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 #treeLines { pointer-events: none; }
-.lnk-parent, .lnk-couple { fill: none; stroke: var(--neutral-edge); stroke-width: 1.5; }
-.lnk-couple { stroke: var(--accent); stroke-width: 2; opacity: .55; }
+.lnk-parent, .lnk-couple {
+  fill: none; stroke: var(--line-tree); stroke-width: 2;
+  shape-rendering: crispEdges;          /* линии строго по осям — без размытия */
+}
+.lnk-couple { stroke: var(--accent); opacity: .6; }
 
 .node {
   position: absolute; display: flex; align-items: center; gap: 8px;
@@ -268,10 +285,19 @@ a { color: var(--accent); }
 /* раскрыта карточка этого человека — пометка снимается при закрытии */
 .node.is-open { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* траурная полоса на углу: человека нет в живых */
+/* Траурная полоса на углу: человека нет в живых.
+   Слой во весь эскиз с его же скруглением — поэтому полоса видна и при
+   капсуле, и при любом радиусе, и ложится поверх фотокарточки. */
 .node-mourn {
-  position: absolute; left: 0; top: 0; width: 26px; height: 26px; pointer-events: none;
-  background: linear-gradient(135deg, var(--mourn) 0 11px, transparent 11px);
+  position: absolute; inset: 0; border-radius: inherit;
+  overflow: hidden; pointer-events: none; z-index: 4;
+}
+/* Полоса идёт вдоль левого края во всю высоту: уголок при капсуле
+   или большом радиусе срезается скруглением, а эта видна всегда
+   и заходит на фотокарточку. */
+.node-mourn::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 12px;
+  background: var(--mourn);
 }
 
 .node-ph {
@@ -285,13 +311,13 @@ a { color: var(--accent); }
 .node-years { color: var(--ink-soft); font-family: var(--font-data); margin-top: 2px; }
 .node-lock { position: absolute; top: 2px; right: 3px; line-height: 0; opacity: .65; }
 .node-plus {
-  position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
-  width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--good);
+  position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%);
+  width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--good);
   background: var(--paper-2); color: var(--good); line-height: 0;
   display: grid; place-items: center; padding: 0; z-index: 3;
-  box-shadow: 0 1px 3px rgba(0,0,0,.2); opacity: 0; transition: opacity .12s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25); opacity: 0; transition: opacity .12s;
 }
-.node-plus .ico { width: 13px; height: 13px; }
+.node-plus .ico { width: 14px; height: 14px; }
 .node-plus:hover { background: var(--good); color: var(--paper-2); }
 .node:hover .node-plus, .node-plus:focus-visible { opacity: 1; }
 @media (pointer: coarse) { .node-plus { opacity: .92; } }
@@ -354,14 +380,30 @@ a { color: var(--accent); }
 }
 .sheet-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 700; }
 
-.row { display: grid; grid-template-columns: 112px 1fr; gap: 8px; align-items: start; margin-bottom: 8px; }
-.row > label { font-size: 12px; color: var(--ink-faint); padding-top: 7px; }
-.row input, .row select, .row textarea, .field-val {
-  width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid var(--line);
+/* Название сверху, поле под ним во всю ширину: длинные значения
+   (адрес, место, имя) помещаются целиком. */
+.row { display: grid; grid-template-columns: 1fr; gap: 3px; margin-bottom: 10px; }
+.row > label {
+  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-faint); padding: 0;
+}
+.row input:not([type=checkbox]):not([type=radio]),
+.row select, .row textarea, .field-val {
+  width: 100%; min-width: 0; padding: 7px 9px; border: 1px solid var(--line);
   border-radius: 8px; background: var(--paper); outline: none;
 }
-.row input:focus, .row select:focus, .row textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,127,184,.16); }
+.row input:not([type=checkbox]):focus, .row select:focus, .row textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,127,184,.16);
+}
 .row textarea { min-height: 70px; resize: vertical; }
+
+/* Галочки и переключатели: свой размер, без растягивания на всю строку */
+input[type=checkbox], input[type=radio] {
+  width: 17px; height: 17px; flex: 0 0 auto; margin: 0;
+  accent-color: var(--accent); cursor: pointer;
+}
+.row input[type=checkbox] { margin-top: 3px; }
+label.inline { cursor: pointer; }
 .inline { display: flex; gap: 6px; align-items: center; }
 .inline > * { min-width: 0; }
 
@@ -503,10 +545,12 @@ a { color: var(--accent); }
 .cal-when b { display: block; font-size: 17px; color: var(--ink); }
 .cal-soon { color: var(--good); font-weight: 700; }
 
-#mapCanvas {
+#mapCanvas, .map-host {
   position: relative; width: 100%; height: 100%; overflow: hidden;
   background: var(--neutral); touch-action: none; cursor: grab;
+  user-select: none; -webkit-user-select: none;
 }
+.map-tile { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
 #mapCanvas.grabbing { cursor: grabbing; }
 .map-tile { position: absolute; width: 256px; height: 256px; }
 .map-pin {
@@ -522,6 +566,38 @@ a { color: var(--accent); }
   background: rgba(255,255,255,.8); color: #333; padding: 1px 5px; border-radius: 4px;
 }
 .map-ctl { position: absolute; left: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 5; }
+.map-ctl .btn { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; }
+
+/* панель над картой выбора точки */
+.map-tools {
+  position: absolute; z-index: 6; left: 50px; right: 10px; top: 10px;
+  display: flex; gap: 6px; align-items: center;
+}
+.map-tools input {
+  flex: 1 1 auto; min-width: 0; padding: 7px 10px; border: 1px solid var(--line);
+  border-radius: 9px; background: var(--paper-2); outline: none;
+}
+.map-tools input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,127,184,.18); }
+.map-tools .btn { background: var(--paper-2); }
+.map-hits {
+  position: absolute; z-index: 7; left: 50px; right: 10px; top: 50px;
+  background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: var(--shadow); max-height: 220px; overflow: auto; padding: 4px;
+}
+.map-hits[hidden] { display: none !important; }
+.map-hits button {
+  display: block; width: 100%; text-align: left; border: 0; background: transparent;
+  padding: 7px 9px; border-radius: 7px; font-size: 13px;
+}
+.map-hits button:hover { background: var(--neutral); }
+.map-pick-wrap { position: relative; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.map-pick-wrap.full {
+  position: fixed; inset: 0; z-index: 140; border-radius: 0; border: 0;
+}
+.map-crosshair {
+  position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px;
+  pointer-events: none; z-index: 5; opacity: .5; color: var(--ink);
+}
 
 /* ---------- настройки ---------- */
 .set-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
@@ -620,7 +696,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
   background: linear-gradient(170deg, var(--female-top) 0%, var(--female) 58%, var(--female-bot) 100%);
   border-color: var(--female-edge);
 }
-.pv-node .node-mourn { width: 24px; height: 24px; }
+
 .pv-txt { overflow: hidden; }
 .pv-ph {
   flex: 0 0 auto; background: var(--paper-2); border: 1px solid rgba(0,0,0,.08);
@@ -720,6 +796,35 @@ table.data tbody tr:hover { background: var(--neutral); }
 .chip.add { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
 .chip.delete { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
 .chip.media { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+
+/* адрес: широкое поле на несколько строк */
+.field-wide {
+  width: 100%; margin-top: 5px; padding: 7px 9px; min-height: 46px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--paper);
+  outline: none; resize: vertical; line-height: 1.45; font: inherit;
+}
+.field-wide:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,127,184,.16); }
+
+/* ---------- кому видна запись ---------- */
+.acl-ctl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.acl-ctl select { flex: 0 1 auto; width: auto; min-width: 170px; }
+.acl-names {
+  display: block; margin-top: 3px; font-size: 11px; color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+.viewer-list {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 46vh; overflow: auto;
+  border: 1px solid var(--line); border-radius: 10px; padding: 5px; background: var(--paper);
+}
+.viewer-row {
+  display: flex; align-items: center; gap: 10px; padding: 7px 9px;
+  border-radius: 8px; cursor: pointer;
+}
+.viewer-row:hover { background: var(--neutral); }
+.viewer-row .li-main { display: flex; flex-direction: column; min-width: 0; }
+.viewer-row .mini-ph { width: 28px; height: 28px; }
+.viewer-row .mini-ph .ico { width: 16px; height: 16px; }
 </style>
 </head>
 <body>
@@ -767,6 +872,7 @@ table.data tbody tr:hover { background: var(--neutral); }
     <!-- дерево -->
     <section class="pane active" id="pane-tree">
       <div id="treeHost">
+        <div id="treeBgImage" hidden></div>
         <svg id="treeLines" xmlns="http://www.w3.org/2000/svg"></svg>
         <div id="treeCanvas"></div>
       </div>
@@ -831,6 +937,14 @@ table.data tbody tr:hover { background: var(--neutral); }
 
     pin: '<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
 
+    crosshair: '<circle cx="12" cy="12" r="7"/><line x1="12" y1="1.5" x2="12" y2="5"/>' +
+      '<line x1="12" y1="19" x2="12" y2="22.5"/><line x1="1.5" y1="12" x2="5" y2="12"/>' +
+      '<line x1="19" y1="12" x2="22.5" y2="12"/>' +
+      '<circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
+
+    fullscreen: '<polyline points="8 3 3 3 3 8"/><polyline points="16 3 21 3 21 8"/>' +
+      '<polyline points="21 16 21 21 16 21"/><polyline points="3 16 3 21 8 21"/>',
+
     search: '<circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.5" y1="15.5" x2="21" y2="21"/>',
 
     /* человек с плюсом — «добавить персону» */
@@ -840,15 +954,26 @@ table.data tbody tr:hover { background: var(--neutral); }
 
     person: '<circle cx="12" cy="8" r="3.8"/><path d="M5 20a7 7 0 0 1 14 0"/>',
 
-    /* мужской силуэт: плечи шире, стрижка короче */
-    personM: '<path d="M8.2 7.6a3.8 3.8 0 0 1 7.6 0v1a3.8 3.8 0 0 1-7.6 0z"/>' +
-      '<path d="M8.3 4.9a7 7 0 0 1 7.4 0"/>' +
-      '<path d="M4 20.5v-1.2c0-2.5 2.2-3.9 4.6-4.5l3.4 2 3.4-2c2.4.6 4.6 2 4.6 4.5v1.2"/>',
+    /* Профиль сбоку, лицом влево — как на приложенном образце.
+       Заливкой: силуэт читается лучше контура на размере 40 точек.
+       Опорные точки лица: нос — самая левая вершина (5.8), подбородок — 10.4. */
+    personM:
+      '<path d="M13.2 2.8C17 2.8 19 5.4 19 8.6c0 2.4-.7 4.3-2 5.5' +
+      'c-1 1-2.7 1.7-4.2 1.5L11.6 15.2 11.9 14.1 11.1 13.4 7.4 12 10.5 10.2' +
+      'C10.1 7.4 10.6 2.8 13.2 2.8z"/>' +
+      '<path d="M2.6 21.8c.2-2.9 2.4-4.4 5.2-5l3-.7v-2.3l1.2.6c1.3.6 2.8.5 4-.3' +
+      'l.3-.2v2.2l3 .7c2.8.6 5 2.1 5.2 5z"/>',
 
-    /* женский силуэт: волосы до плеч, силуэт уже */
-    personF: '<path d="M8.4 8.2a3.6 3.6 0 0 1 7.2 0v.6a3.6 3.6 0 0 1-7.2 0z"/>' +
-      '<path d="M7.6 11.4C6.6 9.8 6.6 5 12 5s5.4 4.8 4.4 6.4"/>' +
-      '<path d="M5.4 20.5v-.9c0-2.4 2.1-3.8 4.3-4.4l2.3 1.7 2.3-1.7c2.2.6 4.3 2 4.3 4.4v.9"/>',
+    personF:
+      /* та же голова и плечи, плюс волосы, уходящие на спину */
+      '<path d="M13.2 2.6c4.4 0 7.2 2.9 7.2 6.9 0 2.2-.45 4-1.35 5.3l1.35 4.5' +
+      'c.24.8-.36 1.6-1.2 1.6h-2.6l-1.3-4.9.55-.5c1.5-1.35 2.25-3.2 2.25-5.5' +
+      'c0-2.6-1.8-4.5-4.4-4.6z"/>' +
+      '<path d="M13.2 2.8C17 2.8 19 5.4 19 8.6c0 2.4-.7 4.3-2 5.5' +
+      'c-1 1-2.7 1.7-4.2 1.5L11.6 15.2 11.9 14.1 11.1 13.4 7.4 12 10.5 10.2' +
+      'C10.1 7.4 10.6 2.8 13.2 2.8z"/>' +
+      '<path d="M2.6 21.8c.2-2.9 2.4-4.4 5.2-5l3-.7v-2.3l1.2.6c1.3.6 2.8.5 4-.3' +
+      'l.3-.2v2.2l3 .7c2.8.6 5 2.1 5.2 5z"/>',
 
     sync: '<path d="M20.5 11a8.5 8.5 0 0 0-14.8-5"/><polyline points="4 3 4 7 8 7"/>' +
       '<path d="M3.5 13a8.5 8.5 0 0 0 14.8 5"/><polyline points="20 21 20 17 16 17"/>',
@@ -863,6 +988,8 @@ table.data tbody tr:hover { background: var(--neutral); }
       '<line x1="14" y1="11" x2="14" y2="17"/>',
     photo: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.8"/>' +
       '<polyline points="4 17 9.5 12 13 15 16.5 12 20 15.5"/>',
+    upload: '<path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>' +
+      '<polyline points="8 8 12 4 16 8"/><line x1="12" y1="4" x2="12" y2="16"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><polyline points="12 7 12 12 15.5 14"/>',
     tree: '<circle cx="12" cy="4.6" r="2.4"/><circle cx="5.5" cy="19.4" r="2.4"/>' +
       '<circle cx="18.5" cy="19.4" r="2.4"/><path d="M12 7v4H5.5v6M12 11h6.5v6"/>',
@@ -882,12 +1009,19 @@ table.data tbody tr:hover { background: var(--neutral); }
       '<circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none"/>'
   };
 
-  /** Значок как строка SVG. size — в em, чтобы тянулся за шрифтом кнопки. */
+  // эти рисуются заливкой, а не контуром
+  var FILLED = { personM: 1, personF: 1 };
+
+  /** Значок как строка SVG. Размер задаётся снаружи, через CSS. */
   function icon(name, opts) {
     opts = opts || {};
     var body = P[name];
     if (!body) return '';
     var cls = 'ico' + (opts.cls ? ' ' + opts.cls : '');
+    if (FILLED[name]) {
+      return '<svg class="' + cls + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false" ' +
+        'fill="currentColor" stroke="none">' + body + '</svg>';
+    }
     return '<svg class="' + cls + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false" ' +
       'fill="none" stroke="currentColor" stroke-width="' + (opts.weight || 1.7) + '" ' +
       'stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
@@ -1026,6 +1160,55 @@ table.data tbody tr:hover { background: var(--neutral); }
       .then(function (pt) { return new TextDecoder().decode(pt); })
       .catch(function () { return ''; });
   }
+  /* Пароль хранится свёрткой PBKDF2 с личной солью. Раньше это был простой
+     SHA-256; такие записи ещё проверяются, но при первом же удачном входе
+     пересчитываются по-новому. Список пользователей едет вместе с деревом,
+     поэтому свёртка должна быть дорогой для подбора. */
+  var KDF_ITERS = 210000;
+
+  function hashPassword(password, saltB64, iters) {
+    saltB64 = saltB64 || bytesToB64(crypto.getRandomValues(new Uint8Array(16)));
+    iters = iters || KDF_ITERS;
+    if (!subtle) {
+      return sha256hex(password + '::' + saltB64).then(function (h) {
+        return { algo: 'sha256-plain', salt: saltB64, iters: 1, hash: h };
+      });
+    }
+    return subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits'])
+      .then(function (base) {
+        return subtle.deriveBits(
+          { name: 'PBKDF2', salt: b64ToBytes(saltB64), iterations: iters, hash: 'SHA-256' },
+          base, 256);
+      })
+      .then(function (bits) {
+        return { algo: 'pbkdf2-sha256', salt: saltB64, iters: iters, hash: bytesToB64(bits) };
+      });
+  }
+
+  /** одинаковы ли две строки — без подсказок по времени сравнения */
+  function sameSecret(a, b) {
+    a = String(a || ''); b = String(b || '');
+    if (a.length !== b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return diff === 0;
+  }
+
+  function verifyPassword(user, password) {
+    if (!user) return Promise.resolve(false);
+    if (user.kdf && user.kdf.algo === 'pbkdf2-sha256') {
+      return hashPassword(password, user.kdf.salt, user.kdf.iters)
+        .then(function (r) { return sameSecret(r.hash, user.kdf.hash); });
+    }
+    if (user.kdf && user.kdf.algo === 'sha256-plain') {
+      return sha256hex(password + '::' + user.kdf.salt)
+        .then(function (h) { return sameSecret(h, user.kdf.hash); });
+    }
+    // записи старого образца
+    return sha256hex(password + '::' + user.login)
+      .then(function (h) { return sameSecret(h, user.hash); });
+  }
+
   function sha256hex(str) {
     if (!subtle) return Promise.resolve('plain:' + str);
     return subtle.digest('SHA-256', new TextEncoder().encode(str)).then(function (b) {
@@ -1055,6 +1238,10 @@ table.data tbody tr:hover { background: var(--neutral); }
         { id: 'photos', title: 'Фото', icon: 'photo', builtin: true },
         { id: 'changes', title: 'Изменения', icon: 'clock', builtin: true }
       ],
+      /* Учётные записи лежат в самом дереве, а не на устройстве: иначе
+         логин, заведённый на компьютере, не существовал бы на телефоне.
+         Пароли хранятся только как PBKDF2-свёртка с личной солью. */
+      users: [],
       /* следы удалённых записей: id -> когда удалили.
          Без них удаление, сделанное на одном устройстве, вернулось бы
          обратно при первой же синхронизации с другого. */
@@ -1109,7 +1296,6 @@ table.data tbody tr:hover { background: var(--neutral); }
   /* ---------- Store ---------- */
   var Store = {
     tree: emptyTree(),
-    users: [],
     session: null,
     prefs: null,
     listeners: [],
@@ -1138,10 +1324,22 @@ table.data tbody tr:hover { background: var(--neutral); }
         }
         this.sync = JSON.parse(localStorage.getItem(LS_SYNC) || 'null') || defaultSync();
       } catch (e) { this.deviceId = uid('dev'); this.sync = defaultSync(); }
+      if (!Array.isArray(this.tree.users)) this.tree.users = [];
+      // перенос со старых версий, где список лежал отдельно на устройстве
       try {
-        var u = localStorage.getItem(LS_USERS);
-        this.users = u ? JSON.parse(u) : [];
-      } catch (e) { this.users = []; }
+        var old = localStorage.getItem(LS_USERS);
+        if (old && !this.tree.users.length) {
+          var list = JSON.parse(old);
+          if (Array.isArray(list) && list.length) {
+            this.tree.users = list.map(function (u) {
+              u.updated = u.updated || u.created || nowISO();
+              return u;
+            });
+            this.save(true);
+          }
+        }
+        if (old) localStorage.removeItem(LS_USERS);
+      } catch (e) {}
       try {
         var s = localStorage.getItem(LS_SESSION);
         this.session = s ? JSON.parse(s) : null;
@@ -1158,9 +1356,7 @@ table.data tbody tr:hover { background: var(--neutral); }
       catch (e) { console.error('Не удалось сохранить дерево', e); }
       if (!silent) this.emit('tree');
     },
-    saveUsers: function () {
-      try { localStorage.setItem(LS_USERS, JSON.stringify(this.users)); } catch (e) {}
-    },
+    saveUsers: function () { this.save(true); },
     saveSync: function () {
       try { localStorage.setItem(LS_SYNC, JSON.stringify(this.sync)); } catch (e) {}
       this.emit('sync');
@@ -1189,6 +1385,9 @@ table.data tbody tr:hover { background: var(--neutral); }
         ui: { fontSize: 14, tabSize: 14, iconSize: 17 },
         treeBg: 'auto',      // 'auto' — как у страницы, иначе цвет
         treeGrid: false,     // точечная сетка на полотне
+        treeImage: false,    // своя картинка под деревом
+        treeImageFit: 'cover',   // cover | tile
+        treeImageFade: 35,   // насколько приглушить, %
         showPhotos: true,
         showDates: true
       };
@@ -1504,6 +1703,10 @@ table.data tbody tr:hover { background: var(--neutral); }
       if (!acl) return true;
       if (this.isAdmin()) return true;
       if (acl.level === 'admin' || acl.level === 'owner') return false;
+      // «только выбранным»: поимённый список тех, кому запись открыта
+      if (acl.level === 'chosen') {
+        return !!(this.session && (acl.allow || []).indexOf(this.session.userId) >= 0);
+      }
       if (acl.level === 'group') return !!this.session;
       return true;
     },
@@ -1511,32 +1714,60 @@ table.data tbody tr:hover { background: var(--neutral); }
       if (this.isAdmin()) return true;
       if (!acl) return !!this.session;
       if (acl.locked) return false;
-      return acl.level !== 'admin' && acl.level !== 'owner' && !!this.session;
+      if (acl.level === 'admin' || acl.level === 'owner') return false;
+      if (acl.level === 'chosen') return this.canSee(acl);
+      return !!this.session;
+    },
+    /** имена тех, кому открыта запись */
+    allowedNames: function (acl) {
+      var self = this;
+      return ((acl && acl.allow) || []).map(function (id) {
+        var u = self.users.filter(function (x) { return x.id === id; })[0];
+        return u ? u.displayName : null;
+      }).filter(Boolean);
     },
 
     /* --- пользователи --- */
     createUser: function (login, password, role, displayName) {
       var self = this;
-      return sha256hex(password + '::' + login.toLowerCase()).then(function (h) {
+      return hashPassword(password).then(function (kdf) {
         var u = {
-          id: uid('U'), login: login.toLowerCase(), hash: h,
+          id: uid('U'), login: String(login).toLowerCase().trim(), kdf: kdf,
           role: role || 'user', displayName: displayName || login,
-          created: nowISO(), invite: uid('inv'), active: true, webauthn: null
+          created: nowISO(), updated: nowISO(),
+          invite: uid('inv'), active: true, webauthn: null
         };
         self.users.push(u);
-        self.saveUsers();
-        self.log('user', 'Создан пользователь ' + u.displayName + ' (' + (u.role === 'admin' ? 'администратор' : 'пользователь') + ')');
+        self.log('user', 'Создан пользователь ' + u.displayName + ' (' +
+          (u.role === 'admin' ? 'администратор' : 'пользователь') + ')');
         self.save();
         return u;
       });
     },
+    /** задать новый пароль (приглашение, смена) */
+    setPassword: function (user, password) {
+      var self = this;
+      return hashPassword(password).then(function (kdf) {
+        user.kdf = kdf;
+        delete user.hash;
+        user.updated = nowISO();
+        self.save();
+        return user;
+      });
+    },
     auth: function (login, password) {
       var self = this;
-      var u = this.users.filter(function (x) { return x.login === String(login).toLowerCase(); })[0];
-      if (!u) return Promise.resolve(null);
-      if (!u.active) return Promise.resolve(null);
-      return sha256hex(password + '::' + u.login).then(function (h) {
-        return h === u.hash ? u : null;
+      var u = this.users.filter(function (x) {
+        return x.login === String(login).toLowerCase().trim();
+      })[0];
+      if (!u || !u.active) return Promise.resolve(null);
+      return verifyPassword(u, password).then(function (ok) {
+        if (!ok) return null;
+        // запись старого образца — пересчитать по-новому
+        if (!u.kdf || u.kdf.algo !== 'pbkdf2-sha256') {
+          return self.setPassword(u, password).then(function () { return u; });
+        }
+        return u;
       });
     },
     unlockCrypto: function (passphrase) {
@@ -1668,9 +1899,19 @@ table.data tbody tr:hover { background: var(--neutral); }
     return d.d + ' ' + mon[d.m - 1] + ' ' + d.y;
   }
 
+  // список пользователей — это всегда tree.users, какое бы дерево ни подставили
+  Object.defineProperty(Store, 'users', {
+    get: function () {
+      if (!Array.isArray(this.tree.users)) this.tree.users = [];
+      return this.tree.users;
+    },
+    set: function (v) { this.tree.users = Array.isArray(v) ? v : []; }
+  });
+
   Store.util = {
     uid: uid, clone: clone, nowISO: nowISO, parseDate: parseDate, formatDate: formatDate,
     yr: yr, kindOf: kindOf, sha256hex: sha256hex,
+    hashPassword: hashPassword, verifyPassword: verifyPassword,
     encryptText: encryptText, decryptText: decryptText,
     encryptBlob: encryptBlob, decryptBlob: decryptBlob,
     blobPut: blobPut, blobGet: blobGet, blobDel: blobDel,
@@ -1723,7 +1964,158 @@ table.data tbody tr:hover { background: var(--neutral); }
   Tree.prototype.setMode = function (m) { this.mode = m; this.render(true); };
 
   /* ---------------- раскладка ---------------- */
+  /* ---------------- «бабочка» ----------------
+     Фокус в середине. Предки по отцу расходятся веером влево, по матери —
+     вправо, потомки уходят вниз. Это другая раскладка, а не вертикальная
+     с перекосом, поэтому считается отдельно. */
+  Tree.prototype.computeButterfly = function () {
+    var self = this, prefs = S.prefs;
+    var CW = prefs.card.w, CH = prefs.card.h;
+    var COL = CW + 64;        // шаг между поколениями предков
+    var ROW = CH + 18;        // шаг между соседями по вертикали
+    var LEVEL = CH + 78;      // шаг между поколениями потомков
+
+    var focus = S.person(this.focusId);
+    if (!focus) return { cards: [], links: [], w: 0, h: 0, map: {}, paths: [] };
+
+    var cards = [], links = [], placed = {};
+    function put(person, x, y, role) {
+      var c = { id: person.id, person: person, x: Math.round(x), y: Math.round(y),
+        w: CW, h: CH, role: role || 'blood' };
+      cards.push(c);
+      placed[person.id] = c;
+      return c;
+    }
+
+    /* ---- крылья предков ---- */
+    // side: -1 влево (по отцу), +1 вправо (по матери)
+    function wing(pid, gen, side, cursor) {
+      var par = gen <= self.up ? S.parentsOf(pid).filter(function (p) { return !placed[p.id]; }) : [];
+      var y;
+      if (!par.length) {
+        y = cursor.v;
+        cursor.v += ROW;
+      } else {
+        var ys = par.map(function (p) { return wing(p.id, gen + 1, side, cursor); });
+        y = (ys[0] + ys[ys.length - 1]) / 2;
+      }
+      var p = S.person(pid);
+      if (p && !placed[pid]) put(p, side * gen * COL - CW / 2, y - CH / 2);
+      return y;
+    }
+
+    var parents = S.parentsOf(focus.id);
+    var father = parents.filter(function (p) { return p.sex !== 'F'; })[0] || parents[0] || null;
+    var mother = parents.filter(function (p) { return p !== father; })[0] || null;
+
+    placed[focus.id] = true;                       // чтобы крылья его не заняли
+    var leftCur = { v: 0 }, rightCur = { v: 0 };
+    var leftY = father ? wing(father.id, 1, -1, leftCur) : null;
+    var rightY = mother ? wing(mother.id, 1, 1, rightCur) : null;
+    delete placed[focus.id];
+
+    // выровнять крылья по вертикали друг относительно друга
+    function shift(side, dy) {
+      cards.forEach(function (c) {
+        if ((side < 0 && c.x < -CW / 2) || (side > 0 && c.x > CW / 2)) c.y += dy;
+      });
+    }
+    if (leftY != null && rightY != null) {
+      var mid = (leftY + rightY) / 2;
+      shift(-1, mid - leftY); shift(1, mid - rightY);
+      leftY = rightY = mid;
+    }
+    var axis = leftY != null ? leftY : (rightY != null ? rightY : 0);
+
+    /* ---- фокус и его супруги ---- */
+    var me = put(focus, -CW / 2, axis - CH / 2, 'focus');
+    var mates = S.spousesOf(focus.id).filter(function (x) { return !placed[x.id]; });
+    var mateCards = [];
+    if (mates.length) {
+      // супруг встаёт справа от фокуса — правое крыло отодвигаем, чтобы не наложилось
+      var push = CW + 28;
+      cards.forEach(function (c) { if (c.x > 0) c.x += push; });
+      mateCards.push(put(mates[0], CW / 2 + 14, axis - CH / 2, 'spouse'));
+      links.push({ kind: 'couple', a: focus.id, b: mates[0].id });
+    }
+
+    /* ---- потомки вниз ---- */
+    var kidsTop = axis + CH / 2 + 46;
+    function descend(pid, gen, cursor) {
+      var kids = S.childrenOf(pid).filter(function (k) { return !placed[k.id]; });
+      var xs = [];
+      kids.forEach(function (k) {
+        placed[k.id] = true;
+        var kx = descend(k.id, gen + 1, cursor);
+        xs.push(kx);
+      });
+      var x;
+      if (!xs.length) { x = cursor.v; cursor.v += CW + 26; }
+      else x = (xs[0] + xs[xs.length - 1]) / 2;
+      var p = S.person(pid);
+      if (p && placed[pid] === true) put(p, x - CW / 2, kidsTop + (gen - 1) * LEVEL);
+      return x;
+    }
+    var kidCursor = { v: 0 };
+    var directKids = S.childrenOf(focus.id);
+    var kidXs = [];
+    directKids.forEach(function (k) {
+      if (placed[k.id]) return;
+      placed[k.id] = true;
+      kidXs.push(descend(k.id, 1, kidCursor));
+    });
+    if (kidXs.length) {
+      // сдвинуть всех потомков так, чтобы их середина была под фокусом
+      var mid2 = (kidXs[0] + kidXs[kidXs.length - 1]) / 2;
+      var anchor = mateCards.length ? (me.x + me.w + 14 + CW / 2) / 2 : 0;
+      var dx = anchor - mid2;
+      cards.forEach(function (c) { if (c.y > axis + CH) c.x += dx; });
+      directKids.forEach(function (k) {
+        if (placed[k.id] && typeof placed[k.id] === 'object') {
+          links.push({ kind: 'parent', from: mateCards.length ? [focus.id, mates[0].id] : [focus.id], to: k.id });
+        }
+      });
+      // связи внутри потомков
+      cards.forEach(function (c) {
+        if (c.y <= axis + CH) return;
+        S.childrenOf(c.id).forEach(function (ch) {
+          if (placed[ch.id] && typeof placed[ch.id] === 'object') {
+            links.push({ kind: 'parent', from: [c.id], to: ch.id });
+          }
+        });
+      });
+    }
+
+    /* ---- связи в крыльях: ребёнок ← родитель ---- */
+    cards.forEach(function (c) {
+      if (c.y > axis + CH) return;                 // потомков уже связали
+      S.parentsOf(c.id).forEach(function (par) {
+        if (placed[par.id] && typeof placed[par.id] === 'object') {
+          links.push({ kind: 'wing', from: par.id, to: c.id });
+        }
+      });
+    });
+
+    /* ---- в пиксели ---- */
+    var PAD = 60;
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    cards.forEach(function (c) {
+      minX = Math.min(minX, c.x); maxX = Math.max(maxX, c.x + c.w);
+      minY = Math.min(minY, c.y); maxY = Math.max(maxY, c.y + c.h);
+    });
+    cards.forEach(function (c) {
+      c.x = Math.round(c.x - minX + PAD);
+      c.y = Math.round(c.y - minY + PAD);
+    });
+    return {
+      cards: cards, links: links, map: placed,
+      w: (maxX - minX) + PAD * 2, h: (maxY - minY) + PAD * 2,
+      butterfly: true
+    };
+  };
+
   Tree.prototype.compute = function () {
+    if (this.mode === 'butterfly') return this.computeButterfly();
     var self = this, prefs = S.prefs;
     var CW = prefs.card.w, CH = prefs.card.h;
     var mode = this.mode;
@@ -1733,6 +2125,10 @@ table.data tbody tr:hover { background: var(--neutral); }
     if (mode === 'horizontal') { SLOT = CH + 22; LEVEL = CW + 110; }
     else { SLOT = CW + 26; LEVEL = CH + 78; }
     var MATE = (mode === 'horizontal') ? CH + 10 : CW + 12;  // шаг внутри пары супругов
+    // Протяжённость самой карточки вдоль оси «братья-сёстры». SLOT шире неё
+    // на зазор; если ставить карточки по SLOT, центр пары уезжает от центра
+    // детей на половину зазора — и линия вниз получается с изломом.
+    var CARD = (mode === 'horizontal') ? CH : CW;
 
     var cards = [], links = [];
     var focus = S.person(this.focusId);
@@ -1795,7 +2191,9 @@ table.data tbody tr:hover { background: var(--neutral); }
         }
       }
 
-      var left = center - uw / 2;
+      // ставим по настоящей ширине карточек, а не по ширине слота
+      var span = (unit.length > 1 ? MATE : 0) + CARD;
+      var left = center - span / 2;
       unit.forEach(function (pid, i) {
         addCard(pid, gen, left + i * MATE, i === 0 ? 'blood' : 'spouse');
       });
@@ -1829,7 +2227,7 @@ table.data tbody tr:hover { background: var(--neutral); }
         var w2 = wing;
         if (w2 === 0) w2 = (p.sex === 'F' ? 1 : -1);
         var bias = (mode === 'butterfly') ? w2 * SLOT * 0.9 * (self.up - depth + 1) : 0;
-        addCard(p.id, gen, c - SLOT / 2 + bias, 'blood');
+        addCard(p.id, gen, c - CARD / 2 + bias, 'blood');
         ascend(p.id, c + bias, gen - 1, depth - 1, w2);
       });
       var both = par.length === 2 && placed[par[0].id] && placed[par[1].id];
@@ -1859,7 +2257,7 @@ table.data tbody tr:hover { background: var(--neutral); }
     rootUnit.forEach(function (pid) {
       var c = placed[pid];
       if (!c) return;
-      ascend(pid, c.pos + SLOT / 2, c.gen - 1, self.up, 0);
+      ascend(pid, c.pos + CARD / 2, c.gen - 1, self.up, 0);
     });
 
     // развести предков, которые наехали друг на друга
@@ -1882,7 +2280,7 @@ table.data tbody tr:hover { background: var(--neutral); }
     });
     var PAD = 60;
     cards.forEach(function (c) {
-      var p = c.pos - minPos, g = c.gen - minGen;
+      var p = Math.round(c.pos - minPos), g = c.gen - minGen;
       if (mode === 'horizontal') { c.x = PAD + g * LEVEL; c.y = PAD + p; }
       else { c.x = PAD + p; c.y = PAD + g * LEVEL; }
       c.w = CW; c.h = CH;
@@ -1923,8 +2321,11 @@ table.data tbody tr:hover { background: var(--neutral); }
        повисает в воздухе. Линия от пары детей выходит из середины связки
        супругов — то есть с отрезка, который уже нарисован между ними. */
     var paths = [], map = res.map;
-    var horiz = this.mode === 'horizontal';
+    var horiz = this.mode === 'horizontal';   // «бабочка» ведёт потомков вниз, как вертикальная
     var OVER = 1;                      // заход под рамку, чтобы не было волоска зазора
+    // Координаты округляем до целого: на дробных линия размазывается между
+    // двумя столбцами точек и на глаз выглядит кривой.
+    function q(v) { return Math.round(v); }
 
     function coupleLine(a, b) {
       return horiz
@@ -1938,9 +2339,24 @@ table.data tbody tr:hover { background: var(--neutral); }
         if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return;
         var ln = coupleLine(a, b);
         paths.push({
-          d: 'M' + (ln.x1 - OVER * (horiz ? 0 : 1)) + ',' + (ln.y1 - OVER * (horiz ? 1 : 0)) +
-            ' L' + (ln.x2 + OVER * (horiz ? 0 : 1)) + ',' + (ln.y2 + OVER * (horiz ? 1 : 0)),
+          d: 'M' + q(ln.x1 - OVER * (horiz ? 0 : 1)) + ',' + q(ln.y1 - OVER * (horiz ? 1 : 0)) +
+            ' L' + q(ln.x2 + OVER * (horiz ? 0 : 1)) + ',' + q(ln.y2 + OVER * (horiz ? 1 : 0)),
           cls: 'lnk-couple'
+        });
+        return;
+      }
+      if (L.kind === 'wing') {
+        // крыло «бабочки»: родитель сбоку, ребёнок ближе к середине
+        var par = map[L.from], ch = map[L.to];
+        if (!par || !ch || typeof par !== 'object' || typeof ch !== 'object') return;
+        var toLeft = par.x < ch.x;
+        var sx = toLeft ? par.x + par.w - OVER : par.x + OVER;
+        var ex = toLeft ? ch.x + OVER : ch.x + ch.w - OVER;
+        var mx2 = (sx + ex) / 2;
+        paths.push({
+          d: 'M' + q(sx) + ',' + q(par.y + par.h / 2) + ' H' + q(mx2) +
+             ' V' + q(ch.y + ch.h / 2) + ' H' + q(ex),
+          cls: 'lnk-parent'
         });
         return;
       }
@@ -1967,11 +2383,17 @@ table.data tbody tr:hover { background: var(--neutral); }
       if (horiz) {
         var tx = kid.x + OVER, ty = kid.y + kid.h / 2;
         var mx = Math.max(ox + 12, (ox + tx) / 2);
-        paths.push({ d: 'M' + ox + ',' + oy + ' H' + mx + ' V' + ty + ' H' + tx, cls: 'lnk-parent' });
+        paths.push({
+          d: 'M' + q(ox) + ',' + q(oy) + ' H' + q(mx) + ' V' + q(ty) + ' H' + q(tx),
+          cls: 'lnk-parent'
+        });
       } else {
         var tx2 = kid.x + kid.w / 2, ty2 = kid.y + OVER;
         var my = Math.max(oy + 12, (oy + ty2) / 2);
-        paths.push({ d: 'M' + ox + ',' + oy + ' V' + my + ' H' + tx2 + ' V' + ty2, cls: 'lnk-parent' });
+        paths.push({
+          d: 'M' + q(ox) + ',' + q(oy) + ' V' + q(my) + ' H' + q(tx2) + ' V' + q(ty2),
+          cls: 'lnk-parent'
+        });
       }
     });
     this.svg.innerHTML = paths.map(function (p) {
@@ -2024,7 +2446,7 @@ table.data tbody tr:hover { background: var(--neutral); }
     html += '</div>';
     if (isGone(p)) {
       // траурная полоса на верхнем левом углу
-      html += '<span class="node-mourn" aria-hidden="true" style="border-top-left-radius:' + radius + 'px"></span>';
+      html += '<span class="node-mourn" aria-hidden="true"></span>';
     }
     if (p.acl && (p.acl.locked || p.acl.level !== 'public')) {
       html += '<span class="node-lock" title="Ограниченный доступ">' + global.Icon('lock') + '</span>';
@@ -2779,6 +3201,16 @@ table.data tbody tr:hover { background: var(--neutral); }
       }
     });
 
+    /* --- учётные записи: по id, побеждает более поздняя правка --- */
+    var users = {}, uorder = [];
+    (out.users || []).concat(remote.users || []).forEach(function (u) {
+      if (!u || !u.id) return;
+      if (graves[u.id] && !newer(u.updated, graves[u.id])) return;
+      if (!users[u.id]) { users[u.id] = u; uorder.push(u.id); }
+      else if (newer(u.updated, users[u.id].updated)) users[u.id] = u;
+    });
+    out.users = uorder.map(function (id) { return users[id]; });
+
     /* --- вкладки: по id, встроенные не трогаем --- */
     var tabs = {}, order = [];
     (out.tabs || []).concat(remote.tabs || []).forEach(function (t) {
@@ -3400,8 +3832,11 @@ table.data tbody tr:hover { background: var(--neutral); }
       self.onClick(y2lat(top + (e.clientY - r.top), z), x2lon(left + (e.clientX - r.left), z));
     });
     var drag = null;
+    this.host.addEventListener('dragstart', function (e) { e.preventDefault(); });
     this.host.addEventListener('pointerdown', function (e) {
       if (e.target.closest('.map-ctl') || e.target.closest('.map-pin')) return;
+      if (e.target.closest('.map-tools')) return;
+      e.preventDefault();
       drag = { x: e.clientX, y: e.clientY, cx: self.cx, cy: self.cy };
       self._moved = false;
       self.host.setPointerCapture(e.pointerId);
@@ -3427,6 +3862,13 @@ table.data tbody tr:hover { background: var(--neutral); }
   };
 
   MiniMap.prototype.setPins = function (pins) { this.pins = pins || []; this.draw(); };
+
+  /** поставить центр и приближение */
+  MiniMap.prototype.goTo = function (lat, lng, z) {
+    this.cx = lat; this.cy = lng;
+    if (z) this.z = Math.max(2, Math.min(18, z));
+    this.draw();
+  };
 
   MiniMap.prototype.fit = function () {
     if (!this.pins.length) return;
@@ -3460,8 +3902,9 @@ table.data tbody tr:hover { background: var(--neutral); }
       for (var y = y0; y < y1; y++) {
         if (y < 0 || y >= max) continue;
         var tx = ((x % max) + max) % max;
-        html += '<img class="map-tile" alt="" loading="lazy" src="https://tile.openstreetmap.org/' +
-          z + '/' + tx + '/' + y + '.png" style="left:' + (x * TILE - left) + 'px;top:' + (y * TILE - top) + 'px">';
+        html += '<img class="map-tile" alt="" loading="lazy" draggable="false" ' +
+          'src="https://tile.openstreetmap.org/' + z + '/' + tx + '/' + y + '.png" ' +
+          'style="left:' + (x * TILE - left) + 'px;top:' + (y * TILE - top) + 'px">';
       }
     }
     this.pins.forEach(function (p, i) {
@@ -3497,6 +3940,7 @@ table.data tbody tr:hover { background: var(--neutral); }
   var ACL_LEVELS = [
     { v: 'public', t: 'Видно всем' },
     { v: 'group', t: 'Только вошедшим' },
+    { v: 'chosen', t: 'Только выбранным' },
     { v: 'admin', t: 'Только администратору' }
   ];
 
@@ -3647,11 +4091,21 @@ table.data tbody tr:hover { background: var(--neutral); }
     return '<button class="btn btn-sm mic-btn" data-act="dictate" data-target="' + target +
       '" title="Надиктовать" aria-label="Надиктовать">' + I('mic') + '</button>';
   }
+  /** Выбор видимости: список уровней, а для «только выбранным» — кнопка
+      с поимённым перечнем тех, кому запись открыта. */
   function aclSelect(bindAttr, acl) {
     acl = acl || { level: 'public', locked: false };
-    return '<select data-acl="' + bindAttr + '">' + ACL_LEVELS.map(function (l) {
+    var out = '<select data-acl="' + bindAttr + '">' + ACL_LEVELS.map(function (l) {
       return '<option value="' + l.v + '"' + (acl.level === l.v ? ' selected' : '') + '>' + l.t + '</option>';
     }).join('') + '</select>';
+    if (acl.level === 'chosen') {
+      var names = S.allowedNames(acl);
+      out += '<button class="btn btn-sm" data-act="pickViewers" data-key="' + bindAttr + '" ' +
+        'title="Кому открыта эта запись">' + I('person') +
+        (names.length ? ' ' + names.length : ' выбрать') + '</button>';
+      if (names.length) out += '<span class="note acl-names">' + esc(names.join(', ')) + '</span>';
+    }
+    return out;
   }
 
   Sheet.prototype.views = {
@@ -3772,16 +4226,19 @@ table.data tbody tr:hover { background: var(--neutral); }
 
     access: function (p) {
       var a = p.acl || { level: 'public', locked: false };
-      return '<p class="note">Права действуют на всю карточку. Отдельные строки, файлы и события закрываются каждый своим замком ' +
-        'на соответствующих вкладках.</p>' +
-        row('Видимость', '<select data-acl="person">' + ACL_LEVELS.map(function (l) {
-          return '<option value="' + l.v + '"' + (a.level === l.v ? ' selected' : '') + '>' + l.t + '</option>';
-        }).join('') + '</select>') +
+      return '<p class="note">Права действуют на всю карточку. Отдельные строки, файлы и события закрываются ' +
+        'каждый своим замком на соответствующих вкладках.</p>' +
+        row('Видимость', '<div class="acl-ctl">' + aclSelect('person', a) + '</div>') +
         row('Замок', '<label class="inline"><input type="checkbox" data-lock="person"' + (a.locked ? ' checked' : '') +
           '> <span class="note">запретить изменение всем, кроме администратора</span></label>') +
         '<div class="sect-title">Что это значит</div>' +
-        '<p class="note">«Только администратору» скрывает запись у обычных пользователей и шифрует связанные с ней файлы ' +
-        'при сохранении и в резервной копии. Ключ выводится из пароля дерева и нигде не хранится.</p>';
+        '<p class="note"><b>Видно всем</b> — запись открыта любому, кто откроет дерево.<br>' +
+        '<b>Только вошедшим</b> — её видят все, у кого есть логин.<br>' +
+        '<b>Только выбранным</b> — вы сами отмечаете, кому из родственников она видна; ' +
+        'остальные её не увидят.<br>' +
+        '<b>Только администратору</b> — скрыта у всех обычных пользователей.</p>' +
+        '<p class="note">Записи с замком и закрытые записи шифруются при сохранении и в резервной копии. ' +
+        'Ключ выводится из пароля дерева и нигде не хранится.</p>';
     }
   };
 
@@ -3884,6 +4341,21 @@ table.data tbody tr:hover { background: var(--neutral); }
 
   Sheet.prototype.bindFields = function (body) {
     var self = this, p = S.person(this.personId);
+    body.querySelectorAll('input[data-f$=".value"][data-kind="phone"]').forEach(function (inp) {
+      inp.addEventListener('focus', function () {
+        if (!inp.value.trim()) { inp.value = '+7 '; }
+        // курсор в конец, чтобы не править код страны случайно
+        setTimeout(function () { inp.setSelectionRange(inp.value.length, inp.value.length); }, 0);
+      });
+    });
+    body.querySelectorAll('textarea.field-wide').forEach(function (ta) {
+      function grow() {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(220, Math.max(46, ta.scrollHeight)) + 'px';
+      }
+      ta.addEventListener('input', grow);
+      grow();
+    });
     body.querySelectorAll('[data-f]').forEach(function (inp) {
       inp.addEventListener('input', function () {
         var parts = inp.dataset.f.split('.');
@@ -3894,15 +4366,24 @@ table.data tbody tr:hover { background: var(--neutral); }
         });
       });
     });
-    body.querySelectorAll('[data-acl]').forEach(function (sel) {
+    self.bindAclSelects(body);
+  };
+
+  /* Права применяются сразу, а не через очередь: это осознанный выбор,
+     от него зависит сам вид строки (появляется список людей), и закрытие
+     карточки не должно молча отменять ограничение. */
+  Sheet.prototype.bindAclSelects = function (body) {
+    var self = this;
+    body.querySelectorAll('select[data-acl]').forEach(function (sel) {
       sel.addEventListener('change', function () {
-        var key = sel.dataset.acl, v = sel.value;
-        self.stage('acl:' + key, function () {
-          if (key.indexOf('f:') === 0) {
-            var f = (p.fields || []).filter(function (x) { return x.id === key.slice(2); })[0];
-            if (f) { f.acl = f.acl || {}; f.acl.level = v; }
-          }
-        });
+        var acl = self.aclByKey(sel.dataset.acl);
+        if (!acl) return;
+        acl.level = sel.value;
+        if (acl.level === 'chosen') acl.allow = acl.allow || [];
+        S.updatePerson(self.personId, {});
+        self.onChange();
+        self.renderBody();
+        if (acl.level === 'chosen' && !acl.allow.length) self.pickViewers(sel.dataset.acl);
       });
     });
   };
@@ -3919,24 +4400,12 @@ table.data tbody tr:hover { background: var(--neutral); }
         });
       });
     });
-    body.querySelectorAll('[data-acl]').forEach(function (sel) {
-      sel.addEventListener('change', function () {
-        var id = sel.dataset.acl.replace('ev:', ''), v = sel.value;
-        self.stage('evacl:' + id, function () {
-          var e = (p.events || []).filter(function (x) { return x.id === id; })[0];
-          if (e) { e.acl = e.acl || {}; e.acl.level = v; }
-        });
-      });
-    });
+    self.bindAclSelects(body);
   };
 
   Sheet.prototype.bindAcl = function (body) {
     var self = this, p = S.person(this.personId);
-    var sel = body.querySelector('[data-acl="person"]');
-    if (sel) sel.addEventListener('change', function () {
-      var v = sel.value;
-      self.stage('person.acl', function () { p.acl = p.acl || {}; p.acl.level = v; });
-    });
+    self.bindAclSelects(body);
     var lock = body.querySelector('[data-lock="person"]');
     if (lock) lock.addEventListener('change', function () {
       var v = lock.checked;
@@ -3964,6 +4433,7 @@ table.data tbody tr:hover { background: var(--neutral); }
     focus: function () { this.onFocus(this.personId); },
     goto: function (btn) { this.open(btn.dataset.id); },
     pickPlace: function (btn) { this.pickPlace(btn.dataset.key); },
+    pickViewers: function (btn) { this.pickViewers(btn.dataset.key); },
     dropPlace: function (btn) {
       var self = this, key = btn.dataset.key;
       global.App.confirm('Убрать точку с карты?',
@@ -3996,7 +4466,9 @@ table.data tbody tr:hover { background: var(--neutral); }
       var labels = { phone: 'Телефон', email: 'Почта', addr: 'Адрес', link: 'Ссылка', text: 'Новая строка' };
       p.fields = p.fields || [];
       p.fields.push({
-        id: U.uid('f'), label: labels[type] || 'Строка', value: '', type: type,
+        id: U.uid('f'), label: labels[type] || 'Строка',
+        value: type === 'phone' ? '+7 ' : '',      // дальше человек просто дописывает номер
+        type: type,
         acl: { level: type === 'text' ? 'public' : 'group', locked: false }
       });
       S.updatePerson(p.id, {});
@@ -4049,6 +4521,35 @@ table.data tbody tr:hover { background: var(--neutral); }
     dictate: function (btn) { this.dictate(btn.dataset.target, btn); }
   };
 
+  /* --------- кому видна запись --------- */
+
+  /** найти объект прав по ключу вида person | f:<id> | ev:<id> */
+  Sheet.prototype.aclByKey = function (key) {
+    var p = S.person(this.personId);
+    if (!p) return null;
+    var host = null;
+    if (key === 'person') host = p;
+    else if (key.indexOf('f:') === 0) {
+      host = (p.fields || []).filter(function (x) { return x.id === key.slice(2); })[0];
+    } else if (key.indexOf('ev:') === 0) {
+      host = (p.events || []).filter(function (x) { return x.id === key.slice(3); })[0];
+    }
+    if (!host) return null;
+    host.acl = host.acl || { level: 'public', locked: false };
+    return host.acl;
+  };
+
+  Sheet.prototype.pickViewers = function (key) {
+    var self = this;
+    var acl = this.aclByKey(key);
+    if (!acl) return;
+    global.App.pickViewers(acl, function () {
+      S.updatePerson(self.personId, {});
+      self.onChange();
+      self.renderBody();
+    });
+  };
+
   /* --------- точка на карте --------- */
   /* Точку записываем сразу: в окне карты человек уже нажал «Сохранить точку»,
      второе подтверждение внизу карточки было бы лишним. */
@@ -4073,36 +4574,109 @@ table.data tbody tr:hover { background: var(--neutral); }
       ? (p.events || []).filter(function (x) { return x.id === key.slice(3); })[0]
       : p[key];
     var placeName = (cur && cur.place) || '';
-    var chosen = { lat: cur && cur.lat, lng: cur && cur.lng };
+    var chosen = { lat: cur && cur.lat != null ? +cur.lat : null,
+      lng: cur && cur.lng != null ? +cur.lng : null };
 
     global.App.modal('Где это было?',
-      '<p class="note" style="margin:0 0 10px">Нажмите на карту в нужном месте. ' +
-      'Перетаскивание двигает карту, колесо и кнопки слева меняют масштаб.</p>' +
-      (placeName ? '<p class="note">Записано место: <b>' + esc(placeName) + '</b></p>' : '') +
-      '<div id="pkMap" style="height:52vh;min-height:280px;position:relative;border-radius:10px;' +
-      'overflow:hidden;border:1px solid var(--line)"></div>' +
+      '<p class="note" style="margin:0 0 10px">Найдите место по названию или нажмите на карту. ' +
+      'Карта двигается перетаскиванием, масштаб — колесом, щипком или кнопками слева.</p>' +
+      '<div class="map-pick-wrap" id="pkWrap" style="height:56vh;min-height:300px">' +
+      '<div class="map-host" id="pkMap"></div>' +
+      '<div class="map-tools">' +
+      '<input id="pkFind" type="search" placeholder="Город, село, улица…" autocomplete="off" ' +
+      'value="' + esc(placeName) + '">' +
+      '<button class="btn btn-sm" id="pkGo" title="Найти">' + I('search') + '</button>' +
+      '<button class="btn btn-sm" id="pkHere" title="Я здесь">' + I('crosshair') + '</button>' +
+      '<button class="btn btn-sm" id="pkFull" title="Во весь экран">' + I('fullscreen') + '</button>' +
+      '</div>' +
+      '<div class="map-hits" id="pkHits" hidden></div>' +
+      '</div>' +
       '<p class="note" id="pkInfo" style="margin-top:8px">' +
-      (chosen.lat != null ? 'Выбрано: ' + (+chosen.lat).toFixed(4) + ', ' + (+chosen.lng).toFixed(4)
+      (chosen.lat != null ? 'Выбрано: ' + chosen.lat.toFixed(4) + ', ' + chosen.lng.toFixed(4)
         : 'Точка пока не выбрана') + '</p>',
       [{ text: 'Сохранить точку', primary: true, fn: function () {
         if (chosen.lat == null) { self.toast('Сначала отметьте место на карте'); return; }
         global.App.closeModal();
-        self.setPlace(key, +(+chosen.lat).toFixed(6), +(+chosen.lng).toFixed(6));
+        self.setPlace(key, +chosen.lat.toFixed(6), +chosen.lng.toFixed(6));
         self.renderBody();
       } }]);
 
-    var m = new global.MiniMap(document.getElementById('pkMap'));
-    var pins = [];
-    if (chosen.lat != null) pins.push({ lat: +chosen.lat, lng: +chosen.lng, kind: 'event', label: placeName });
-    m.setPins(pins);
-    if (pins.length) { m.z = 11; m.cx = +chosen.lat; m.cy = +chosen.lng; m.draw(); }
-    else m.draw();
-    m.onClick = function (lat, lng) {
+    var host = document.getElementById('pkMap');
+    var m = new global.MiniMap(host);
+    self._picker = m;
+
+    function mark(lat, lng, zoom) {
       chosen.lat = lat; chosen.lng = lng;
       m.setPins([{ lat: lat, lng: lng, kind: 'event', label: placeName }]);
+      if (zoom) m.goTo(lat, lng, zoom);
       var info = document.getElementById('pkInfo');
       if (info) info.textContent = 'Выбрано: ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
-    };
+    }
+    if (chosen.lat != null) mark(chosen.lat, chosen.lng, 11);
+    else m.draw();
+    m.onClick = function (lat, lng) { mark(lat, lng); };
+
+    /* --- поиск места --- */
+    var hits = document.getElementById('pkHits');
+    var findBox = document.getElementById('pkFind');
+    function search() {
+      var q = findBox.value.trim();
+      if (q.length < 3) { hits.hidden = true; return; }
+      hits.hidden = false;
+      hits.innerHTML = '<div class="note" style="padding:8px">Ищем…</div>';
+      fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&accept-language=ru&q=' +
+        encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (list) {
+          if (!list.length) {
+            hits.innerHTML = '<div class="note" style="padding:8px">Ничего не нашлось. ' +
+              'Можно просто нажать нужное место на карте.</div>';
+            return;
+          }
+          hits.innerHTML = list.map(function (x, i) {
+            return '<button type="button" data-i="' + i + '">' + esc(x.display_name) + '</button>';
+          }).join('');
+          hits.querySelectorAll('[data-i]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var x = list[+btn.dataset.i];
+              hits.hidden = true;
+              mark(parseFloat(x.lat), parseFloat(x.lon), 12);
+            });
+          });
+        }, function () {
+          hits.innerHTML = '<div class="note" style="padding:8px">' +
+            'Поиск недоступен без интернета. Нажмите нужное место на карте.</div>';
+        });
+    }
+    document.getElementById('pkGo').addEventListener('click', search);
+    findBox.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); search(); }
+    });
+    findBox.addEventListener('input', function () {
+      clearTimeout(self._findT);
+      self._findT = setTimeout(search, 600);
+    });
+
+    /* --- где я сейчас --- */
+    document.getElementById('pkHere').addEventListener('click', function () {
+      var info = document.getElementById('pkInfo');
+      if (!navigator.geolocation) { self.toast('Устройство не сообщает местоположение'); return; }
+      if (info) info.textContent = 'Определяем, где вы…';
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        mark(pos.coords.latitude, pos.coords.longitude, 14);
+      }, function () {
+        if (info) info.textContent = 'Не удалось определить местоположение — ' +
+          'разрешите доступ или выберите место вручную.';
+      }, { enableHighAccuracy: true, timeout: 10000 });
+    });
+
+    /* --- во весь экран --- */
+    document.getElementById('pkFull').addEventListener('click', function () {
+      var wrap = document.getElementById('pkWrap');
+      wrap.classList.toggle('full');
+      this.title = wrap.classList.contains('full') ? 'Свернуть' : 'Во весь экран';
+      setTimeout(function () { m.draw(); }, 60);
+    });
   };
 
   /* --------- голос --------- */
@@ -4222,9 +4796,19 @@ table.data tbody tr:hover { background: var(--neutral); }
     var isNote = f.type === 'text' || f.type === 'note';
     return '<div class="list-item" style="flex-wrap:wrap">' +
       '<div class="li-main" style="flex:1 1 100%">' +
-      '<div class="inline"><input data-f="' + f.id + '.label" value="' + esc(f.label) + '" placeholder="Название" style="max-width:40%">' +
-      '<input data-f="' + f.id + '.value" value="' + esc(f.value) + '" placeholder="Значение">' +
-      micBtn('f:' + f.id) + '</div>' +
+      // адрес длинный — ему отдельная строка на всю ширину и в несколько строк
+      (f.type === 'addr'
+        ? '<div class="inline"><input data-f="' + f.id + '.label" value="' + esc(f.label) +
+          '" placeholder="Название" style="max-width:40%">' + micBtn('f:' + f.id) + '</div>' +
+          '<textarea class="field-wide" data-f="' + f.id + '.value" data-kind="addr" rows="2" ' +
+          'placeholder="Индекс, область, район, населённый пункт, улица, дом, квартира">' +
+          esc(f.value) + '</textarea>'
+        : '<div class="inline"><input data-f="' + f.id + '.label" value="' + esc(f.label) +
+          '" placeholder="Название" style="max-width:40%">' +
+          '<input data-f="' + f.id + '.value" data-kind="' + esc(f.type) + '" value="' + esc(f.value) +
+          '" placeholder="' + (f.type === 'phone' ? '+7 999 123-45-67' : 'Значение') +
+          '"' + (f.type === 'phone' ? ' type="tel" inputmode="tel"' : '') + '>' +
+          micBtn('f:' + f.id) + '</div>') +
       '<div class="inline" style="margin-top:5px">' + aclSelect('f:' + f.id, f.acl) +
       '<button class="btn btn-sm btn-danger" data-act="delField" data-id="' + f.id + '">Удалить</button></div>' +
       '</div></div>';
@@ -4360,20 +4944,97 @@ table.data tbody tr:hover { background: var(--neutral); }
           'они работают в версии, установленной на телефон или компьютер.</p>' : '') +
         '</div>';
     },
+    /* Вход на втором устройстве. Учётные записи лежат в дереве, поэтому
+       сперва надо забрать дерево из общего хранилища, а потом входить. */
+    gateJoin: function () {
+      var self = this, Sy = global.Sync;
+      var sync = S.sync || U.defaultSync();
+      this.gate(
+        '<h1>Присоединиться к дереву</h1>' +
+        '<p class="lede">Укажите то же хранилище, что и на первом устройстве. ' +
+        'Программа заберёт дерево вместе со списком пользователей, и вы войдёте своим логином.</p>' +
+        '<label for="jMode">Где лежит дерево</label>' +
+        '<select id="jMode">' +
+        '<option value="supabase"' + (sync.mode === 'supabase' ? ' selected' : '') + '>Supabase</option>' +
+        '<option value="server"' + (sync.mode === 'server' ? ' selected' : '') + '>Свой сервер</option>' +
+        '</select>' +
+        '<div id="jFields"></div>' +
+        '<div class="err" id="gErr"></div>' +
+        '<div class="btn-row"><button class="btn btn-primary" id="jGo">Забрать дерево</button>' +
+        '<button class="btn" id="jBack">Назад</button></div>');
+
+      function fields() {
+        var m = document.getElementById('jMode').value;
+        var cfg = sync[m] || {};
+        document.getElementById('jFields').innerHTML = m === 'supabase'
+          ? '<label for="jUrl">Адрес проекта</label><input id="jUrl" value="' + esc(cfg.url || '') +
+            '" placeholder="https://xxxxx.supabase.co" autocomplete="off">' +
+            '<label for="jKey">Ключ anon public</label><input id="jKey" type="password" value="' +
+            esc(cfg.key || '') + '" autocomplete="off">' +
+            '<label for="jTree">Имя дерева</label><input id="jTree" value="' + esc(cfg.treeId || '') +
+            '" autocomplete="off">'
+          : '<label for="jUrl">Адрес сервера</label><input id="jUrl" value="' + esc(cfg.url || '') +
+            '" placeholder="https://drevo.мойдомен.ru" autocomplete="off">' +
+            '<label for="jKey">Ключ доступа</label><input id="jKey" type="password" value="' +
+            esc(cfg.key || '') + '" autocomplete="off">';
+      }
+      fields();
+      document.getElementById('jMode').addEventListener('change', fields);
+      document.getElementById('jBack').addEventListener('click', function () {
+        if (S.users.length) self.gateLogin(); else self.gateFirstRun();
+      });
+
+      document.getElementById('jGo').addEventListener('click', function () {
+        var m = document.getElementById('jMode').value;
+        S.sync.mode = m;
+        S.sync[m].url = val('jUrl');
+        S.sync[m].key = val('jKey');
+        if (m === 'supabase') S.sync.supabase.treeId = val('jTree');
+        if (!S.sync[m].url || !S.sync[m].key) return err('Заполните адрес и ключ');
+        if (m === 'supabase' && !S.sync.supabase.treeId) return err('Укажите имя дерева');
+        S.saveSync();
+        err('Забираем дерево…');
+        Sy.peek().then(function (remote) {
+          if (!remote || !remote.persons) {
+            err('По этим настройкам дерева не нашлось. Проверьте адрес, ключ и имя дерева.');
+            return;
+          }
+          if (!remote.users || !remote.users.length) {
+            err('Дерево нашлось, но в нём нет учётных записей. ' +
+              'Обновите программу на первом устройстве и синхронизируйте её — записи уедут вместе с деревом.');
+            return;
+          }
+          S.tree = remote;
+          S.save(true);
+          // дерево только что взято целиком — переспрашивать «слить или заменить» незачем
+          S.sync.lastAt = new Date().toISOString();
+          S.sync.lastError = null;
+          S.dirty = false;
+          S.saveSync();
+          self.toast('Дерево получено: ' + Object.keys(remote.persons).length + ' персон');
+          self.gateLogin();
+        }, function (e) { err('Не вышло: ' + e.message); });
+      });
+    },
+
     gateFirstRun: function () {
       var self = this;
       this.gate(
         '<h1>Семейное Древо</h1>' +
         '<p class="lede">Семейное древо, которое живёт на ваших устройствах. Первый вход создаёт администратора — ' +
         'того, кто раздаёт доступ остальным родственникам.</p>' +
-        '<label for="gName">Как вас зовут</label><input id="gName" autocomplete="name" placeholder="Александра Буйлова">' +
+        '<label for="gName">Как вас зовут</label><input id="gName" autocomplete="name">' +
         '<label for="gLogin">Логин</label><input id="gLogin" autocomplete="username" placeholder="admin">' +
         '<label for="gPass">Пароль</label><input id="gPass" type="password" autocomplete="new-password">' +
         '<label for="gPass2">Пароль ещё раз</label><input id="gPass2" type="password" autocomplete="new-password">' +
         '<p class="note" style="margin-top:10px">Этот же пароль открывает зашифрованные записи. ' +
         'Восстановить его нельзя — запишите в надёжном месте.</p>' +
         '<div class="err" id="gErr"></div>' +
-        '<div class="btn-row"><button class="btn btn-primary" id="gGo">Создать дерево</button></div>');
+        '<div class="btn-row"><button class="btn btn-primary" id="gGo">Создать дерево</button></div>' +
+        '<p class="note" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">' +
+        'Дерево уже заведено на другом устройстве? ' +
+        '<button class="btn btn-sm" id="gJoin">Присоединиться к нему</button></p>');
+      document.getElementById('gJoin').addEventListener('click', function () { self.gateJoin(); });
       document.getElementById('gGo').addEventListener('click', function () {
         var name = val('gName'), login = val('gLogin'), p1 = val('gPass'), p2 = val('gPass2');
         if (!login || !p1) return err('Заполните логин и пароль');
@@ -4396,7 +5057,12 @@ table.data tbody tr:hover { background: var(--neutral); }
         '<div class="err" id="gErr"></div>' +
         '<div class="btn-row"><button class="btn btn-primary" id="gGo">Войти</button>' +
         (hasBio ? '<button class="btn" id="gBio">Войти по отпечатку</button>' : '') + '</div>' +
-        '<p class="note" style="margin-top:14px">Нет доступа? Попросите у администратора дерева ссылку-приглашение.</p>');
+        '<p class="note" style="margin-top:14px">Нет доступа? Попросите у администратора дерева ' +
+        'ссылку-приглашение.</p>' +
+        '<p class="note">Это другое устройство, а дерево лежит в общем хранилище? ' +
+        '<button class="btn btn-sm" id="gJoin2">Забрать его оттуда</button></p>');
+      var join2 = document.getElementById('gJoin2');
+      if (join2) join2.addEventListener('click', function () { self.gateJoin(); });
       function go() {
         var login = val('gLogin'), pass = val('gPass');
         S.auth(login, pass).then(function (u) {
@@ -4426,8 +5092,10 @@ table.data tbody tr:hover { background: var(--neutral); }
         var p1 = val('gPass'), p2 = val('gPass2');
         if (p1.length < 6) return err('Пароль короче шести знаков');
         if (p1 !== p2) return err('Пароли не совпадают');
-        U.sha256hex(p1 + '::' + u.login).then(function (h) {
-          u.hash = h; u.invite = null; S.saveUsers();
+        S.setPassword(u, p1).then(function () {
+          u.invite = null;
+          u.updated = new Date().toISOString();
+          S.save();
           S.setSession({ userId: u.id, login: u.login, role: u.role, displayName: u.displayName });
           location.hash = '';
           return S.unlockCrypto(p1);
@@ -4611,10 +5279,21 @@ table.data tbody tr:hover { background: var(--neutral); }
       }).join('') + '<button class="tab-add" id="tabAdd" title="Добавить вкладку">+</button>';
       bar.querySelectorAll('[data-tab]').forEach(function (b) {
         b.addEventListener('click', function (e) {
-          if (e.target.dataset.del) {
-            S.removeTab(e.target.dataset.del);
-            if (self.activeTab === e.target.dataset.del) self.activeTab = 'tree';
-            self.renderTabs(); self.showTab(self.activeTab);
+          var x = e.target.closest('[data-del]');     // нажатие может попасть в рисунок внутри
+          if (x) {
+            e.stopPropagation();
+            var id = x.dataset.del;
+            var tab = S.tree.tabs.filter(function (t) { return t.id === id; })[0];
+            self.confirm('Убрать вкладку «' + ((tab && tab.title) || '') + '»?',
+              'Люди, фотографии и связи останутся на месте — пропадёт только сама вкладка' +
+              (tab && tab.kind === 'notes' && tab.content ? ' вместе с записями на ней.' : '.'),
+              function () {
+                S.removeTab(id);
+                if (self.activeTab === id) self.activeTab = 'tree';
+                self.renderTabs();
+                self.showTab(self.activeTab);
+                self.toast('Вкладка убрана');
+              });
             return;
           }
           self.showTab(b.dataset.tab);
@@ -5115,6 +5794,60 @@ table.data tbody tr:hover { background: var(--neutral); }
       }, 50);
     },
 
+    /** Кому открыта запись: отмечаем конкретных родственников. */
+    pickViewers: function (acl, onDone) {
+      var self = this;
+      acl.allow = acl.allow || [];
+      var others = S.users.filter(function (u) { return u.role !== 'admin'; });
+      var admins = S.users.filter(function (u) { return u.role === 'admin'; });
+
+      if (!others.length) {
+        this.modal('Кому открыть запись',
+          '<p class="note">Кроме администраторов, в дереве пока никого нет. ' +
+          'Пригласите родственников — <b>Настройки → Доступ и защита → Пригласить родственника</b>, ' +
+          'и они появятся в этом списке.</p>' +
+          (admins.length ? '<p class="note">Администраторы видят всё и так: ' +
+            esc(admins.map(function (u) { return u.displayName; }).join(', ')) + '.</p>' : ''),
+          []);
+        return;
+      }
+
+      var chosen = {};
+      acl.allow.forEach(function (id) { chosen[id] = true; });
+
+      this.modal('Кому открыть запись',
+        '<p class="note" style="margin:0 0 12px">Отметьте тех, кому эта запись будет видна. ' +
+        'Остальные её не увидят. Администраторы видят всё независимо от отметок.</p>' +
+        '<div class="viewer-list" id="vwList">' +
+        others.map(function (u) {
+          return '<label class="viewer-row"><input type="checkbox" data-u="' + esc(u.id) + '"' +
+            (chosen[u.id] ? ' checked' : '') + '>' +
+            '<span class="mini-ph">' + global.Icon('person') + '</span>' +
+            '<span class="li-main"><span>' + esc(u.displayName) + '</span>' +
+            '<span class="li-sub">' + esc(u.login) + '</span></span></label>';
+        }).join('') + '</div>' +
+        '<div class="btn-row"><button class="btn btn-sm" id="vwAll">Отметить всех</button>' +
+        '<button class="btn btn-sm" id="vwNone">Снять все</button></div>' +
+        (admins.length ? '<p class="note" style="margin-top:10px">Видят всегда: ' +
+          esc(admins.map(function (u) { return u.displayName; }).join(', ')) + '.</p>' : ''),
+        [{ text: 'Готово', primary: true, fn: function () {
+          var list = [];
+          document.querySelectorAll('#vwList [data-u]').forEach(function (c) {
+            if (c.checked) list.push(c.dataset.u);
+          });
+          acl.allow = list;
+          self.closeModal();
+          if (onDone) onDone(list);
+        } }]);
+
+      document.getElementById('vwAll').addEventListener('click', function () {
+        document.querySelectorAll('#vwList [data-u]').forEach(function (c) { c.checked = true; });
+      });
+      document.getElementById('vwNone').addEventListener('click', function () {
+        document.querySelectorAll('#vwList [data-u]').forEach(function (c) { c.checked = false; });
+      });
+    },
+
     /* ============ медиа ============ */
     pickFiles: function (cb) {
       var inp = document.createElement('input');
@@ -5123,24 +5856,48 @@ table.data tbody tr:hover { background: var(--neutral); }
       inp.addEventListener('change', function () { if (inp.files.length) cb(inp.files); });
       inp.click();
     },
-    askAccess: function (cb) {
+    /** Спросить, кому будут видны добавляемые файлы. */
+    askAccess: function (cb, acl) {
       var self = this;
+      acl = acl || { level: 'public', locked: false, allow: [] };
+
       this.modal('Кому показывать эти файлы?',
-        '<div class="row"><label for="acLevel">Видимость</label><select id="acLevel">' +
-        global.ACL_LEVELS.map(function (l) { return '<option value="' + l.v + '">' + l.t + '</option>'; }).join('') +
-        '</select></div>' +
-        '<label class="inline"><input type="checkbox" id="acLock"> <span>Замок: шифровать файл при хранении и в резервной копии</span></label>' +
-        '<p class="note" style="margin-top:10px">Зашифрованные файлы открываются только после входа с паролем дерева. ' +
-        'Если пароль утерян, восстановить их невозможно.</p>',
+        '<div class="row"><label for="acLevel">Видимость</label>' +
+        '<div class="acl-ctl"><select id="acLevel">' +
+        global.ACL_LEVELS.map(function (l) {
+          return '<option value="' + l.v + '"' + (acl.level === l.v ? ' selected' : '') + '>' + l.t + '</option>';
+        }).join('') + '</select>' +
+        '<button class="btn btn-sm" id="acWho" hidden>' + global.Icon('person') + ' Выбрать</button>' +
+        '</div><span class="note acl-names" id="acNames"></span></div>' +
+        '<label class="inline"><input type="checkbox" id="acLock"' + (acl.locked ? ' checked' : '') +
+        '> <span>Замок: шифровать файл при хранении и в резервной копии</span></label>' +
+        '<p class="note" style="margin-top:10px">Зашифрованные файлы открываются только после входа ' +
+        'с паролем дерева. Если пароль утерян, восстановить их невозможно.</p>',
         [{ text: 'Добавить', primary: true, fn: function () {
-          var acl = {
-            level: document.getElementById('acLevel').value,
-            locked: document.getElementById('acLock').checked
-          };
+          acl.level = document.getElementById('acLevel').value;
+          acl.locked = document.getElementById('acLock').checked;
           self.closeModal();
           cb(acl);
         } }]);
+
+      var lvl = document.getElementById('acLevel');
+      var who = document.getElementById('acWho');
+      var names = document.getElementById('acNames');
+      function paint() {
+        who.hidden = lvl.value !== 'chosen';
+        names.textContent = lvl.value === 'chosen'
+          ? (S.allowedNames(acl).join(', ') || 'пока никто не отмечен') : '';
+      }
+      lvl.addEventListener('change', function () { acl.level = lvl.value; paint(); });
+      who.addEventListener('click', function () {
+        acl.level = lvl.value;
+        acl.locked = document.getElementById('acLock').checked;
+        // выбор людей идёт отдельным окном, затем возвращаемся сюда
+        self.pickViewers(acl, function () { self.askAccess(cb, acl); });
+      });
+      paint();
     },
+
     viewMedia: function (id, sheet) {
       var m = S.tree.media[id], self = this;
       if (!m) return;
@@ -5149,10 +5906,16 @@ table.data tbody tr:hover { background: var(--neutral); }
       this.modal(m.caption || m.name,
         '<div id="mvBody" class="empty">Открываем…</div>' +
         '<div class="row" style="margin-top:12px"><label for="mvCap">Подпись</label><input id="mvCap" value="' + esc(m.caption) + '"></div>' +
-        '<div class="row"><label for="mvAcl">Видимость</label><select id="mvAcl">' +
+        '<div class="row"><label for="mvAcl">Видимость</label>' +
+        '<div class="acl-ctl"><select id="mvAcl">' +
         global.ACL_LEVELS.map(function (l) {
           return '<option value="' + l.v + '"' + (m.acl.level === l.v ? ' selected' : '') + '>' + l.t + '</option>';
-        }).join('') + '</select></div>' +
+        }).join('') + '</select>' +
+        '<button class="btn btn-sm" id="mvWho"' + (m.acl.level === 'chosen' ? '' : ' hidden') + '>' +
+        global.Icon('person') + ' Выбрать</button></div>' +
+        '<span class="note acl-names" id="mvNames">' +
+        (m.acl.level === 'chosen' ? esc(S.allowedNames(m.acl).join(', ') || 'пока никто не отмечен') : '') +
+        '</span></div>' +
         '<p class="note">' + esc(who ? S.fullName(who) : '') + ' · ' + Math.round((m.size || 0) / 1024) + ' КБ' +
         (m.encrypted ? ' · зашифрован' : '') + '</p>',
         [
@@ -5177,6 +5940,22 @@ table.data tbody tr:hover { background: var(--neutral); }
             if (sheet) sheet.renderBody();
           } }
         ]);
+      var mvLvl = document.getElementById('mvAcl');
+      var mvWho = document.getElementById('mvWho');
+      mvLvl.addEventListener('change', function () {
+        m.acl.level = mvLvl.value;
+        mvWho.hidden = mvLvl.value !== 'chosen';
+        document.getElementById('mvNames').textContent = mvLvl.value === 'chosen'
+          ? (S.allowedNames(m.acl).join(', ') || 'пока никто не отмечен') : '';
+      });
+      mvWho.addEventListener('click', function () {
+        m.acl.allow = m.acl.allow || [];
+        self.pickViewers(m.acl, function () {
+          S.save();
+          self.viewMedia(id, sheet);
+        });
+      });
+
       S.mediaURL(id).then(function (url) {
         var body = document.getElementById('mvBody');
         if (!body) return;
@@ -5249,6 +6028,20 @@ table.data tbody tr:hover { background: var(--neutral); }
           '</div></div>' +
           '<div class="set-row"><span>Сетка из точек на полотне</span>' +
           '<input type="checkbox" id="stGrid"' + (p.treeGrid ? ' checked' : '') + '></div>' +
+          '<div class="set-row"><span>Картинка под деревом</span><span class="inline">' +
+          '<button class="btn btn-sm" id="stBgImg">' + global.Icon('upload') +
+          (p.treeImage ? ' Заменить' : ' Загрузить') + '</button>' +
+          (p.treeImage ? '<button class="btn btn-sm btn-danger" id="stBgImgOff">Убрать</button>' : '') +
+          '</span></div>' +
+          (p.treeImage ?
+            '<div class="set-row"><span>Как разместить</span><select id="stBgFit">' +
+            ['cover:Во весь экран', 'tile:Плиткой'].map(function (x) {
+              var v = x.split(':');
+              return '<option value="' + v[0] + '"' +
+                (p.treeImageFit === v[0] ? ' selected' : '') + '>' + v[1] + '</option>';
+            }).join('') + '</select></div>' +
+            rng('Приглушить картинку', 'stBgFade', 0, 90, p.treeImageFade == null ? 35 : p.treeImageFade, '%')
+            : '') +
           rng('Размер текста в программе', 'stUi', 11, 20, p.ui.fontSize, 'px') +
           rng('Размер текста вкладок', 'stTab', 11, 20, p.ui.tabSize, 'px') +
           rng('Размер значков в панели', 'stIcon', 13, 30, p.ui.iconSize || 17, 'px') +
@@ -5291,6 +6084,28 @@ table.data tbody tr:hover { background: var(--neutral); }
         document.getElementById('stDateW').addEventListener('change', function () { p.card.dateWeight = +this.value; apply(); });
         document.getElementById('stTheme').addEventListener('change', function () { p.theme = this.value; apply(); });
         document.getElementById('stGrid').addEventListener('change', function () { p.treeGrid = this.checked; apply(); });
+        document.getElementById('stBgImg').addEventListener('click', function () {
+          var inp = document.createElement('input');
+          inp.type = 'file'; inp.accept = 'image/*';
+          inp.addEventListener('change', function () {
+            if (!inp.files[0]) return;
+            if (inp.files[0].size > 12 * 1024 * 1024) {
+              self.toast('Картинка тяжелее 12 МБ — возьмите поменьше');
+              return;
+            }
+            self.setTreeImage(inp.files[0]).then(function () { self.setPane('look'); });
+          });
+          inp.click();
+        });
+        var bgOff = document.getElementById('stBgImgOff');
+        if (bgOff) bgOff.addEventListener('click', function () {
+          self.clearTreeImage();
+          self.setPane('look');
+        });
+        var bgFit = document.getElementById('stBgFit');
+        if (bgFit) bgFit.addEventListener('change', function () { p.treeImageFit = this.value; apply(); });
+        var bgFade = document.getElementById('stBgFade');
+        if (bgFade) bindRange('stBgFade', function (v) { p.treeImageFade = v; });
         document.getElementById('stShowPh').addEventListener('change', function () { p.showPhotos = this.checked; apply(); });
         document.getElementById('stShowDt').addEventListener('change', function () { p.showDates = this.checked; apply(); });
         document.getElementById('stAccent').addEventListener('click', function (e) {
@@ -5322,7 +6137,7 @@ table.data tbody tr:hover { background: var(--neutral); }
         function bindRange(id, fn) {
           var el = document.getElementById(id);
           el.addEventListener('input', function () {
-            el.nextElementSibling.value = el.value + ' px';
+            el.nextElementSibling.value = el.value + ' ' + (el.dataset.unit || 'px');
             fn(+el.value); apply();
           });
         }
@@ -5505,7 +6320,8 @@ table.data tbody tr:hover { background: var(--neutral); }
 
       function rng(label, id, min, max, v, unit) {
         return '<div class="set-row"><span>' + label + '</span><span class="inline">' +
-          '<input type="range" id="' + id + '" min="' + min + '" max="' + max + '" value="' + v + '">' +
+          '<input type="range" id="' + id + '" min="' + min + '" max="' + max + '" value="' + v +
+          '" data-unit="' + unit + '">' +
           '<output>' + v + ' ' + unit + '</output></span></div>';
       }
       function fname(ext) {
@@ -5825,8 +6641,8 @@ table.data tbody tr:hover { background: var(--neutral); }
     inviteDialog: function () {
       var self = this;
       this.modal('Пригласить родственника',
-        '<div class="row"><label for="ivName">Имя</label><input id="ivName" placeholder="Сергей Булыгин"></div>' +
-        '<div class="row"><label for="ivLogin">Логин</label><input id="ivLogin" placeholder="sergey"></div>' +
+        '<div class="row"><label for="ivName">Имя</label><input id="ivName"></div>' +
+        '<div class="row"><label for="ivLogin">Логин</label><input id="ivLogin" autocomplete="off"></div>' +
         '<div class="row"><label for="ivRole">Роль</label><select id="ivRole">' +
         '<option value="user">Пользователь</option><option value="admin">Администратор</option></select></div>' +
         '<p class="note">Пароль человек задаст сам, перейдя по ссылке. Вы её увидите сразу после создания.</p>',
@@ -5902,6 +6718,45 @@ table.data tbody tr:hover { background: var(--neutral); }
       root.style.setProperty('--icon-size', (p.ui.iconSize || 17) + 'px');
       if (p.treeBg && p.treeBg !== 'auto') root.style.setProperty('--tree-bg', p.treeBg);
       else root.style.setProperty('--tree-bg', 'var(--paper)');
+      root.style.setProperty('--tree-fade', ((p.treeImageFade == null ? 35 : p.treeImageFade) / 100));
+      this.paintTreeImage();
+    },
+
+    /** картинка под деревом; лежит в хранилище устройства, своя у каждого */
+    paintTreeImage: function () {
+      var el = document.getElementById('treeBgImage'), p = S.prefs, self = this;
+      if (!el) return;
+      if (!p.treeImage) {
+        el.hidden = true;
+        el.style.backgroundImage = '';
+        if (this._bgUrl) { try { URL.revokeObjectURL(this._bgUrl); } catch (e) {} this._bgUrl = null; }
+        return;
+      }
+      el.classList.toggle('tile', p.treeImageFit === 'tile');
+      if (this._bgUrl) { el.hidden = false; return; }
+      U.blobGet('__treebg_' + S.session.userId).then(function (b) {
+        if (!b) { p.treeImage = false; S.savePrefs(); el.hidden = true; return; }
+        self._bgUrl = URL.createObjectURL(b);
+        el.style.backgroundImage = 'url(' + self._bgUrl + ')';
+        el.hidden = false;
+      });
+    },
+    setTreeImage: function (file) {
+      var self = this, p = S.prefs;
+      if (this._bgUrl) { try { URL.revokeObjectURL(this._bgUrl); } catch (e) {} this._bgUrl = null; }
+      return U.blobPut('__treebg_' + S.session.userId, file).then(function () {
+        p.treeImage = true;
+        S.savePrefs();
+        self.paintTreeImage();
+      });
+    },
+    clearTreeImage: function () {
+      var p = S.prefs;
+      if (this._bgUrl) { try { URL.revokeObjectURL(this._bgUrl); } catch (e) {} this._bgUrl = null; }
+      p.treeImage = false;
+      S.savePrefs();
+      U.blobDel('__treebg_' + S.session.userId);
+      this.paintTreeImage();
     },
 
     /** Образец окошка в настройках: те же правила, что и в дереве,
@@ -5931,7 +6786,7 @@ table.data tbody tr:hover { background: var(--neutral); }
             'px;font-weight:' + (p.card.dateWeight || 400) + '">' + esc(years) + '</div>';
         }
         h += '</div>';
-        if (gone) h += '<span class="node-mourn" style="border-top-left-radius:' + r + 'px"></span>';
+        if (gone) h += '<span class="node-mourn"></span>';
         return h + '</div>';
       }
       stage.innerHTML = '<div class="pv-row">' +

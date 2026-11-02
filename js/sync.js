@@ -70,6 +70,16 @@
       }
     });
 
+    /* --- учётные записи: по id, побеждает более поздняя правка --- */
+    var users = {}, uorder = [];
+    (out.users || []).concat(remote.users || []).forEach(function (u) {
+      if (!u || !u.id) return;
+      if (graves[u.id] && !newer(u.updated, graves[u.id])) return;
+      if (!users[u.id]) { users[u.id] = u; uorder.push(u.id); }
+      else if (newer(u.updated, users[u.id].updated)) users[u.id] = u;
+    });
+    out.users = uorder.map(function (id) { return users[id]; });
+
     /* --- вкладки: по id, встроенные не трогаем --- */
     var tabs = {}, order = [];
     (out.tabs || []).concat(remote.tabs || []).forEach(function (t) {

@@ -124,20 +124,97 @@
           'они работают в версии, установленной на телефон или компьютер.</p>' : '') +
         '</div>';
     },
+    /* Вход на втором устройстве. Учётные записи лежат в дереве, поэтому
+       сперва надо забрать дерево из общего хранилища, а потом входить. */
+    gateJoin: function () {
+      var self = this, Sy = global.Sync;
+      var sync = S.sync || U.defaultSync();
+      this.gate(
+        '<h1>Присоединиться к дереву</h1>' +
+        '<p class="lede">Укажите то же хранилище, что и на первом устройстве. ' +
+        'Программа заберёт дерево вместе со списком пользователей, и вы войдёте своим логином.</p>' +
+        '<label for="jMode">Где лежит дерево</label>' +
+        '<select id="jMode">' +
+        '<option value="supabase"' + (sync.mode === 'supabase' ? ' selected' : '') + '>Supabase</option>' +
+        '<option value="server"' + (sync.mode === 'server' ? ' selected' : '') + '>Свой сервер</option>' +
+        '</select>' +
+        '<div id="jFields"></div>' +
+        '<div class="err" id="gErr"></div>' +
+        '<div class="btn-row"><button class="btn btn-primary" id="jGo">Забрать дерево</button>' +
+        '<button class="btn" id="jBack">Назад</button></div>');
+
+      function fields() {
+        var m = document.getElementById('jMode').value;
+        var cfg = sync[m] || {};
+        document.getElementById('jFields').innerHTML = m === 'supabase'
+          ? '<label for="jUrl">Адрес проекта</label><input id="jUrl" value="' + esc(cfg.url || '') +
+            '" placeholder="https://xxxxx.supabase.co" autocomplete="off">' +
+            '<label for="jKey">Ключ anon public</label><input id="jKey" type="password" value="' +
+            esc(cfg.key || '') + '" autocomplete="off">' +
+            '<label for="jTree">Имя дерева</label><input id="jTree" value="' + esc(cfg.treeId || '') +
+            '" autocomplete="off">'
+          : '<label for="jUrl">Адрес сервера</label><input id="jUrl" value="' + esc(cfg.url || '') +
+            '" placeholder="https://drevo.мойдомен.ru" autocomplete="off">' +
+            '<label for="jKey">Ключ доступа</label><input id="jKey" type="password" value="' +
+            esc(cfg.key || '') + '" autocomplete="off">';
+      }
+      fields();
+      document.getElementById('jMode').addEventListener('change', fields);
+      document.getElementById('jBack').addEventListener('click', function () {
+        if (S.users.length) self.gateLogin(); else self.gateFirstRun();
+      });
+
+      document.getElementById('jGo').addEventListener('click', function () {
+        var m = document.getElementById('jMode').value;
+        S.sync.mode = m;
+        S.sync[m].url = val('jUrl');
+        S.sync[m].key = val('jKey');
+        if (m === 'supabase') S.sync.supabase.treeId = val('jTree');
+        if (!S.sync[m].url || !S.sync[m].key) return err('Заполните адрес и ключ');
+        if (m === 'supabase' && !S.sync.supabase.treeId) return err('Укажите имя дерева');
+        S.saveSync();
+        err('Забираем дерево…');
+        Sy.peek().then(function (remote) {
+          if (!remote || !remote.persons) {
+            err('По этим настройкам дерева не нашлось. Проверьте адрес, ключ и имя дерева.');
+            return;
+          }
+          if (!remote.users || !remote.users.length) {
+            err('Дерево нашлось, но в нём нет учётных записей. ' +
+              'Обновите программу на первом устройстве и синхронизируйте её — записи уедут вместе с деревом.');
+            return;
+          }
+          S.tree = remote;
+          S.save(true);
+          // дерево только что взято целиком — переспрашивать «слить или заменить» незачем
+          S.sync.lastAt = new Date().toISOString();
+          S.sync.lastError = null;
+          S.dirty = false;
+          S.saveSync();
+          self.toast('Дерево получено: ' + Object.keys(remote.persons).length + ' персон');
+          self.gateLogin();
+        }, function (e) { err('Не вышло: ' + e.message); });
+      });
+    },
+
     gateFirstRun: function () {
       var self = this;
       this.gate(
         '<h1>Семейное Древо</h1>' +
         '<p class="lede">Семейное древо, которое живёт на ваших устройствах. Первый вход создаёт администратора — ' +
         'того, кто раздаёт доступ остальным родственникам.</p>' +
-        '<label for="gName">Как вас зовут</label><input id="gName" autocomplete="name" placeholder="Александра Буйлова">' +
+        '<label for="gName">Как вас зовут</label><input id="gName" autocomplete="name">' +
         '<label for="gLogin">Логин</label><input id="gLogin" autocomplete="username" placeholder="admin">' +
         '<label for="gPass">Пароль</label><input id="gPass" type="password" autocomplete="new-password">' +
         '<label for="gPass2">Пароль ещё раз</label><input id="gPass2" type="password" autocomplete="new-password">' +
         '<p class="note" style="margin-top:10px">Этот же пароль открывает зашифрованные записи. ' +
         'Восстановить его нельзя — запишите в надёжном месте.</p>' +
         '<div class="err" id="gErr"></div>' +
-        '<div class="btn-row"><button class="btn btn-primary" id="gGo">Создать дерево</button></div>');
+        '<div class="btn-row"><button class="btn btn-primary" id="gGo">Создать дерево</button></div>' +
+        '<p class="note" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">' +
+        'Дерево уже заведено на другом устройстве? ' +
+        '<button class="btn btn-sm" id="gJoin">Присоединиться к нему</button></p>');
+      document.getElementById('gJoin').addEventListener('click', function () { self.gateJoin(); });
       document.getElementById('gGo').addEventListener('click', function () {
         var name = val('gName'), login = val('gLogin'), p1 = val('gPass'), p2 = val('gPass2');
         if (!login || !p1) return err('Заполните логин и пароль');
@@ -160,7 +237,12 @@
         '<div class="err" id="gErr"></div>' +
         '<div class="btn-row"><button class="btn btn-primary" id="gGo">Войти</button>' +
         (hasBio ? '<button class="btn" id="gBio">Войти по отпечатку</button>' : '') + '</div>' +
-        '<p class="note" style="margin-top:14px">Нет доступа? Попросите у администратора дерева ссылку-приглашение.</p>');
+        '<p class="note" style="margin-top:14px">Нет доступа? Попросите у администратора дерева ' +
+        'ссылку-приглашение.</p>' +
+        '<p class="note">Это другое устройство, а дерево лежит в общем хранилище? ' +
+        '<button class="btn btn-sm" id="gJoin2">Забрать его оттуда</button></p>');
+      var join2 = document.getElementById('gJoin2');
+      if (join2) join2.addEventListener('click', function () { self.gateJoin(); });
       function go() {
         var login = val('gLogin'), pass = val('gPass');
         S.auth(login, pass).then(function (u) {
@@ -190,8 +272,10 @@
         var p1 = val('gPass'), p2 = val('gPass2');
         if (p1.length < 6) return err('Пароль короче шести знаков');
         if (p1 !== p2) return err('Пароли не совпадают');
-        U.sha256hex(p1 + '::' + u.login).then(function (h) {
-          u.hash = h; u.invite = null; S.saveUsers();
+        S.setPassword(u, p1).then(function () {
+          u.invite = null;
+          u.updated = new Date().toISOString();
+          S.save();
           S.setSession({ userId: u.id, login: u.login, role: u.role, displayName: u.displayName });
           location.hash = '';
           return S.unlockCrypto(p1);
@@ -375,10 +459,21 @@
       }).join('') + '<button class="tab-add" id="tabAdd" title="Добавить вкладку">+</button>';
       bar.querySelectorAll('[data-tab]').forEach(function (b) {
         b.addEventListener('click', function (e) {
-          if (e.target.dataset.del) {
-            S.removeTab(e.target.dataset.del);
-            if (self.activeTab === e.target.dataset.del) self.activeTab = 'tree';
-            self.renderTabs(); self.showTab(self.activeTab);
+          var x = e.target.closest('[data-del]');     // нажатие может попасть в рисунок внутри
+          if (x) {
+            e.stopPropagation();
+            var id = x.dataset.del;
+            var tab = S.tree.tabs.filter(function (t) { return t.id === id; })[0];
+            self.confirm('Убрать вкладку «' + ((tab && tab.title) || '') + '»?',
+              'Люди, фотографии и связи останутся на месте — пропадёт только сама вкладка' +
+              (tab && tab.kind === 'notes' && tab.content ? ' вместе с записями на ней.' : '.'),
+              function () {
+                S.removeTab(id);
+                if (self.activeTab === id) self.activeTab = 'tree';
+                self.renderTabs();
+                self.showTab(self.activeTab);
+                self.toast('Вкладка убрана');
+              });
             return;
           }
           self.showTab(b.dataset.tab);
@@ -879,6 +974,60 @@
       }, 50);
     },
 
+    /** Кому открыта запись: отмечаем конкретных родственников. */
+    pickViewers: function (acl, onDone) {
+      var self = this;
+      acl.allow = acl.allow || [];
+      var others = S.users.filter(function (u) { return u.role !== 'admin'; });
+      var admins = S.users.filter(function (u) { return u.role === 'admin'; });
+
+      if (!others.length) {
+        this.modal('Кому открыть запись',
+          '<p class="note">Кроме администраторов, в дереве пока никого нет. ' +
+          'Пригласите родственников — <b>Настройки → Доступ и защита → Пригласить родственника</b>, ' +
+          'и они появятся в этом списке.</p>' +
+          (admins.length ? '<p class="note">Администраторы видят всё и так: ' +
+            esc(admins.map(function (u) { return u.displayName; }).join(', ')) + '.</p>' : ''),
+          []);
+        return;
+      }
+
+      var chosen = {};
+      acl.allow.forEach(function (id) { chosen[id] = true; });
+
+      this.modal('Кому открыть запись',
+        '<p class="note" style="margin:0 0 12px">Отметьте тех, кому эта запись будет видна. ' +
+        'Остальные её не увидят. Администраторы видят всё независимо от отметок.</p>' +
+        '<div class="viewer-list" id="vwList">' +
+        others.map(function (u) {
+          return '<label class="viewer-row"><input type="checkbox" data-u="' + esc(u.id) + '"' +
+            (chosen[u.id] ? ' checked' : '') + '>' +
+            '<span class="mini-ph">' + global.Icon('person') + '</span>' +
+            '<span class="li-main"><span>' + esc(u.displayName) + '</span>' +
+            '<span class="li-sub">' + esc(u.login) + '</span></span></label>';
+        }).join('') + '</div>' +
+        '<div class="btn-row"><button class="btn btn-sm" id="vwAll">Отметить всех</button>' +
+        '<button class="btn btn-sm" id="vwNone">Снять все</button></div>' +
+        (admins.length ? '<p class="note" style="margin-top:10px">Видят всегда: ' +
+          esc(admins.map(function (u) { return u.displayName; }).join(', ')) + '.</p>' : ''),
+        [{ text: 'Готово', primary: true, fn: function () {
+          var list = [];
+          document.querySelectorAll('#vwList [data-u]').forEach(function (c) {
+            if (c.checked) list.push(c.dataset.u);
+          });
+          acl.allow = list;
+          self.closeModal();
+          if (onDone) onDone(list);
+        } }]);
+
+      document.getElementById('vwAll').addEventListener('click', function () {
+        document.querySelectorAll('#vwList [data-u]').forEach(function (c) { c.checked = true; });
+      });
+      document.getElementById('vwNone').addEventListener('click', function () {
+        document.querySelectorAll('#vwList [data-u]').forEach(function (c) { c.checked = false; });
+      });
+    },
+
     /* ============ медиа ============ */
     pickFiles: function (cb) {
       var inp = document.createElement('input');
@@ -887,24 +1036,48 @@
       inp.addEventListener('change', function () { if (inp.files.length) cb(inp.files); });
       inp.click();
     },
-    askAccess: function (cb) {
+    /** Спросить, кому будут видны добавляемые файлы. */
+    askAccess: function (cb, acl) {
       var self = this;
+      acl = acl || { level: 'public', locked: false, allow: [] };
+
       this.modal('Кому показывать эти файлы?',
-        '<div class="row"><label for="acLevel">Видимость</label><select id="acLevel">' +
-        global.ACL_LEVELS.map(function (l) { return '<option value="' + l.v + '">' + l.t + '</option>'; }).join('') +
-        '</select></div>' +
-        '<label class="inline"><input type="checkbox" id="acLock"> <span>Замок: шифровать файл при хранении и в резервной копии</span></label>' +
-        '<p class="note" style="margin-top:10px">Зашифрованные файлы открываются только после входа с паролем дерева. ' +
-        'Если пароль утерян, восстановить их невозможно.</p>',
+        '<div class="row"><label for="acLevel">Видимость</label>' +
+        '<div class="acl-ctl"><select id="acLevel">' +
+        global.ACL_LEVELS.map(function (l) {
+          return '<option value="' + l.v + '"' + (acl.level === l.v ? ' selected' : '') + '>' + l.t + '</option>';
+        }).join('') + '</select>' +
+        '<button class="btn btn-sm" id="acWho" hidden>' + global.Icon('person') + ' Выбрать</button>' +
+        '</div><span class="note acl-names" id="acNames"></span></div>' +
+        '<label class="inline"><input type="checkbox" id="acLock"' + (acl.locked ? ' checked' : '') +
+        '> <span>Замок: шифровать файл при хранении и в резервной копии</span></label>' +
+        '<p class="note" style="margin-top:10px">Зашифрованные файлы открываются только после входа ' +
+        'с паролем дерева. Если пароль утерян, восстановить их невозможно.</p>',
         [{ text: 'Добавить', primary: true, fn: function () {
-          var acl = {
-            level: document.getElementById('acLevel').value,
-            locked: document.getElementById('acLock').checked
-          };
+          acl.level = document.getElementById('acLevel').value;
+          acl.locked = document.getElementById('acLock').checked;
           self.closeModal();
           cb(acl);
         } }]);
+
+      var lvl = document.getElementById('acLevel');
+      var who = document.getElementById('acWho');
+      var names = document.getElementById('acNames');
+      function paint() {
+        who.hidden = lvl.value !== 'chosen';
+        names.textContent = lvl.value === 'chosen'
+          ? (S.allowedNames(acl).join(', ') || 'пока никто не отмечен') : '';
+      }
+      lvl.addEventListener('change', function () { acl.level = lvl.value; paint(); });
+      who.addEventListener('click', function () {
+        acl.level = lvl.value;
+        acl.locked = document.getElementById('acLock').checked;
+        // выбор людей идёт отдельным окном, затем возвращаемся сюда
+        self.pickViewers(acl, function () { self.askAccess(cb, acl); });
+      });
+      paint();
     },
+
     viewMedia: function (id, sheet) {
       var m = S.tree.media[id], self = this;
       if (!m) return;
@@ -913,10 +1086,16 @@
       this.modal(m.caption || m.name,
         '<div id="mvBody" class="empty">Открываем…</div>' +
         '<div class="row" style="margin-top:12px"><label for="mvCap">Подпись</label><input id="mvCap" value="' + esc(m.caption) + '"></div>' +
-        '<div class="row"><label for="mvAcl">Видимость</label><select id="mvAcl">' +
+        '<div class="row"><label for="mvAcl">Видимость</label>' +
+        '<div class="acl-ctl"><select id="mvAcl">' +
         global.ACL_LEVELS.map(function (l) {
           return '<option value="' + l.v + '"' + (m.acl.level === l.v ? ' selected' : '') + '>' + l.t + '</option>';
-        }).join('') + '</select></div>' +
+        }).join('') + '</select>' +
+        '<button class="btn btn-sm" id="mvWho"' + (m.acl.level === 'chosen' ? '' : ' hidden') + '>' +
+        global.Icon('person') + ' Выбрать</button></div>' +
+        '<span class="note acl-names" id="mvNames">' +
+        (m.acl.level === 'chosen' ? esc(S.allowedNames(m.acl).join(', ') || 'пока никто не отмечен') : '') +
+        '</span></div>' +
         '<p class="note">' + esc(who ? S.fullName(who) : '') + ' · ' + Math.round((m.size || 0) / 1024) + ' КБ' +
         (m.encrypted ? ' · зашифрован' : '') + '</p>',
         [
@@ -941,6 +1120,22 @@
             if (sheet) sheet.renderBody();
           } }
         ]);
+      var mvLvl = document.getElementById('mvAcl');
+      var mvWho = document.getElementById('mvWho');
+      mvLvl.addEventListener('change', function () {
+        m.acl.level = mvLvl.value;
+        mvWho.hidden = mvLvl.value !== 'chosen';
+        document.getElementById('mvNames').textContent = mvLvl.value === 'chosen'
+          ? (S.allowedNames(m.acl).join(', ') || 'пока никто не отмечен') : '';
+      });
+      mvWho.addEventListener('click', function () {
+        m.acl.allow = m.acl.allow || [];
+        self.pickViewers(m.acl, function () {
+          S.save();
+          self.viewMedia(id, sheet);
+        });
+      });
+
       S.mediaURL(id).then(function (url) {
         var body = document.getElementById('mvBody');
         if (!body) return;
@@ -1013,6 +1208,20 @@
           '</div></div>' +
           '<div class="set-row"><span>Сетка из точек на полотне</span>' +
           '<input type="checkbox" id="stGrid"' + (p.treeGrid ? ' checked' : '') + '></div>' +
+          '<div class="set-row"><span>Картинка под деревом</span><span class="inline">' +
+          '<button class="btn btn-sm" id="stBgImg">' + global.Icon('upload') +
+          (p.treeImage ? ' Заменить' : ' Загрузить') + '</button>' +
+          (p.treeImage ? '<button class="btn btn-sm btn-danger" id="stBgImgOff">Убрать</button>' : '') +
+          '</span></div>' +
+          (p.treeImage ?
+            '<div class="set-row"><span>Как разместить</span><select id="stBgFit">' +
+            ['cover:Во весь экран', 'tile:Плиткой'].map(function (x) {
+              var v = x.split(':');
+              return '<option value="' + v[0] + '"' +
+                (p.treeImageFit === v[0] ? ' selected' : '') + '>' + v[1] + '</option>';
+            }).join('') + '</select></div>' +
+            rng('Приглушить картинку', 'stBgFade', 0, 90, p.treeImageFade == null ? 35 : p.treeImageFade, '%')
+            : '') +
           rng('Размер текста в программе', 'stUi', 11, 20, p.ui.fontSize, 'px') +
           rng('Размер текста вкладок', 'stTab', 11, 20, p.ui.tabSize, 'px') +
           rng('Размер значков в панели', 'stIcon', 13, 30, p.ui.iconSize || 17, 'px') +
@@ -1055,6 +1264,28 @@
         document.getElementById('stDateW').addEventListener('change', function () { p.card.dateWeight = +this.value; apply(); });
         document.getElementById('stTheme').addEventListener('change', function () { p.theme = this.value; apply(); });
         document.getElementById('stGrid').addEventListener('change', function () { p.treeGrid = this.checked; apply(); });
+        document.getElementById('stBgImg').addEventListener('click', function () {
+          var inp = document.createElement('input');
+          inp.type = 'file'; inp.accept = 'image/*';
+          inp.addEventListener('change', function () {
+            if (!inp.files[0]) return;
+            if (inp.files[0].size > 12 * 1024 * 1024) {
+              self.toast('Картинка тяжелее 12 МБ — возьмите поменьше');
+              return;
+            }
+            self.setTreeImage(inp.files[0]).then(function () { self.setPane('look'); });
+          });
+          inp.click();
+        });
+        var bgOff = document.getElementById('stBgImgOff');
+        if (bgOff) bgOff.addEventListener('click', function () {
+          self.clearTreeImage();
+          self.setPane('look');
+        });
+        var bgFit = document.getElementById('stBgFit');
+        if (bgFit) bgFit.addEventListener('change', function () { p.treeImageFit = this.value; apply(); });
+        var bgFade = document.getElementById('stBgFade');
+        if (bgFade) bindRange('stBgFade', function (v) { p.treeImageFade = v; });
         document.getElementById('stShowPh').addEventListener('change', function () { p.showPhotos = this.checked; apply(); });
         document.getElementById('stShowDt').addEventListener('change', function () { p.showDates = this.checked; apply(); });
         document.getElementById('stAccent').addEventListener('click', function (e) {
@@ -1086,7 +1317,7 @@
         function bindRange(id, fn) {
           var el = document.getElementById(id);
           el.addEventListener('input', function () {
-            el.nextElementSibling.value = el.value + ' px';
+            el.nextElementSibling.value = el.value + ' ' + (el.dataset.unit || 'px');
             fn(+el.value); apply();
           });
         }
@@ -1269,7 +1500,8 @@
 
       function rng(label, id, min, max, v, unit) {
         return '<div class="set-row"><span>' + label + '</span><span class="inline">' +
-          '<input type="range" id="' + id + '" min="' + min + '" max="' + max + '" value="' + v + '">' +
+          '<input type="range" id="' + id + '" min="' + min + '" max="' + max + '" value="' + v +
+          '" data-unit="' + unit + '">' +
           '<output>' + v + ' ' + unit + '</output></span></div>';
       }
       function fname(ext) {
@@ -1589,8 +1821,8 @@
     inviteDialog: function () {
       var self = this;
       this.modal('Пригласить родственника',
-        '<div class="row"><label for="ivName">Имя</label><input id="ivName" placeholder="Сергей Булыгин"></div>' +
-        '<div class="row"><label for="ivLogin">Логин</label><input id="ivLogin" placeholder="sergey"></div>' +
+        '<div class="row"><label for="ivName">Имя</label><input id="ivName"></div>' +
+        '<div class="row"><label for="ivLogin">Логин</label><input id="ivLogin" autocomplete="off"></div>' +
         '<div class="row"><label for="ivRole">Роль</label><select id="ivRole">' +
         '<option value="user">Пользователь</option><option value="admin">Администратор</option></select></div>' +
         '<p class="note">Пароль человек задаст сам, перейдя по ссылке. Вы её увидите сразу после создания.</p>',
@@ -1666,6 +1898,45 @@
       root.style.setProperty('--icon-size', (p.ui.iconSize || 17) + 'px');
       if (p.treeBg && p.treeBg !== 'auto') root.style.setProperty('--tree-bg', p.treeBg);
       else root.style.setProperty('--tree-bg', 'var(--paper)');
+      root.style.setProperty('--tree-fade', ((p.treeImageFade == null ? 35 : p.treeImageFade) / 100));
+      this.paintTreeImage();
+    },
+
+    /** картинка под деревом; лежит в хранилище устройства, своя у каждого */
+    paintTreeImage: function () {
+      var el = document.getElementById('treeBgImage'), p = S.prefs, self = this;
+      if (!el) return;
+      if (!p.treeImage) {
+        el.hidden = true;
+        el.style.backgroundImage = '';
+        if (this._bgUrl) { try { URL.revokeObjectURL(this._bgUrl); } catch (e) {} this._bgUrl = null; }
+        return;
+      }
+      el.classList.toggle('tile', p.treeImageFit === 'tile');
+      if (this._bgUrl) { el.hidden = false; return; }
+      U.blobGet('__treebg_' + S.session.userId).then(function (b) {
+        if (!b) { p.treeImage = false; S.savePrefs(); el.hidden = true; return; }
+        self._bgUrl = URL.createObjectURL(b);
+        el.style.backgroundImage = 'url(' + self._bgUrl + ')';
+        el.hidden = false;
+      });
+    },
+    setTreeImage: function (file) {
+      var self = this, p = S.prefs;
+      if (this._bgUrl) { try { URL.revokeObjectURL(this._bgUrl); } catch (e) {} this._bgUrl = null; }
+      return U.blobPut('__treebg_' + S.session.userId, file).then(function () {
+        p.treeImage = true;
+        S.savePrefs();
+        self.paintTreeImage();
+      });
+    },
+    clearTreeImage: function () {
+      var p = S.prefs;
+      if (this._bgUrl) { try { URL.revokeObjectURL(this._bgUrl); } catch (e) {} this._bgUrl = null; }
+      p.treeImage = false;
+      S.savePrefs();
+      U.blobDel('__treebg_' + S.session.userId);
+      this.paintTreeImage();
     },
 
     /** Образец окошка в настройках: те же правила, что и в дереве,
@@ -1695,7 +1966,7 @@
             'px;font-weight:' + (p.card.dateWeight || 400) + '">' + esc(years) + '</div>';
         }
         h += '</div>';
-        if (gone) h += '<span class="node-mourn" style="border-top-left-radius:' + r + 'px"></span>';
+        if (gone) h += '<span class="node-mourn"></span>';
         return h + '</div>';
       }
       stage.innerHTML = '<div class="pv-row">' +

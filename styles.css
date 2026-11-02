@@ -25,6 +25,7 @@
   --neutral-bot:  #ded7c8;
   --neutral-edge: #bdb3a1;
   --mourn:        #15120f;
+  --line-tree:    #a69c89;
   --good:         #3f7d5a;
   --warn:         #a9741f;
   --bad:          #a4402f;
@@ -64,6 +65,7 @@
     --neutral-bot:  #1f1b16;
     --neutral-edge: #4d463c;
     --mourn:        #000000;
+    --line-tree:    #6b6353;
     --good:         #6fae89;
     --warn:         #d3a55c;
     --bad:          #d47a68;
@@ -93,6 +95,7 @@
   --neutral-bot:  #1f1b16;
   --neutral-edge: #4d463c;
   --mourn:        #000000;
+  --line-tree:    #6b6353;
   --good:         #6fae89;
   --warn:         #d3a55c;
   --bad:          #d47a68;
@@ -229,6 +232,17 @@ a { color: var(--accent); }
   background: var(--tree-bg);
   cursor: grab;
 }
+/* своя картинка под деревом; приглушается слоем цвета сверху */
+#treeBgImage {
+  position: absolute; inset: 0; pointer-events: none;
+  background-position: center; background-repeat: no-repeat;
+  background-size: cover;
+}
+#treeBgImage.tile { background-repeat: repeat; background-size: auto; }
+#treeBgImage::after {
+  content: ""; position: absolute; inset: 0;
+  background: var(--tree-bg); opacity: var(--tree-fade, .35);
+}
 #treeHost.grid {
   background:
     radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/28px 28px,
@@ -237,8 +251,11 @@ a { color: var(--accent); }
 #treeHost.grabbing { cursor: grabbing; }
 #treeCanvas, #treeLines { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 #treeLines { pointer-events: none; }
-.lnk-parent, .lnk-couple { fill: none; stroke: var(--neutral-edge); stroke-width: 1.5; }
-.lnk-couple { stroke: var(--accent); stroke-width: 2; opacity: .55; }
+.lnk-parent, .lnk-couple {
+  fill: none; stroke: var(--line-tree); stroke-width: 2;
+  shape-rendering: crispEdges;          /* линии строго по осям — без размытия */
+}
+.lnk-couple { stroke: var(--accent); opacity: .6; }
 
 .node {
   position: absolute; display: flex; align-items: center; gap: 8px;
@@ -260,10 +277,19 @@ a { color: var(--accent); }
 /* раскрыта карточка этого человека — пометка снимается при закрытии */
 .node.is-open { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* траурная полоса на углу: человека нет в живых */
+/* Траурная полоса на углу: человека нет в живых.
+   Слой во весь эскиз с его же скруглением — поэтому полоса видна и при
+   капсуле, и при любом радиусе, и ложится поверх фотокарточки. */
 .node-mourn {
-  position: absolute; left: 0; top: 0; width: 26px; height: 26px; pointer-events: none;
-  background: linear-gradient(135deg, var(--mourn) 0 11px, transparent 11px);
+  position: absolute; inset: 0; border-radius: inherit;
+  overflow: hidden; pointer-events: none; z-index: 4;
+}
+/* Полоса идёт вдоль левого края во всю высоту: уголок при капсуле
+   или большом радиусе срезается скруглением, а эта видна всегда
+   и заходит на фотокарточку. */
+.node-mourn::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 12px;
+  background: var(--mourn);
 }
 
 .node-ph {
@@ -277,13 +303,13 @@ a { color: var(--accent); }
 .node-years { color: var(--ink-soft); font-family: var(--font-data); margin-top: 2px; }
 .node-lock { position: absolute; top: 2px; right: 3px; line-height: 0; opacity: .65; }
 .node-plus {
-  position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
-  width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--good);
+  position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%);
+  width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--good);
   background: var(--paper-2); color: var(--good); line-height: 0;
   display: grid; place-items: center; padding: 0; z-index: 3;
-  box-shadow: 0 1px 3px rgba(0,0,0,.2); opacity: 0; transition: opacity .12s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25); opacity: 0; transition: opacity .12s;
 }
-.node-plus .ico { width: 13px; height: 13px; }
+.node-plus .ico { width: 14px; height: 14px; }
 .node-plus:hover { background: var(--good); color: var(--paper-2); }
 .node:hover .node-plus, .node-plus:focus-visible { opacity: 1; }
 @media (pointer: coarse) { .node-plus { opacity: .92; } }
@@ -346,14 +372,30 @@ a { color: var(--accent); }
 }
 .sheet-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 700; }
 
-.row { display: grid; grid-template-columns: 112px 1fr; gap: 8px; align-items: start; margin-bottom: 8px; }
-.row > label { font-size: 12px; color: var(--ink-faint); padding-top: 7px; }
-.row input, .row select, .row textarea, .field-val {
-  width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid var(--line);
+/* Название сверху, поле под ним во всю ширину: длинные значения
+   (адрес, место, имя) помещаются целиком. */
+.row { display: grid; grid-template-columns: 1fr; gap: 3px; margin-bottom: 10px; }
+.row > label {
+  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-faint); padding: 0;
+}
+.row input:not([type=checkbox]):not([type=radio]),
+.row select, .row textarea, .field-val {
+  width: 100%; min-width: 0; padding: 7px 9px; border: 1px solid var(--line);
   border-radius: 8px; background: var(--paper); outline: none;
 }
-.row input:focus, .row select:focus, .row textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,127,184,.16); }
+.row input:not([type=checkbox]):focus, .row select:focus, .row textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,127,184,.16);
+}
 .row textarea { min-height: 70px; resize: vertical; }
+
+/* Галочки и переключатели: свой размер, без растягивания на всю строку */
+input[type=checkbox], input[type=radio] {
+  width: 17px; height: 17px; flex: 0 0 auto; margin: 0;
+  accent-color: var(--accent); cursor: pointer;
+}
+.row input[type=checkbox] { margin-top: 3px; }
+label.inline { cursor: pointer; }
 .inline { display: flex; gap: 6px; align-items: center; }
 .inline > * { min-width: 0; }
 
@@ -495,10 +537,12 @@ a { color: var(--accent); }
 .cal-when b { display: block; font-size: 17px; color: var(--ink); }
 .cal-soon { color: var(--good); font-weight: 700; }
 
-#mapCanvas {
+#mapCanvas, .map-host {
   position: relative; width: 100%; height: 100%; overflow: hidden;
   background: var(--neutral); touch-action: none; cursor: grab;
+  user-select: none; -webkit-user-select: none;
 }
+.map-tile { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
 #mapCanvas.grabbing { cursor: grabbing; }
 .map-tile { position: absolute; width: 256px; height: 256px; }
 .map-pin {
@@ -514,6 +558,38 @@ a { color: var(--accent); }
   background: rgba(255,255,255,.8); color: #333; padding: 1px 5px; border-radius: 4px;
 }
 .map-ctl { position: absolute; left: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 5; }
+.map-ctl .btn { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; }
+
+/* панель над картой выбора точки */
+.map-tools {
+  position: absolute; z-index: 6; left: 50px; right: 10px; top: 10px;
+  display: flex; gap: 6px; align-items: center;
+}
+.map-tools input {
+  flex: 1 1 auto; min-width: 0; padding: 7px 10px; border: 1px solid var(--line);
+  border-radius: 9px; background: var(--paper-2); outline: none;
+}
+.map-tools input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,127,184,.18); }
+.map-tools .btn { background: var(--paper-2); }
+.map-hits {
+  position: absolute; z-index: 7; left: 50px; right: 10px; top: 50px;
+  background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: var(--shadow); max-height: 220px; overflow: auto; padding: 4px;
+}
+.map-hits[hidden] { display: none !important; }
+.map-hits button {
+  display: block; width: 100%; text-align: left; border: 0; background: transparent;
+  padding: 7px 9px; border-radius: 7px; font-size: 13px;
+}
+.map-hits button:hover { background: var(--neutral); }
+.map-pick-wrap { position: relative; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.map-pick-wrap.full {
+  position: fixed; inset: 0; z-index: 140; border-radius: 0; border: 0;
+}
+.map-crosshair {
+  position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px;
+  pointer-events: none; z-index: 5; opacity: .5; color: var(--ink);
+}
 
 /* ---------- настройки ---------- */
 .set-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
@@ -612,7 +688,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
   background: linear-gradient(170deg, var(--female-top) 0%, var(--female) 58%, var(--female-bot) 100%);
   border-color: var(--female-edge);
 }
-.pv-node .node-mourn { width: 24px; height: 24px; }
+
 .pv-txt { overflow: hidden; }
 .pv-ph {
   flex: 0 0 auto; background: var(--paper-2); border: 1px solid rgba(0,0,0,.08);
@@ -712,3 +788,32 @@ table.data tbody tr:hover { background: var(--neutral); }
 .chip.add { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
 .chip.delete { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
 .chip.media { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+
+/* адрес: широкое поле на несколько строк */
+.field-wide {
+  width: 100%; margin-top: 5px; padding: 7px 9px; min-height: 46px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--paper);
+  outline: none; resize: vertical; line-height: 1.45; font: inherit;
+}
+.field-wide:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,127,184,.16); }
+
+/* ---------- кому видна запись ---------- */
+.acl-ctl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.acl-ctl select { flex: 0 1 auto; width: auto; min-width: 170px; }
+.acl-names {
+  display: block; margin-top: 3px; font-size: 11px; color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+.viewer-list {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 46vh; overflow: auto;
+  border: 1px solid var(--line); border-radius: 10px; padding: 5px; background: var(--paper);
+}
+.viewer-row {
+  display: flex; align-items: center; gap: 10px; padding: 7px 9px;
+  border-radius: 8px; cursor: pointer;
+}
+.viewer-row:hover { background: var(--neutral); }
+.viewer-row .li-main { display: flex; flex-direction: column; min-width: 0; }
+.viewer-row .mini-ph { width: 28px; height: 28px; }
+.viewer-row .mini-ph .ico { width: 16px; height: 16px; }

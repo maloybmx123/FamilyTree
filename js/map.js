@@ -52,8 +52,11 @@
       self.onClick(y2lat(top + (e.clientY - r.top), z), x2lon(left + (e.clientX - r.left), z));
     });
     var drag = null;
+    this.host.addEventListener('dragstart', function (e) { e.preventDefault(); });
     this.host.addEventListener('pointerdown', function (e) {
       if (e.target.closest('.map-ctl') || e.target.closest('.map-pin')) return;
+      if (e.target.closest('.map-tools')) return;
+      e.preventDefault();
       drag = { x: e.clientX, y: e.clientY, cx: self.cx, cy: self.cy };
       self._moved = false;
       self.host.setPointerCapture(e.pointerId);
@@ -79,6 +82,13 @@
   };
 
   MiniMap.prototype.setPins = function (pins) { this.pins = pins || []; this.draw(); };
+
+  /** поставить центр и приближение */
+  MiniMap.prototype.goTo = function (lat, lng, z) {
+    this.cx = lat; this.cy = lng;
+    if (z) this.z = Math.max(2, Math.min(18, z));
+    this.draw();
+  };
 
   MiniMap.prototype.fit = function () {
     if (!this.pins.length) return;
@@ -112,8 +122,9 @@
       for (var y = y0; y < y1; y++) {
         if (y < 0 || y >= max) continue;
         var tx = ((x % max) + max) % max;
-        html += '<img class="map-tile" alt="" loading="lazy" src="https://tile.openstreetmap.org/' +
-          z + '/' + tx + '/' + y + '.png" style="left:' + (x * TILE - left) + 'px;top:' + (y * TILE - top) + 'px">';
+        html += '<img class="map-tile" alt="" loading="lazy" draggable="false" ' +
+          'src="https://tile.openstreetmap.org/' + z + '/' + tx + '/' + y + '.png" ' +
+          'style="left:' + (x * TILE - left) + 'px;top:' + (y * TILE - top) + 'px">';
       }
     }
     this.pins.forEach(function (p, i) {

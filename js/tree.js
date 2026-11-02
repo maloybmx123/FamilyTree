@@ -39,7 +39,158 @@
   Tree.prototype.setMode = function (m) { this.mode = m; this.render(true); };
 
   /* ---------------- раскладка ---------------- */
+  /* ---------------- «бабочка» ----------------
+     Фокус в середине. Предки по отцу расходятся веером влево, по матери —
+     вправо, потомки уходят вниз. Это другая раскладка, а не вертикальная
+     с перекосом, поэтому считается отдельно. */
+  Tree.prototype.computeButterfly = function () {
+    var self = this, prefs = S.prefs;
+    var CW = prefs.card.w, CH = prefs.card.h;
+    var COL = CW + 64;        // шаг между поколениями предков
+    var ROW = CH + 18;        // шаг между соседями по вертикали
+    var LEVEL = CH + 78;      // шаг между поколениями потомков
+
+    var focus = S.person(this.focusId);
+    if (!focus) return { cards: [], links: [], w: 0, h: 0, map: {}, paths: [] };
+
+    var cards = [], links = [], placed = {};
+    function put(person, x, y, role) {
+      var c = { id: person.id, person: person, x: Math.round(x), y: Math.round(y),
+        w: CW, h: CH, role: role || 'blood' };
+      cards.push(c);
+      placed[person.id] = c;
+      return c;
+    }
+
+    /* ---- крылья предков ---- */
+    // side: -1 влево (по отцу), +1 вправо (по матери)
+    function wing(pid, gen, side, cursor) {
+      var par = gen <= self.up ? S.parentsOf(pid).filter(function (p) { return !placed[p.id]; }) : [];
+      var y;
+      if (!par.length) {
+        y = cursor.v;
+        cursor.v += ROW;
+      } else {
+        var ys = par.map(function (p) { return wing(p.id, gen + 1, side, cursor); });
+        y = (ys[0] + ys[ys.length - 1]) / 2;
+      }
+      var p = S.person(pid);
+      if (p && !placed[pid]) put(p, side * gen * COL - CW / 2, y - CH / 2);
+      return y;
+    }
+
+    var parents = S.parentsOf(focus.id);
+    var father = parents.filter(function (p) { return p.sex !== 'F'; })[0] || parents[0] || null;
+    var mother = parents.filter(function (p) { return p !== father; })[0] || null;
+
+    placed[focus.id] = true;                       // чтобы крылья его не заняли
+    var leftCur = { v: 0 }, rightCur = { v: 0 };
+    var leftY = father ? wing(father.id, 1, -1, leftCur) : null;
+    var rightY = mother ? wing(mother.id, 1, 1, rightCur) : null;
+    delete placed[focus.id];
+
+    // выровнять крылья по вертикали друг относительно друга
+    function shift(side, dy) {
+      cards.forEach(function (c) {
+        if ((side < 0 && c.x < -CW / 2) || (side > 0 && c.x > CW / 2)) c.y += dy;
+      });
+    }
+    if (leftY != null && rightY != null) {
+      var mid = (leftY + rightY) / 2;
+      shift(-1, mid - leftY); shift(1, mid - rightY);
+      leftY = rightY = mid;
+    }
+    var axis = leftY != null ? leftY : (rightY != null ? rightY : 0);
+
+    /* ---- фокус и его супруги ---- */
+    var me = put(focus, -CW / 2, axis - CH / 2, 'focus');
+    var mates = S.spousesOf(focus.id).filter(function (x) { return !placed[x.id]; });
+    var mateCards = [];
+    if (mates.length) {
+      // супруг встаёт справа от фокуса — правое крыло отодвигаем, чтобы не наложилось
+      var push = CW + 28;
+      cards.forEach(function (c) { if (c.x > 0) c.x += push; });
+      mateCards.push(put(mates[0], CW / 2 + 14, axis - CH / 2, 'spouse'));
+      links.push({ kind: 'couple', a: focus.id, b: mates[0].id });
+    }
+
+    /* ---- потомки вниз ---- */
+    var kidsTop = axis + CH / 2 + 46;
+    function descend(pid, gen, cursor) {
+      var kids = S.childrenOf(pid).filter(function (k) { return !placed[k.id]; });
+      var xs = [];
+      kids.forEach(function (k) {
+        placed[k.id] = true;
+        var kx = descend(k.id, gen + 1, cursor);
+        xs.push(kx);
+      });
+      var x;
+      if (!xs.length) { x = cursor.v; cursor.v += CW + 26; }
+      else x = (xs[0] + xs[xs.length - 1]) / 2;
+      var p = S.person(pid);
+      if (p && placed[pid] === true) put(p, x - CW / 2, kidsTop + (gen - 1) * LEVEL);
+      return x;
+    }
+    var kidCursor = { v: 0 };
+    var directKids = S.childrenOf(focus.id);
+    var kidXs = [];
+    directKids.forEach(function (k) {
+      if (placed[k.id]) return;
+      placed[k.id] = true;
+      kidXs.push(descend(k.id, 1, kidCursor));
+    });
+    if (kidXs.length) {
+      // сдвинуть всех потомков так, чтобы их середина была под фокусом
+      var mid2 = (kidXs[0] + kidXs[kidXs.length - 1]) / 2;
+      var anchor = mateCards.length ? (me.x + me.w + 14 + CW / 2) / 2 : 0;
+      var dx = anchor - mid2;
+      cards.forEach(function (c) { if (c.y > axis + CH) c.x += dx; });
+      directKids.forEach(function (k) {
+        if (placed[k.id] && typeof placed[k.id] === 'object') {
+          links.push({ kind: 'parent', from: mateCards.length ? [focus.id, mates[0].id] : [focus.id], to: k.id });
+        }
+      });
+      // связи внутри потомков
+      cards.forEach(function (c) {
+        if (c.y <= axis + CH) return;
+        S.childrenOf(c.id).forEach(function (ch) {
+          if (placed[ch.id] && typeof placed[ch.id] === 'object') {
+            links.push({ kind: 'parent', from: [c.id], to: ch.id });
+          }
+        });
+      });
+    }
+
+    /* ---- связи в крыльях: ребёнок ← родитель ---- */
+    cards.forEach(function (c) {
+      if (c.y > axis + CH) return;                 // потомков уже связали
+      S.parentsOf(c.id).forEach(function (par) {
+        if (placed[par.id] && typeof placed[par.id] === 'object') {
+          links.push({ kind: 'wing', from: par.id, to: c.id });
+        }
+      });
+    });
+
+    /* ---- в пиксели ---- */
+    var PAD = 60;
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    cards.forEach(function (c) {
+      minX = Math.min(minX, c.x); maxX = Math.max(maxX, c.x + c.w);
+      minY = Math.min(minY, c.y); maxY = Math.max(maxY, c.y + c.h);
+    });
+    cards.forEach(function (c) {
+      c.x = Math.round(c.x - minX + PAD);
+      c.y = Math.round(c.y - minY + PAD);
+    });
+    return {
+      cards: cards, links: links, map: placed,
+      w: (maxX - minX) + PAD * 2, h: (maxY - minY) + PAD * 2,
+      butterfly: true
+    };
+  };
+
   Tree.prototype.compute = function () {
+    if (this.mode === 'butterfly') return this.computeButterfly();
     var self = this, prefs = S.prefs;
     var CW = prefs.card.w, CH = prefs.card.h;
     var mode = this.mode;
@@ -49,6 +200,10 @@
     if (mode === 'horizontal') { SLOT = CH + 22; LEVEL = CW + 110; }
     else { SLOT = CW + 26; LEVEL = CH + 78; }
     var MATE = (mode === 'horizontal') ? CH + 10 : CW + 12;  // шаг внутри пары супругов
+    // Протяжённость самой карточки вдоль оси «братья-сёстры». SLOT шире неё
+    // на зазор; если ставить карточки по SLOT, центр пары уезжает от центра
+    // детей на половину зазора — и линия вниз получается с изломом.
+    var CARD = (mode === 'horizontal') ? CH : CW;
 
     var cards = [], links = [];
     var focus = S.person(this.focusId);
@@ -111,7 +266,9 @@
         }
       }
 
-      var left = center - uw / 2;
+      // ставим по настоящей ширине карточек, а не по ширине слота
+      var span = (unit.length > 1 ? MATE : 0) + CARD;
+      var left = center - span / 2;
       unit.forEach(function (pid, i) {
         addCard(pid, gen, left + i * MATE, i === 0 ? 'blood' : 'spouse');
       });
@@ -145,7 +302,7 @@
         var w2 = wing;
         if (w2 === 0) w2 = (p.sex === 'F' ? 1 : -1);
         var bias = (mode === 'butterfly') ? w2 * SLOT * 0.9 * (self.up - depth + 1) : 0;
-        addCard(p.id, gen, c - SLOT / 2 + bias, 'blood');
+        addCard(p.id, gen, c - CARD / 2 + bias, 'blood');
         ascend(p.id, c + bias, gen - 1, depth - 1, w2);
       });
       var both = par.length === 2 && placed[par[0].id] && placed[par[1].id];
@@ -175,7 +332,7 @@
     rootUnit.forEach(function (pid) {
       var c = placed[pid];
       if (!c) return;
-      ascend(pid, c.pos + SLOT / 2, c.gen - 1, self.up, 0);
+      ascend(pid, c.pos + CARD / 2, c.gen - 1, self.up, 0);
     });
 
     // развести предков, которые наехали друг на друга
@@ -198,7 +355,7 @@
     });
     var PAD = 60;
     cards.forEach(function (c) {
-      var p = c.pos - minPos, g = c.gen - minGen;
+      var p = Math.round(c.pos - minPos), g = c.gen - minGen;
       if (mode === 'horizontal') { c.x = PAD + g * LEVEL; c.y = PAD + p; }
       else { c.x = PAD + p; c.y = PAD + g * LEVEL; }
       c.w = CW; c.h = CH;
@@ -239,8 +396,11 @@
        повисает в воздухе. Линия от пары детей выходит из середины связки
        супругов — то есть с отрезка, который уже нарисован между ними. */
     var paths = [], map = res.map;
-    var horiz = this.mode === 'horizontal';
+    var horiz = this.mode === 'horizontal';   // «бабочка» ведёт потомков вниз, как вертикальная
     var OVER = 1;                      // заход под рамку, чтобы не было волоска зазора
+    // Координаты округляем до целого: на дробных линия размазывается между
+    // двумя столбцами точек и на глаз выглядит кривой.
+    function q(v) { return Math.round(v); }
 
     function coupleLine(a, b) {
       return horiz
@@ -254,9 +414,24 @@
         if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return;
         var ln = coupleLine(a, b);
         paths.push({
-          d: 'M' + (ln.x1 - OVER * (horiz ? 0 : 1)) + ',' + (ln.y1 - OVER * (horiz ? 1 : 0)) +
-            ' L' + (ln.x2 + OVER * (horiz ? 0 : 1)) + ',' + (ln.y2 + OVER * (horiz ? 1 : 0)),
+          d: 'M' + q(ln.x1 - OVER * (horiz ? 0 : 1)) + ',' + q(ln.y1 - OVER * (horiz ? 1 : 0)) +
+            ' L' + q(ln.x2 + OVER * (horiz ? 0 : 1)) + ',' + q(ln.y2 + OVER * (horiz ? 1 : 0)),
           cls: 'lnk-couple'
+        });
+        return;
+      }
+      if (L.kind === 'wing') {
+        // крыло «бабочки»: родитель сбоку, ребёнок ближе к середине
+        var par = map[L.from], ch = map[L.to];
+        if (!par || !ch || typeof par !== 'object' || typeof ch !== 'object') return;
+        var toLeft = par.x < ch.x;
+        var sx = toLeft ? par.x + par.w - OVER : par.x + OVER;
+        var ex = toLeft ? ch.x + OVER : ch.x + ch.w - OVER;
+        var mx2 = (sx + ex) / 2;
+        paths.push({
+          d: 'M' + q(sx) + ',' + q(par.y + par.h / 2) + ' H' + q(mx2) +
+             ' V' + q(ch.y + ch.h / 2) + ' H' + q(ex),
+          cls: 'lnk-parent'
         });
         return;
       }
@@ -283,11 +458,17 @@
       if (horiz) {
         var tx = kid.x + OVER, ty = kid.y + kid.h / 2;
         var mx = Math.max(ox + 12, (ox + tx) / 2);
-        paths.push({ d: 'M' + ox + ',' + oy + ' H' + mx + ' V' + ty + ' H' + tx, cls: 'lnk-parent' });
+        paths.push({
+          d: 'M' + q(ox) + ',' + q(oy) + ' H' + q(mx) + ' V' + q(ty) + ' H' + q(tx),
+          cls: 'lnk-parent'
+        });
       } else {
         var tx2 = kid.x + kid.w / 2, ty2 = kid.y + OVER;
         var my = Math.max(oy + 12, (oy + ty2) / 2);
-        paths.push({ d: 'M' + ox + ',' + oy + ' V' + my + ' H' + tx2 + ' V' + ty2, cls: 'lnk-parent' });
+        paths.push({
+          d: 'M' + q(ox) + ',' + q(oy) + ' V' + q(my) + ' H' + q(tx2) + ' V' + q(ty2),
+          cls: 'lnk-parent'
+        });
       }
     });
     this.svg.innerHTML = paths.map(function (p) {
@@ -340,7 +521,7 @@
     html += '</div>';
     if (isGone(p)) {
       // траурная полоса на верхнем левом углу
-      html += '<span class="node-mourn" aria-hidden="true" style="border-top-left-radius:' + radius + 'px"></span>';
+      html += '<span class="node-mourn" aria-hidden="true"></span>';
     }
     if (p.acl && (p.acl.locked || p.acl.level !== 'public')) {
       html += '<span class="node-lock" title="Ограниченный доступ">' + global.Icon('lock') + '</span>';

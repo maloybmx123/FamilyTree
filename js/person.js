@@ -9,6 +9,7 @@
   var ACL_LEVELS = [
     { v: 'public', t: 'Видно всем' },
     { v: 'group', t: 'Только вошедшим' },
+    { v: 'chosen', t: 'Только выбранным' },
     { v: 'admin', t: 'Только администратору' }
   ];
 
@@ -159,11 +160,21 @@
     return '<button class="btn btn-sm mic-btn" data-act="dictate" data-target="' + target +
       '" title="Надиктовать" aria-label="Надиктовать">' + I('mic') + '</button>';
   }
+  /** Выбор видимости: список уровней, а для «только выбранным» — кнопка
+      с поимённым перечнем тех, кому запись открыта. */
   function aclSelect(bindAttr, acl) {
     acl = acl || { level: 'public', locked: false };
-    return '<select data-acl="' + bindAttr + '">' + ACL_LEVELS.map(function (l) {
+    var out = '<select data-acl="' + bindAttr + '">' + ACL_LEVELS.map(function (l) {
       return '<option value="' + l.v + '"' + (acl.level === l.v ? ' selected' : '') + '>' + l.t + '</option>';
     }).join('') + '</select>';
+    if (acl.level === 'chosen') {
+      var names = S.allowedNames(acl);
+      out += '<button class="btn btn-sm" data-act="pickViewers" data-key="' + bindAttr + '" ' +
+        'title="Кому открыта эта запись">' + I('person') +
+        (names.length ? ' ' + names.length : ' выбрать') + '</button>';
+      if (names.length) out += '<span class="note acl-names">' + esc(names.join(', ')) + '</span>';
+    }
+    return out;
   }
 
   Sheet.prototype.views = {
@@ -284,16 +295,19 @@
 
     access: function (p) {
       var a = p.acl || { level: 'public', locked: false };
-      return '<p class="note">Права действуют на всю карточку. Отдельные строки, файлы и события закрываются каждый своим замком ' +
-        'на соответствующих вкладках.</p>' +
-        row('Видимость', '<select data-acl="person">' + ACL_LEVELS.map(function (l) {
-          return '<option value="' + l.v + '"' + (a.level === l.v ? ' selected' : '') + '>' + l.t + '</option>';
-        }).join('') + '</select>') +
+      return '<p class="note">Права действуют на всю карточку. Отдельные строки, файлы и события закрываются ' +
+        'каждый своим замком на соответствующих вкладках.</p>' +
+        row('Видимость', '<div class="acl-ctl">' + aclSelect('person', a) + '</div>') +
         row('Замок', '<label class="inline"><input type="checkbox" data-lock="person"' + (a.locked ? ' checked' : '') +
           '> <span class="note">запретить изменение всем, кроме администратора</span></label>') +
         '<div class="sect-title">Что это значит</div>' +
-        '<p class="note">«Только администратору» скрывает запись у обычных пользователей и шифрует связанные с ней файлы ' +
-        'при сохранении и в резервной копии. Ключ выводится из пароля дерева и нигде не хранится.</p>';
+        '<p class="note"><b>Видно всем</b> — запись открыта любому, кто откроет дерево.<br>' +
+        '<b>Только вошедшим</b> — её видят все, у кого есть логин.<br>' +
+        '<b>Только выбранным</b> — вы сами отмечаете, кому из родственников она видна; ' +
+        'остальные её не увидят.<br>' +
+        '<b>Только администратору</b> — скрыта у всех обычных пользователей.</p>' +
+        '<p class="note">Записи с замком и закрытые записи шифруются при сохранении и в резервной копии. ' +
+        'Ключ выводится из пароля дерева и нигде не хранится.</p>';
     }
   };
 
@@ -396,6 +410,21 @@
 
   Sheet.prototype.bindFields = function (body) {
     var self = this, p = S.person(this.personId);
+    body.querySelectorAll('input[data-f$=".value"][data-kind="phone"]').forEach(function (inp) {
+      inp.addEventListener('focus', function () {
+        if (!inp.value.trim()) { inp.value = '+7 '; }
+        // курсор в конец, чтобы не править код страны случайно
+        setTimeout(function () { inp.setSelectionRange(inp.value.length, inp.value.length); }, 0);
+      });
+    });
+    body.querySelectorAll('textarea.field-wide').forEach(function (ta) {
+      function grow() {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(220, Math.max(46, ta.scrollHeight)) + 'px';
+      }
+      ta.addEventListener('input', grow);
+      grow();
+    });
     body.querySelectorAll('[data-f]').forEach(function (inp) {
       inp.addEventListener('input', function () {
         var parts = inp.dataset.f.split('.');
@@ -406,15 +435,24 @@
         });
       });
     });
-    body.querySelectorAll('[data-acl]').forEach(function (sel) {
+    self.bindAclSelects(body);
+  };
+
+  /* Права применяются сразу, а не через очередь: это осознанный выбор,
+     от него зависит сам вид строки (появляется список людей), и закрытие
+     карточки не должно молча отменять ограничение. */
+  Sheet.prototype.bindAclSelects = function (body) {
+    var self = this;
+    body.querySelectorAll('select[data-acl]').forEach(function (sel) {
       sel.addEventListener('change', function () {
-        var key = sel.dataset.acl, v = sel.value;
-        self.stage('acl:' + key, function () {
-          if (key.indexOf('f:') === 0) {
-            var f = (p.fields || []).filter(function (x) { return x.id === key.slice(2); })[0];
-            if (f) { f.acl = f.acl || {}; f.acl.level = v; }
-          }
-        });
+        var acl = self.aclByKey(sel.dataset.acl);
+        if (!acl) return;
+        acl.level = sel.value;
+        if (acl.level === 'chosen') acl.allow = acl.allow || [];
+        S.updatePerson(self.personId, {});
+        self.onChange();
+        self.renderBody();
+        if (acl.level === 'chosen' && !acl.allow.length) self.pickViewers(sel.dataset.acl);
       });
     });
   };
@@ -431,24 +469,12 @@
         });
       });
     });
-    body.querySelectorAll('[data-acl]').forEach(function (sel) {
-      sel.addEventListener('change', function () {
-        var id = sel.dataset.acl.replace('ev:', ''), v = sel.value;
-        self.stage('evacl:' + id, function () {
-          var e = (p.events || []).filter(function (x) { return x.id === id; })[0];
-          if (e) { e.acl = e.acl || {}; e.acl.level = v; }
-        });
-      });
-    });
+    self.bindAclSelects(body);
   };
 
   Sheet.prototype.bindAcl = function (body) {
     var self = this, p = S.person(this.personId);
-    var sel = body.querySelector('[data-acl="person"]');
-    if (sel) sel.addEventListener('change', function () {
-      var v = sel.value;
-      self.stage('person.acl', function () { p.acl = p.acl || {}; p.acl.level = v; });
-    });
+    self.bindAclSelects(body);
     var lock = body.querySelector('[data-lock="person"]');
     if (lock) lock.addEventListener('change', function () {
       var v = lock.checked;
@@ -476,6 +502,7 @@
     focus: function () { this.onFocus(this.personId); },
     goto: function (btn) { this.open(btn.dataset.id); },
     pickPlace: function (btn) { this.pickPlace(btn.dataset.key); },
+    pickViewers: function (btn) { this.pickViewers(btn.dataset.key); },
     dropPlace: function (btn) {
       var self = this, key = btn.dataset.key;
       global.App.confirm('Убрать точку с карты?',
@@ -508,7 +535,9 @@
       var labels = { phone: 'Телефон', email: 'Почта', addr: 'Адрес', link: 'Ссылка', text: 'Новая строка' };
       p.fields = p.fields || [];
       p.fields.push({
-        id: U.uid('f'), label: labels[type] || 'Строка', value: '', type: type,
+        id: U.uid('f'), label: labels[type] || 'Строка',
+        value: type === 'phone' ? '+7 ' : '',      // дальше человек просто дописывает номер
+        type: type,
         acl: { level: type === 'text' ? 'public' : 'group', locked: false }
       });
       S.updatePerson(p.id, {});
@@ -561,6 +590,35 @@
     dictate: function (btn) { this.dictate(btn.dataset.target, btn); }
   };
 
+  /* --------- кому видна запись --------- */
+
+  /** найти объект прав по ключу вида person | f:<id> | ev:<id> */
+  Sheet.prototype.aclByKey = function (key) {
+    var p = S.person(this.personId);
+    if (!p) return null;
+    var host = null;
+    if (key === 'person') host = p;
+    else if (key.indexOf('f:') === 0) {
+      host = (p.fields || []).filter(function (x) { return x.id === key.slice(2); })[0];
+    } else if (key.indexOf('ev:') === 0) {
+      host = (p.events || []).filter(function (x) { return x.id === key.slice(3); })[0];
+    }
+    if (!host) return null;
+    host.acl = host.acl || { level: 'public', locked: false };
+    return host.acl;
+  };
+
+  Sheet.prototype.pickViewers = function (key) {
+    var self = this;
+    var acl = this.aclByKey(key);
+    if (!acl) return;
+    global.App.pickViewers(acl, function () {
+      S.updatePerson(self.personId, {});
+      self.onChange();
+      self.renderBody();
+    });
+  };
+
   /* --------- точка на карте --------- */
   /* Точку записываем сразу: в окне карты человек уже нажал «Сохранить точку»,
      второе подтверждение внизу карточки было бы лишним. */
@@ -585,36 +643,109 @@
       ? (p.events || []).filter(function (x) { return x.id === key.slice(3); })[0]
       : p[key];
     var placeName = (cur && cur.place) || '';
-    var chosen = { lat: cur && cur.lat, lng: cur && cur.lng };
+    var chosen = { lat: cur && cur.lat != null ? +cur.lat : null,
+      lng: cur && cur.lng != null ? +cur.lng : null };
 
     global.App.modal('Где это было?',
-      '<p class="note" style="margin:0 0 10px">Нажмите на карту в нужном месте. ' +
-      'Перетаскивание двигает карту, колесо и кнопки слева меняют масштаб.</p>' +
-      (placeName ? '<p class="note">Записано место: <b>' + esc(placeName) + '</b></p>' : '') +
-      '<div id="pkMap" style="height:52vh;min-height:280px;position:relative;border-radius:10px;' +
-      'overflow:hidden;border:1px solid var(--line)"></div>' +
+      '<p class="note" style="margin:0 0 10px">Найдите место по названию или нажмите на карту. ' +
+      'Карта двигается перетаскиванием, масштаб — колесом, щипком или кнопками слева.</p>' +
+      '<div class="map-pick-wrap" id="pkWrap" style="height:56vh;min-height:300px">' +
+      '<div class="map-host" id="pkMap"></div>' +
+      '<div class="map-tools">' +
+      '<input id="pkFind" type="search" placeholder="Город, село, улица…" autocomplete="off" ' +
+      'value="' + esc(placeName) + '">' +
+      '<button class="btn btn-sm" id="pkGo" title="Найти">' + I('search') + '</button>' +
+      '<button class="btn btn-sm" id="pkHere" title="Я здесь">' + I('crosshair') + '</button>' +
+      '<button class="btn btn-sm" id="pkFull" title="Во весь экран">' + I('fullscreen') + '</button>' +
+      '</div>' +
+      '<div class="map-hits" id="pkHits" hidden></div>' +
+      '</div>' +
       '<p class="note" id="pkInfo" style="margin-top:8px">' +
-      (chosen.lat != null ? 'Выбрано: ' + (+chosen.lat).toFixed(4) + ', ' + (+chosen.lng).toFixed(4)
+      (chosen.lat != null ? 'Выбрано: ' + chosen.lat.toFixed(4) + ', ' + chosen.lng.toFixed(4)
         : 'Точка пока не выбрана') + '</p>',
       [{ text: 'Сохранить точку', primary: true, fn: function () {
         if (chosen.lat == null) { self.toast('Сначала отметьте место на карте'); return; }
         global.App.closeModal();
-        self.setPlace(key, +(+chosen.lat).toFixed(6), +(+chosen.lng).toFixed(6));
+        self.setPlace(key, +chosen.lat.toFixed(6), +chosen.lng.toFixed(6));
         self.renderBody();
       } }]);
 
-    var m = new global.MiniMap(document.getElementById('pkMap'));
-    var pins = [];
-    if (chosen.lat != null) pins.push({ lat: +chosen.lat, lng: +chosen.lng, kind: 'event', label: placeName });
-    m.setPins(pins);
-    if (pins.length) { m.z = 11; m.cx = +chosen.lat; m.cy = +chosen.lng; m.draw(); }
-    else m.draw();
-    m.onClick = function (lat, lng) {
+    var host = document.getElementById('pkMap');
+    var m = new global.MiniMap(host);
+    self._picker = m;
+
+    function mark(lat, lng, zoom) {
       chosen.lat = lat; chosen.lng = lng;
       m.setPins([{ lat: lat, lng: lng, kind: 'event', label: placeName }]);
+      if (zoom) m.goTo(lat, lng, zoom);
       var info = document.getElementById('pkInfo');
       if (info) info.textContent = 'Выбрано: ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
-    };
+    }
+    if (chosen.lat != null) mark(chosen.lat, chosen.lng, 11);
+    else m.draw();
+    m.onClick = function (lat, lng) { mark(lat, lng); };
+
+    /* --- поиск места --- */
+    var hits = document.getElementById('pkHits');
+    var findBox = document.getElementById('pkFind');
+    function search() {
+      var q = findBox.value.trim();
+      if (q.length < 3) { hits.hidden = true; return; }
+      hits.hidden = false;
+      hits.innerHTML = '<div class="note" style="padding:8px">Ищем…</div>';
+      fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&accept-language=ru&q=' +
+        encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (list) {
+          if (!list.length) {
+            hits.innerHTML = '<div class="note" style="padding:8px">Ничего не нашлось. ' +
+              'Можно просто нажать нужное место на карте.</div>';
+            return;
+          }
+          hits.innerHTML = list.map(function (x, i) {
+            return '<button type="button" data-i="' + i + '">' + esc(x.display_name) + '</button>';
+          }).join('');
+          hits.querySelectorAll('[data-i]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var x = list[+btn.dataset.i];
+              hits.hidden = true;
+              mark(parseFloat(x.lat), parseFloat(x.lon), 12);
+            });
+          });
+        }, function () {
+          hits.innerHTML = '<div class="note" style="padding:8px">' +
+            'Поиск недоступен без интернета. Нажмите нужное место на карте.</div>';
+        });
+    }
+    document.getElementById('pkGo').addEventListener('click', search);
+    findBox.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); search(); }
+    });
+    findBox.addEventListener('input', function () {
+      clearTimeout(self._findT);
+      self._findT = setTimeout(search, 600);
+    });
+
+    /* --- где я сейчас --- */
+    document.getElementById('pkHere').addEventListener('click', function () {
+      var info = document.getElementById('pkInfo');
+      if (!navigator.geolocation) { self.toast('Устройство не сообщает местоположение'); return; }
+      if (info) info.textContent = 'Определяем, где вы…';
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        mark(pos.coords.latitude, pos.coords.longitude, 14);
+      }, function () {
+        if (info) info.textContent = 'Не удалось определить местоположение — ' +
+          'разрешите доступ или выберите место вручную.';
+      }, { enableHighAccuracy: true, timeout: 10000 });
+    });
+
+    /* --- во весь экран --- */
+    document.getElementById('pkFull').addEventListener('click', function () {
+      var wrap = document.getElementById('pkWrap');
+      wrap.classList.toggle('full');
+      this.title = wrap.classList.contains('full') ? 'Свернуть' : 'Во весь экран';
+      setTimeout(function () { m.draw(); }, 60);
+    });
   };
 
   /* --------- голос --------- */
@@ -734,9 +865,19 @@
     var isNote = f.type === 'text' || f.type === 'note';
     return '<div class="list-item" style="flex-wrap:wrap">' +
       '<div class="li-main" style="flex:1 1 100%">' +
-      '<div class="inline"><input data-f="' + f.id + '.label" value="' + esc(f.label) + '" placeholder="Название" style="max-width:40%">' +
-      '<input data-f="' + f.id + '.value" value="' + esc(f.value) + '" placeholder="Значение">' +
-      micBtn('f:' + f.id) + '</div>' +
+      // адрес длинный — ему отдельная строка на всю ширину и в несколько строк
+      (f.type === 'addr'
+        ? '<div class="inline"><input data-f="' + f.id + '.label" value="' + esc(f.label) +
+          '" placeholder="Название" style="max-width:40%">' + micBtn('f:' + f.id) + '</div>' +
+          '<textarea class="field-wide" data-f="' + f.id + '.value" data-kind="addr" rows="2" ' +
+          'placeholder="Индекс, область, район, населённый пункт, улица, дом, квартира">' +
+          esc(f.value) + '</textarea>'
+        : '<div class="inline"><input data-f="' + f.id + '.label" value="' + esc(f.label) +
+          '" placeholder="Название" style="max-width:40%">' +
+          '<input data-f="' + f.id + '.value" data-kind="' + esc(f.type) + '" value="' + esc(f.value) +
+          '" placeholder="' + (f.type === 'phone' ? '+7 999 123-45-67' : 'Значение') +
+          '"' + (f.type === 'phone' ? ' type="tel" inputmode="tel"' : '') + '>' +
+          micBtn('f:' + f.id) + '</div>') +
       '<div class="inline" style="margin-top:5px">' + aclSelect('f:' + f.id, f.acl) +
       '<button class="btn btn-sm btn-danger" data-act="delField" data-id="' + f.id + '">Удалить</button></div>' +
       '</div></div>';
