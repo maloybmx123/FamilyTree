@@ -246,6 +246,7 @@
       interval: 120,          // как часто, секунд
       lastAt: null,           // когда прошла последняя
       lastError: null,
+      siteUrl: '',            // адрес установленной программы — основа для ссылок
       supabase: { url: '', key: '', treeId: '' },
       server: { url: '', key: '' },
       file: { handleName: '' }
@@ -351,7 +352,8 @@
         accent: '#2f7fb8',
         layout: 'vertical',
         card: { w: 168, h: 76, radius: 10, photo: 44, nameSize: 12, dateSize: 11,
-                shape: 'rounded', dateWeight: 400 },
+                shape: 'rounded', dateWeight: 400,
+                mournWidth: 14, mournGap: 0 },
         ui: { fontSize: 14, tabSize: 14, iconSize: 17 },
         treeBg: 'auto',      // 'auto' — как у страницы, иначе цвет
         treeGrid: false,     // точечная сетка на полотне

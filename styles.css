@@ -280,12 +280,18 @@ a { color: var(--accent); }
 /* Траурная лента: человека нет в живых. Лежит на верхнем левом углу
    фотокарточки под 45°, обрезается её же формой — поэтому видна и при
    круглом фото, и при любом скруглении. */
+/* Полоса идёт под 45° через верхний левый угол фотокарточки.
+   Толщина и отступ от угла настраиваются: --mourn-w и --mourn-gap. */
 .node-ph .mourn-corner,
 .pv-ph .mourn-corner,
 .sheet-ph .mourn-corner {
   position: absolute; left: 0; top: 0; right: 0; bottom: 0;
   pointer-events: none; z-index: 3;
-  background: linear-gradient(135deg, var(--mourn) 0 34%, transparent 34%);
+  background: linear-gradient(135deg,
+    transparent 0 var(--mourn-gap, 0px),
+    var(--mourn) var(--mourn-gap, 0px),
+    var(--mourn) calc(var(--mourn-gap, 0px) + var(--mourn-w, 14px)),
+    transparent calc(var(--mourn-gap, 0px) + var(--mourn-w, 14px)));
 }
 /* Если фотокарточка отключена, лента ложится на угол самого эскиза. */
 .node-mourn {
@@ -293,8 +299,12 @@ a { color: var(--accent); }
   overflow: hidden; pointer-events: none; z-index: 4;
 }
 .node-mourn::before {
-  content: ""; position: absolute; left: 0; top: 0; width: 44px; height: 44px;
-  background: linear-gradient(135deg, var(--mourn) 0 15px, transparent 15px);
+  content: ""; position: absolute; left: 0; top: 0; width: 70px; height: 70px;
+  background: linear-gradient(135deg,
+    transparent 0 var(--mourn-gap, 0px),
+    var(--mourn) var(--mourn-gap, 0px),
+    var(--mourn) calc(var(--mourn-gap, 0px) + var(--mourn-w, 14px)),
+    transparent calc(var(--mourn-gap, 0px) + var(--mourn-w, 14px)));
 }
 
 .node-ph {
@@ -697,6 +707,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
 
 .pv-txt { overflow: hidden; }
 .pv-ph {
+  position: relative;        /* без этого лента ложилась не на фото, а на весь эскиз */
   flex: 0 0 auto; background: var(--paper-2); border: 1px solid rgba(0,0,0,.08);
   display: grid; place-items: center; color: var(--ink-faint); overflow: hidden;
 }
@@ -823,3 +834,14 @@ table.data tbody tr:hover { background: var(--neutral); }
 .viewer-row .li-main { display: flex; flex-direction: column; min-width: 0; }
 .viewer-row .mini-ph { width: 28px; height: 28px; }
 .viewer-row .mini-ph .ico { width: 16px; height: 16px; }
+
+/* ---------- показать пароль ---------- */
+.pw-wrap { position: relative; display: block; }
+.gate .pw-wrap input, .row .pw-wrap input { width: 100%; padding-right: 40px; }
+.pw-eye {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  border: 0; background: transparent; color: var(--ink-faint);
+  padding: 5px; border-radius: 7px; line-height: 0; cursor: pointer;
+}
+.pw-eye .ico { width: 18px; height: 18px; }
+.pw-eye:hover { color: var(--ink); background: var(--neutral); }

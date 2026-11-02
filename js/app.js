@@ -12,11 +12,108 @@
     init: function () {
       S.load();
       this.bindChrome();
-      var invite = (location.hash || '').match(/^#invite-([\w-]+)$/);
+      var hash = location.hash || '';
+      // Ссылка с настройками хранилища: устройство само забирает дерево.
+      var join = hash.match(/^#join-([A-Za-z0-9_-]+)$/);
+      if (join) { this.gateJoinLink(join[1]); return; }
+      var invite = hash.match(/^#invite-([\w-]+)$/);
       if (!S.users.length) this.gateFirstRun();
       else if (invite) this.gateInvite(invite[1]);
       else if (S.session) this.start();
       else this.gateLogin();
+    },
+
+    /* ============ ссылки на дерево ============
+       В ссылку кладём настройки общего хранилища, иначе на чистом телефоне
+       программе неоткуда взять ни дерево, ни список приглашений. */
+    /** Адрес, с которого ссылка откроется у других. Программа, запущенная
+        из файла на диске, знает только путь вида file:///C:/… — такая ссылка
+        не откроется ни на телефоне, ни у родни, поэтому адрес сайта задаётся руками. */
+    linkBase: function () {
+      var site = (S.sync && S.sync.siteUrl || '').trim();
+      if (site) return site.split('#')[0].replace(/\/+$/, '') + '/';
+      if (location.protocol === 'file:') return null;
+      return location.href.split('#')[0];
+    },
+    isLocalFile: function () { return location.protocol === 'file:'; },
+
+    packLink: function (token, base) {
+      base = base || this.linkBase();
+      if (!base) return null;
+      var s = S.sync || {};
+      if (s.mode !== 'supabase' && s.mode !== 'server') return null;
+      var cfg = s[s.mode] || {};
+      if (!cfg.url || !cfg.key) return null;
+      var payload = { m: s.mode, u: cfg.url, k: cfg.key };
+      if (s.mode === 'supabase') payload.i = cfg.treeId;
+      if (token) payload.t = token;
+      var b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      return base + '#join-' + b64;
+    },
+    unpackLink: function (b64) {
+      try {
+        var t = b64.replace(/-/g, '+').replace(/_/g, '/');
+        while (t.length % 4) t += '=';
+        return JSON.parse(decodeURIComponent(escape(atob(t))));
+      } catch (e) { return null; }
+    },
+
+    gateJoinLink: function (b64) {
+      var self = this, Sy = global.Sync;
+      var cfg = this.unpackLink(b64);
+      if (!cfg || !cfg.m) {
+        this.toast('Ссылка повреждена');
+        location.hash = '';
+        if (S.users.length) this.gateLogin(); else this.gateFirstRun();
+        return;
+      }
+
+      var mine = Object.keys(S.tree.persons || {}).length;
+      var replacing = mine && !S.tree.meta.demo;
+
+      this.gate(
+        '<h1>' + (cfg.t ? 'Приглашение в дерево' : 'Вход с этого устройства') + '</h1>' +
+        '<p class="lede">Ссылка принесла настройки общего хранилища. Сейчас заберём оттуда ' +
+        'дерево, а дальше ' + (cfg.t ? 'вы представитесь и придумаете себе вход.'
+          : 'войдёте своим логином и паролем.') + '</p>' +
+        (replacing ? '<p class="note" style="color:var(--warn)">На этом устройстве уже есть своё ' +
+          'дерево (' + mine + ' персон). Оно будет заменено общим. Если в нём есть что-то ценное, ' +
+          'сначала сохраните копию.</p>' : '') +
+        '<div class="err" id="gErr"></div>' +
+        '<div class="btn-row"><button class="btn btn-primary" id="jGo">Забрать дерево</button>' +
+        '<button class="btn" id="jSkip">Не сейчас</button></div>');
+
+      document.getElementById('jSkip').addEventListener('click', function () {
+        location.hash = '';
+        if (S.users.length) self.gateLogin(); else self.gateFirstRun();
+      });
+
+      document.getElementById('jGo').addEventListener('click', function () {
+        S.sync.mode = cfg.m;
+        S.sync[cfg.m].url = cfg.u;
+        S.sync[cfg.m].key = cfg.k;
+        if (cfg.m === 'supabase') S.sync.supabase.treeId = cfg.i || '';
+        S.saveSync();
+        err('Забираем дерево…');
+        Sy.peek().then(function (remote) {
+          if (!remote || !remote.persons) {
+            err('По этим настройкам дерева не нашлось. Попросите отправителя проверить ссылку.');
+            return;
+          }
+          S.tree = remote;
+          S.save(true);
+          S.sync.lastAt = new Date().toISOString();
+          S.sync.lastError = null;
+          S.dirty = false;
+          S.saveSync();
+          var n = Object.keys(remote.persons).length;
+          self.toast('Дерево получено: ' + n + ' ' + plural(n, 'персона', 'персоны', 'персон'));
+          if (cfg.t) { self.gateInvite(cfg.t); return; }
+          location.hash = '';
+          self.gateLogin();
+        }, function (e) { err('Не вышло: ' + e.message); });
+      });
     },
 
     start: function () {
@@ -54,6 +151,56 @@
       this.showTab('tree');
       setTimeout(function () { self.tree.fit(true); }, 60);
       this.startSync();
+    },
+
+    /* ============ показ пароля ============
+       Пароль дерева восстановить нельзя, поэтому важно видеть, что набираешь.
+       Выбор запоминается: включили один раз — дальше поля открыты сразу. */
+    showPw: function () {
+      try { return localStorage.getItem('drevo.showpw') === '1'; } catch (e) { return false; }
+    },
+    setShowPw: function (on) {
+      try { localStorage.setItem('drevo.showpw', on ? '1' : '0'); } catch (e) {}
+    },
+    enhancePasswords: function (root) {
+      var self = this;
+      var open = this.showPw();
+      (root || document).querySelectorAll('input[type=password]:not([data-pw])').forEach(function (inp) {
+        inp.dataset.pw = '1';
+        var wrap = document.createElement('span');
+        wrap.className = 'pw-wrap';
+        inp.parentNode.insertBefore(wrap, inp);
+        wrap.appendChild(inp);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pw-eye';
+        wrap.appendChild(btn);
+        function paint() {
+          var shown = inp.type === 'text';
+          btn.innerHTML = global.Icon(shown ? 'eyeOff' : 'eye');
+          btn.title = shown ? 'Скрыть пароль' : 'Показать пароль';
+          btn.setAttribute('aria-label', btn.title);
+        }
+        btn.addEventListener('click', function () {
+          var shown = inp.type === 'text';
+          inp.type = shown ? 'password' : 'text';
+          self.setShowPw(!shown);
+          paint();
+          inp.focus();
+          var v = inp.value;
+          try { inp.setSelectionRange(v.length, v.length); } catch (e) {}
+          // остальные поля на экране переключаем заодно
+          (root || document).querySelectorAll('.pw-wrap input').forEach(function (o) {
+            if (o !== inp) o.type = shown ? 'password' : 'text';
+          });
+          (root || document).querySelectorAll('.pw-eye').forEach(function (o) {
+            if (o === btn) return;
+            o.innerHTML = global.Icon(shown ? 'eye' : 'eyeOff');
+          });
+        });
+        if (open) inp.type = 'text';
+        paint();
+      });
     },
 
     /* ============ значки ============ */
@@ -117,12 +264,14 @@
       var g = document.getElementById('gate');
       g.hidden = false;
       document.getElementById('app').hidden = true;
+      var self = this;
       g.innerHTML = '<div class="gate-card">' + html +
         (global.DREVO_PREVIEW ? '<p class="note" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)">' +
           'Это витрина внутри Claude. Дерево, карточки, поиск и настройки работают полностью. ' +
           'Сохранение файлов, микрофон, карта и вход по отпечатку закрыты правилами этого окна — ' +
           'они работают в версии, установленной на телефон или компьютер.</p>' : '') +
         '</div>';
+      this.enhancePasswords(g);
     },
     /* Вход на втором устройстве. Учётные записи лежат в дереве, поэтому
        сперва надо забрать дерево из общего хранилища, а потом входить. */
@@ -1289,6 +1438,10 @@
             return '<option value="' + v[0] + '"' +
               (String(p.card.dateWeight || 400) === v[0] ? ' selected' : '') + '>' + v[1] + '</option>';
           }).join('') + '</select></div>' +
+          '<div class="sect-title">Отметка об умерших</div>' +
+          rng('Толщина полосы', 'stMournW', 0, 40, p.card.mournWidth == null ? 14 : p.card.mournWidth, 'px') +
+          rng('Отступ от угла', 'stMournGap', 0, 40, p.card.mournGap || 0, 'px') +
+          '<p class="note">Полоса идёт под 45° через угол фотокарточки. Толщина 0 убирает её совсем.</p>' +
           '<div class="set-row"><span>Показывать фото</span><input type="checkbox" id="stShowPh"' + (p.showPhotos ? ' checked' : '') + '></div>' +
           '<div class="set-row"><span>Показывать годы</span><input type="checkbox" id="stShowDt"' + (p.showDates ? ' checked' : '') + '></div>' +
           '<p class="note">Настройки оформления сохраняются отдельно для каждого пользователя — ' +
@@ -1304,6 +1457,8 @@
         bindRange('stPhoto', function (v) { p.card.photo = v; });
         bindRange('stName', function (v) { p.card.nameSize = v; });
         bindRange('stDate', function (v) { p.card.dateSize = v; });
+        bindRange('stMournW', function (v) { p.card.mournWidth = v; });
+        bindRange('stMournGap', function (v) { p.card.mournGap = v; });
         document.getElementById('stShape').addEventListener('change', function () { p.card.shape = this.value; apply(); });
         document.getElementById('stDateW').addEventListener('change', function () { p.card.dateWeight = +this.value; apply(); });
         document.getElementById('stTheme').addEventListener('change', function () { p.theme = this.value; apply(); });
@@ -1397,11 +1552,11 @@
           '<div class="btn-row"><button class="btn btn-sm btn-danger" id="dtWipe">Очистить дерево</button></div></div>' +
           '<div class="set-card"><h3>Загрузить данные</h3>' +
           '<p class="note">GEDCOM из MyHeritage, Ancestry или другой программы; простой текстовый список; ' +
-          'или архив drevo.json из прежней копии.</p>' +
+          'или полная копия (ZIP) — из неё приедут и дерево, и учётные записи, и вложенные файлы.</p>' +
           '<div class="btn-row">' +
           '<button class="btn btn-sm" id="imGed">Из GEDCOM</button>' +
           '<button class="btn btn-sm" id="imTxt">Из текста</button>' +
-          '<button class="btn btn-sm" id="imJson">Из копии JSON</button>' +
+          '<button class="btn btn-sm" id="imJson">Из полной копии (ZIP)</button>' +
           '</div></div>';
         document.getElementById('stRename').addEventListener('click', function () {
           S.tree.meta.name = document.getElementById('stTreeName').value.trim() || 'Моё дерево';
@@ -1487,6 +1642,16 @@
                 '</div>';
             }).join('') + '</div></div>' +
 
+            '<div class="set-card"><h3>Войти с другого устройства</h3>' +
+            '<p class="note">Это ваша собственная ссылка: откройте её на телефоне или втором ' +
+            'компьютере, и программа сама подхватит настройки хранилища и заберёт дерево. ' +
+            'Дальше входите тем же логином и паролем, что и здесь.</p>' +
+            '<div class="btn-row"><button class="btn btn-sm" id="secSelfLink">Показать ссылку</button></div>' +
+            (S.sync && S.sync.mode !== 'off' ? '' :
+              '<p class="note" style="color:var(--warn)">Синхронизация выключена — пока такая ссылка ' +
+              'работать не будет. Включите её в разделе «Синхронизация».</p>') +
+            '</div>' +
+
             '<div class="set-card"><h3>Пригласить родственника</h3>' +
             '<p class="note">Нажмите кнопку — программа создаст ссылку. Отправьте её человеку любым ' +
             'способом. Он откроет ссылку, сам напишет своё имя, придумает логин и пароль и попадёт ' +
@@ -1520,6 +1685,8 @@
             S.unlockCrypto(pass).then(function () { self.toast('Ключ загружен'); self.setPane('sec'); });
           }, 'password');
         });
+        var selfLink = document.getElementById('secSelfLink');
+        if (selfLink) selfLink.addEventListener('click', function () { self.showInvite(null); });
         var add = document.getElementById('secAdd');
         if (add) add.addEventListener('click', function () {
           var inv = S.createInvite('user');
@@ -1892,38 +2059,85 @@
       btn.setAttribute('aria-label', title);
     },
 
-    /** показать готовую ссылку-приглашение */
+    /** Показать ссылку. token задан — это приглашение, иначе ссылка для своих устройств. */
     showInvite: function (token) {
       var self = this;
-      var link = location.href.split('#')[0] + '#invite-' + token;
-      this.modal('Ссылка-приглашение',
-        '<p class="note" style="margin:0 0 10px">Отправьте её родственнику — в сообщении, письмом, ' +
-        'как угодно. Он откроет ссылку, сам представится и придумает себе вход.</p>' +
-        '<textarea id="invLink" rows="3" readonly ' +
-        'style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;' +
-        'background:var(--paper);font-family:var(--font-data);font-size:12px">' + esc(link) + '</textarea>' +
-        '<p class="note" style="margin-top:10px">Ссылка одноразовая: как только человек заведёт себе ' +
-        'вход, она перестанет работать. Отозвать её можно в списке ниже.</p>' +
-        (S.sync && S.sync.mode !== 'off'
-          ? '<p class="note">Синхронизация включена — не забудьте дать ей пройти, иначе ' +
-            'на другом устройстве ссылки ещё не будет.</p>'
-          : '<p class="note">Синхронизация выключена, поэтому ссылка сработает только на этом ' +
-            'устройстве. Для других включите её в разделе «Синхронизация».</p>'),
-        [{ text: 'Скопировать ссылку', primary: true, fn: function () {
-          var ta = document.getElementById('invLink');
-          ta.select();
-          ta.setSelectionRange(0, link.length);
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(link).then(
-              function () { self.toast('Ссылка скопирована'); },
-              function () { self.toast('Выделено — скопируйте вручную'); });
-          } else {
-            self.toast('Выделено — скопируйте вручную');
-          }
-        } }]);
+      var syncOn = S.sync && (S.sync.mode === 'supabase' || S.sync.mode === 'server');
+
+      this.modal(token ? 'Ссылка-приглашение' : 'Ссылка для своих устройств',
+        '<p class="note" style="margin:0 0 12px">' +
+        (token
+          ? 'Отправьте её родственнику любым способом. Он откроет ссылку, программа заберёт ' +
+            'дерево из общего хранилища, а дальше он сам представится и придумает себе вход.'
+          : 'Откройте её на телефоне или другом компьютере. Программа подхватит настройки ' +
+            'хранилища, заберёт дерево, и вы войдёте своим обычным логином и паролем.') +
+        '</p>' +
+        '<div class="row"><label for="lkBase">Адрес программы в интернете</label>' +
+        '<input id="lkBase" placeholder="https://имя.github.io/FamilyTree/" autocomplete="off" ' +
+        'spellcheck="false" value="' + esc((S.sync && S.sync.siteUrl) || '') + '"></div>' +
+        '<p class="note" id="lkHint"></p>' +
+        '<div class="row" style="margin-top:10px"><label for="invLink">Ссылка</label>' +
+        '<textarea id="invLink" rows="4" readonly ' +
+        'style="font-family:var(--font-data);font-size:11px;overflow-wrap:anywhere"></textarea></div>' +
+        (token ? '<p class="note">Ссылка одноразовая: как только человек заведёт себе вход, ' +
+          'она перестанет работать.</p>' : '') +
+        '<p class="note">В ссылке лежат настройки вашего хранилища — отправляйте её только родне.</p>',
+        [{ text: 'Скопировать ссылку', primary: true, fn: function () { copy(); } }]);
+
+      var baseInp = document.getElementById('lkBase');
+      var out = document.getElementById('invLink');
+      var hint = document.getElementById('lkHint');
+      var link = null;
+
+      function paint() {
+        var typed = baseInp.value.trim();
+        var base = typed ? typed.split('#')[0].replace(/\/+$/, '') + '/' :
+          (self.isLocalFile() ? null : location.href.split('#')[0]);
+        link = syncOn ? self.packLink(token, base) : null;
+
+        if (!syncOn) {
+          out.value = '';
+          hint.textContent = 'Синхронизация не настроена. Включите Supabase или свой сервер ' +
+            'в разделе «Синхронизация» — без общего хранилища ссылка работать не может.';
+          hint.style.color = 'var(--bad)';
+          return;
+        }
+        if (!base) {
+          out.value = '';
+          hint.textContent = 'Программа открыта из файла на диске, поэтому адрес ей неизвестен. ' +
+            'Впишите адрес, по которому «Семейное Древо» открывается в интернете — например, ' +
+            'https://имя.github.io/FamilyTree/';
+          hint.style.color = 'var(--warn)';
+          return;
+        }
+        hint.textContent = typed
+          ? 'Ссылка откроется по этому адресу.'
+          : 'Адрес взят из того, по которому вы открыли программу сейчас.';
+        hint.style.color = '';
+        out.value = link;
+      }
+
+      function copy() {
+        if (!link) { self.toast('Сначала впишите адрес программы в интернете'); return; }
+        // адрес пригодится и в следующий раз
+        S.sync.siteUrl = baseInp.value.trim();
+        S.saveSync();
+        out.select();
+        out.setSelectionRange(0, link.length);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(
+            function () { self.toast('Ссылка скопирована'); },
+            function () { self.toast('Выделено — скопируйте вручную'); });
+        } else {
+          self.toast('Выделено — скопируйте вручную');
+        }
+      }
+
+      baseInp.addEventListener('input', paint);
+      paint();
       setTimeout(function () {
-        var ta = document.getElementById('invLink');
-        if (ta) { ta.focus(); ta.select(); }
+        if (!baseInp.value && self.isLocalFile()) baseInp.focus();
+        else if (out.value) { out.focus(); out.select(); }
       }, 60);
     },
 
@@ -1949,42 +2163,98 @@
       var self = this;
       var inp = document.createElement('input');
       inp.type = 'file';
-      inp.accept = kind === 'ged' ? '.ged,.gedcom,text/plain' : kind === 'json' ? '.json,application/json' : '.txt,.csv,text/plain';
+      inp.accept = kind === 'ged' ? '.ged,.gedcom,text/plain'
+        : kind === 'json' ? '.zip,.drevo,.json,application/zip,application/json'
+        : '.txt,.csv,text/plain';
       inp.addEventListener('change', function () {
         var f = inp.files[0];
         if (!f) return;
+        var isArchive = /\.(zip|drevo)$/i.test(f.name) || f.type === 'application/zip';
+        if (kind === 'json' && isArchive) { self.importArchive(f); return; }
+
         var r = new FileReader();
         r.onload = function () {
-          var text = r.result;
           var incoming;
           try {
-            if (kind === 'ged') incoming = global.IO.importGEDCOM(text);
-            else if (kind === 'json') incoming = JSON.parse(text);
-            else incoming = global.IO.importText(text);
+            if (kind === 'ged') incoming = global.IO.importGEDCOM(r.result);
+            else if (kind === 'json') incoming = JSON.parse(r.result);
+            else incoming = global.IO.importText(r.result);
           } catch (e) { self.toast('Файл не разобрался: ' + e.message); return; }
-          var n = Object.keys(incoming.persons || {}).length;
-          if (!n) { self.toast('В файле не нашлось ни одной персоны'); return; }
-          self.confirm('Загрузить ' + n + ' персон?',
-            'Текущее дерево (' + S.persons().length + ' персон) будет заменено. ' +
-            'Сначала сохраните копию, если она ещё не сделана.', function () {
-              incoming.changes = S.tree.changes || [];
-              incoming.tabs = incoming.tabs || S.tree.tabs;
-              incoming.meta.salt = incoming.meta.salt || S.tree.meta.salt;
-              delete incoming.meta.demo;
-              S.tree = incoming;
-              S.log('import', 'Загружено дерево из файла «' + f.name + '» — ' + n + ' персон');
-              S.save();
-              self.closeModal();
-              self.tree.setFocus(S.tree.meta.rootId || Object.keys(S.tree.persons)[0]);
-              self.renderTabs();
-              self.showTab('tree');
-              self.tree.fit();
-              self.toast('Загружено персон: ' + n);
-            });
+          self.applyImport(incoming, f.name, null);
         };
         r.readAsText(f, 'utf-8');
       });
       inp.click();
+    },
+
+    /** Полная копия целиком: дерево и все вложенные файлы из одного архива. */
+    importArchive: function (file) {
+      var self = this;
+      self.toast('Разбираем архив…');
+      file.arrayBuffer().then(global.Sync.unzip).then(function (map) {
+        var raw = map['drevo.json'] || map['rodovod.json'];
+        if (!raw) throw new Error('В архиве нет файла drevo.json');
+        var incoming = JSON.parse(new TextDecoder().decode(raw));
+        // вложенные файлы: photo/M-xxx_имя.jpg и так далее
+        var blobs = [];
+        Object.keys(map).forEach(function (name) {
+          var m = name.match(/^(?:photo|audio|video|doc)\/([^_\/]+)_/);
+          if (m) blobs.push({ id: m[1], data: map[name] });
+        });
+        self.applyImport(incoming, file.name, blobs);
+      }).catch(function (e) {
+        self.toast('Архив не разобрался: ' + e.message);
+      });
+    },
+
+    /** Заменить дерево загруженным. blobs — вложенные файлы, если они были. */
+    applyImport: function (incoming, fileName, blobs) {
+      var self = this;
+      var n = Object.keys((incoming && incoming.persons) || {}).length;
+      if (!n) { this.toast('В файле не нашлось ни одной персоны'); return; }
+      var users = ((incoming.users || []).length);
+
+      this.confirm('Загрузить ' + n + ' ' + plural(n, 'персону', 'персоны', 'персон') + '?',
+        'Текущее дерево (' + S.persons().length + ' персон) будет заменено' +
+        (users ? ', вместе с ним приедут ' + users + ' ' +
+          plural(users, 'учётная запись', 'учётные записи', 'учётных записей') : '') +
+        (blobs && blobs.length ? ' и ' + blobs.length + ' ' +
+          plural(blobs.length, 'вложенный файл', 'вложенных файла', 'вложенных файлов') : '') +
+        '. Сначала сохраните копию, если она ещё не сделана.',
+        function () {
+          incoming.changes = incoming.changes || S.tree.changes || [];
+          incoming.tabs = incoming.tabs || S.tree.tabs;
+          incoming.users = incoming.users || S.tree.users || [];
+          incoming.invites = incoming.invites || [];
+          incoming.meta.salt = incoming.meta.salt || S.tree.meta.salt;
+          delete incoming.meta.demo;
+
+          var put = Promise.resolve();
+          (blobs || []).forEach(function (b) {
+            put = put.then(function () { return U.blobPut(b.id, new Blob([b.data])); });
+          });
+
+          put.then(function () {
+            S.tree = incoming;
+            S.log('import', 'Загружено дерево из файла «' + fileName + '» — ' + n + ' персон');
+            S.save();
+            self.closeAllModals();
+            self.tree.focusId = null;
+            self.tree.setFocus(S.tree.meta.rootId || Object.keys(S.tree.persons)[0]);
+            self.renderTabs();
+            self.showTab('tree');
+            self.tree.fit(true);
+            self.countMissing();
+            var who = S.users.filter(function (u) { return u.id === (S.session || {}).userId; })[0];
+            if (!who) {
+              self.toast('Дерево загружено. Войдите заново — учётные записи приехали из копии.');
+              setTimeout(function () { S.setSession(null); location.reload(); }, 2200);
+            } else {
+              self.toast('Загружено персон: ' + n +
+                (blobs && blobs.length ? ', файлов: ' + blobs.length : ''));
+            }
+          });
+        });
     },
 
     saveFile: function (blob, name) {
@@ -2005,6 +2275,8 @@
       root.style.setProperty('--ui-size', p.ui.fontSize + 'px');
       root.style.setProperty('--tab-size', p.ui.tabSize + 'px');
       root.style.setProperty('--icon-size', (p.ui.iconSize || 17) + 'px');
+      root.style.setProperty('--mourn-w', (p.card.mournWidth == null ? 14 : p.card.mournWidth) + 'px');
+      root.style.setProperty('--mourn-gap', (p.card.mournGap || 0) + 'px');
       if (p.treeBg && p.treeBg !== 'auto') root.style.setProperty('--tree-bg', p.treeBg);
       else root.style.setProperty('--tree-bg', 'var(--paper)');
       root.style.setProperty('--tree-fade', ((p.treeImageFade == null ? 35 : p.treeImageFade) / 100));
@@ -2121,6 +2393,7 @@
       back.querySelectorAll('[data-b]').forEach(function (b) {
         b.addEventListener('click', function () { buttons[+b.dataset.b].fn(); });
       });
+      this.enhancePasswords(back);
     },
 
     /** Чем вернуть текущее окно, если поверх него откроют другое.
