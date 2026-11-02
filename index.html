@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Семейное Древо</title>
+<meta name="description" content="Семейное генеалогическое древо: карточки людей, фотографии, документы, карта и календарь памятных дат.">
+<meta name="theme-color" content="#2f7fb8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ввод в программу -->
+<div class="gate" id="gate"></div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">Д</span>
+      <span>
+        <span class="brand-name">Семейное Древо</span>
+        <span class="tree-name" id="treeName"></span>
+      </span>
+    </div>
+
+    <div class="search-wrap">
+      <span class="search-ico" aria-hidden="true">🔍</span>
+      <label class="sr" for="q">Поиск по людям и данным</label>
+      <input id="q" type="search" placeholder="Имя, место, год, запись…" autocomplete="off">
+      <button class="search-clear" id="qClear" type="button" title="Очистить">✕</button>
+      <button class="search-mic" id="qMic" type="button" title="Найти голосом">🎙</button>
+      <div class="results" id="qResults" hidden></div>
+    </div>
+
+    <div class="topbar-right">
+      <button class="icon-btn" id="btnSync" type="button" title="Синхронизировать" hidden>⟳</button>
+      <button class="icon-btn" id="btnCalendar" type="button" title="Календарь дат">📅</button>
+      <button class="icon-btn" id="btnMap" type="button" title="Карта мест">🗺</button>
+      <button class="icon-btn" id="btnSettings" type="button" title="Настройки">⚙</button>
+      <span class="who" id="who"></span>
+      <button class="icon-btn" id="btnLogout" type="button" title="Выйти">⏻</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+
+  <main class="panes">
+    <!-- дерево -->
+    <section class="pane active" id="pane-tree">
+      <div id="treeHost">
+        <svg id="treeLines" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div id="treeCanvas"></div>
+      </div>
+      <div class="zoomdock">
+        <button id="zoomIn" type="button" title="Приблизить">+</button>
+        <button id="zoomOut" type="button" title="Отдалить">−</button>
+        <button id="zoomFit" type="button" title="Вписать всё дерево">⤢</button>
+      </div>
+      <div class="viewdock" id="viewdock" role="group" aria-label="Вид дерева">
+        <button type="button" data-view="vertical" aria-pressed="true" title="Вертикальное дерево">↓<span> Вертикальное</span></button>
+        <button type="button" data-view="horizontal" aria-pressed="false" title="Горизонтальное дерево">→<span> Горизонтальное</span></button>
+        <button type="button" data-view="butterfly" aria-pressed="false" title="Вид «бабочка»">✦<span> Бабочка</span></button>
+      </div>
+      <aside class="sheet" id="sheet" hidden></aside>
+    </section>
+
+    <section class="pane" id="pane-photos"><div class="pane-scroll"></div></section>
+    <section class="pane" id="pane-changes"><div class="pane-scroll"></div></section>
+    <section class="pane" id="pane-calendar"><div class="pane-scroll"></div></section>
+    <section class="pane" id="pane-people"><div class="pane-scroll"></div></section>
+    <section class="pane" id="pane-notes"><div class="pane-scroll"></div></section>
+    <section class="pane" id="pane-map"><div id="mapCanvas"></div></section>
+  </main>
+</div>
+
+<div class="modal-back" id="modalBack" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/store.js"></script>
+<script src="js/tree.js"></script>
+<script src="js/io.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/map.js"></script>
+<script src="js/person.js"></script>
+<script src="js/app.js"></script>
+<script>
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
