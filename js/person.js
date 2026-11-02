@@ -4,6 +4,7 @@
   var S = global.Store;
   var U = S.util;
   var esc = global.TreeView.esc;
+  var I = global.Icon;
 
   var ACL_LEVELS = [
     { v: 'public', t: 'Видно всем' },
@@ -75,7 +76,7 @@
     ];
     this.el.innerHTML =
       '<div class="sheet-head">' +
-      '<div class="sheet-ph" id="shPhoto">👤</div>' +
+      '<div class="sheet-ph" id="shPhoto">' + I('person') + '</div>' +
       '<div style="flex:1 1 auto;min-width:0">' +
       '<div class="sheet-title" id="shName"></div>' +
       '<div class="sheet-sub" id="shSub"></div>' +
@@ -83,7 +84,7 @@
       '<button class="btn btn-sm" data-act="focus">В центр дерева</button>' +
       '<button class="btn btn-sm" data-act="addRel">+ Родственник</button>' +
       '</div></div>' +
-      '<button class="icon-btn" data-act="close" title="Закрыть">✕</button>' +
+      '<button class="icon-btn" data-act="close" title="Закрыть" aria-label="Закрыть">' + I('close') + '</button>' +
       '</div>' +
       '<div class="sheet-tabs" role="tablist">' +
       tabs.map(function (t) {
@@ -104,13 +105,13 @@
     this.el.querySelector('#shSub').textContent = bits.join(' · ') || 'даты не указаны';
     var ph = this.el.querySelector('#shPhoto');
     ph.style.backgroundImage = '';
-    ph.textContent = '👤';
+    ph.innerHTML = I('person');
     if (p.photo) {
       S.mediaURL(p.photo).then(function (url) {
         if (!url) return;
         self.urls.push(url);
         ph.style.backgroundImage = 'url(' + url + ')';
-        ph.textContent = '';
+        ph.innerHTML = '';
       });
     }
     this.el.querySelectorAll('[data-act="tab"]').forEach(function (b) {
@@ -131,7 +132,8 @@
   };
 
   function micBtn(target) {
-    return '<button class="btn btn-sm" data-act="dictate" data-target="' + target + '" title="Надиктовать">🎙</button>';
+    return '<button class="btn btn-sm mic-btn" data-act="dictate" data-target="' + target +
+      '" title="Надиктовать" aria-label="Надиктовать">' + I('mic') + '</button>';
   }
   function aclSelect(bindAttr, acl) {
     acl = acl || { level: 'public', locked: false };
@@ -166,7 +168,7 @@
       var list = S.mediaOf(p.id);
       var html = '<div class="btn-row" style="margin-top:0">' +
         '<button class="btn btn-primary btn-sm" data-act="pickFile">Добавить файлы</button>' +
-        '<button class="btn btn-sm" data-act="recVoice">🎙 Голосовая заметка</button>' +
+        '<button class="btn btn-sm" data-act="recVoice">' + I('mic') + ' Голосовая заметка</button>' +
         '</div>' +
         '<p class="note" style="margin:8px 0 0">Фото, документы, аудио и видео — без ограничения количества. ' +
         'Для каждого файла можно включить замок: тогда он хранится и попадает в резервную копию в зашифрованном виде.</p>' +
@@ -175,10 +177,12 @@
       html += '<div class="sect-title">Файлы (' + list.length + ')</div><div class="media-grid" id="shMedia">';
       list.forEach(function (m) {
         var visible = S.canSee(m.acl);
-        var ic = m.kind === 'photo' ? '🖼' : m.kind === 'audio' ? '🎧' : m.kind === 'video' ? '🎬' : '📄';
+        var ic = I(m.kind === 'photo' ? 'photo' : m.kind === 'audio' ? 'mic' :
+          m.kind === 'video' ? 'map' : 'note');
         html += '<button class="media-tile" data-act="openMedia" data-id="' + m.id + '" title="' + esc(m.name) + '">' +
-          (visible ? ic : '🔒') +
-          (m.acl && (m.acl.locked || m.acl.level !== 'public') ? '<span class="m-lock">🔒</span>' : '') +
+          (visible ? ic : I('lock')) +
+          (m.acl && (m.acl.locked || m.acl.level !== 'public')
+            ? '<span class="m-lock">' + I('lock') + '</span>' : '') +
           '<span class="m-name">' + esc(m.caption || m.name) + '</span></button>';
       });
       return html + '</div>';
@@ -242,11 +246,12 @@
         var h = '<div class="sect-title">' + title + '</div>';
         if (!arr.length) return h + '<p class="note">нет</p>';
         return h + '<div class="list">' + arr.map(function (x) {
-          return '<div class="list-item"><div class="mini-ph" data-ph="' + x.id + '">👤</div>' +
+          return '<div class="list-item"><div class="mini-ph" data-ph="' + x.id + '">' + I('person') + '</div>' +
             '<div class="li-main"><div>' + esc(S.fullName(x)) + '</div>' +
             '<div class="li-sub">' + esc(S.years(x) || '—') + '</div></div>' +
             '<button class="btn btn-sm" data-act="goto" data-id="' + x.id + '">Открыть</button>' +
-            (rel ? '<button class="btn btn-sm btn-danger" data-act="unlink" data-id="' + x.id + '">✕</button>' : '') +
+            (rel ? '<button class="btn btn-sm btn-danger" data-act="unlink" data-id="' + x.id +
+              '" title="Убрать связь" aria-label="Убрать связь">' + I('close') + '</button>' : '') +
             '</div>';
         }).join('') + '</div>';
       }
@@ -280,7 +285,8 @@
           if (!url) return;
           self.urls.push(url);
           tile.style.backgroundImage = 'url(' + url + ')';
-          tile.firstChild.textContent = '';
+          var ic0 = tile.querySelector('.ico');
+          if (ic0) ic0.remove();
         });
       });
     },
@@ -293,7 +299,7 @@
           if (!url) return;
           self.urls.push(url);
           el.style.backgroundImage = 'url(' + url + ')';
-          el.textContent = '';
+          el.innerHTML = '';
         });
       });
     },

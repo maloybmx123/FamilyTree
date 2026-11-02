@@ -24,7 +24,7 @@
       this.applyPrefs();
       document.getElementById('gate').hidden = true;
       document.getElementById('app').hidden = false;
-      if (!S.persons().length) this.seedDemo();
+      this.paintIcons();
 
       var self = this;
       this.tree = new global.TreeView({
@@ -32,10 +32,12 @@
         canvas: document.getElementById('treeCanvas'),
         svg: document.getElementById('treeLines'),
         onSelect: function (id) { self.sheet.open(id); },
-        onAdd: function (id) { self.addRelative(id); }
+        onAdd: function (id) { self.addRelative(id); },
+        onRender: function () { self.paintEmpty(); }
       });
       this.tree.mode = S.prefs.layout;
-      this.tree.setFocus(S.tree.meta.rootId || S.persons()[0].id);
+      // Пустое дерево так и остаётся пустым: образец больше не подставляется сам.
+      if (S.persons().length) this.tree.setFocus(S.tree.meta.rootId || S.persons()[0].id);
 
       this.sheet = new global.PersonSheet({
         el: document.getElementById('sheet'),
@@ -51,6 +53,62 @@
       this.showTab('tree');
       setTimeout(function () { self.tree.fit(true); }, 60);
       this.startSync();
+    },
+
+    /* ============ значки ============ */
+    paintIcons: function () {
+      var I = global.Icon;
+      function put(id, name, before) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var lbl = el.querySelector('.lbl');
+        el.innerHTML = I(name) + (lbl ? lbl.outerHTML : '');
+      }
+      put('qIco', 'search');
+      put('qClear', 'close');
+      put('qMic', 'mic');
+      put('btnAdd', 'addPerson');
+      put('btnSync', 'sync');
+      put('btnCalendar', 'calendar');
+      put('btnMap', 'map');
+      put('btnSettings', 'settings');
+      put('btnLogout', 'logout');
+      put('zoomIn', 'plus');
+      put('zoomOut', 'minus');
+      put('zoomFit', 'expand');
+      var views = { vertical: 'down', horizontal: 'right', butterfly: 'butterfly' };
+      document.querySelectorAll('#viewdock [data-view]').forEach(function (b) {
+        var lbl = b.querySelector('.lbl');
+        b.innerHTML = I(views[b.dataset.view]) + (lbl ? lbl.outerHTML : '');
+      });
+    },
+
+    /* ============ пустое дерево ============ */
+    paintEmpty: function () {
+      var box = document.getElementById('treeEmpty'), self = this;
+      if (!box) return;
+      if (S.persons().length) { box.hidden = true; return; }
+      box.hidden = false;
+      box.innerHTML = '<div>' + global.Icon('tree') +
+        '<h2>Дерево пока пустое</h2>' +
+        '<p>Начните с себя или с того, о ком знаете больше всех. Дальше к каждому человеку ' +
+        'можно будет добавлять родителей, супругов и детей — кнопкой «+» на его окошке.</p>' +
+        '<div class="btn-row">' +
+        '<button class="btn btn-primary" id="emAdd">Добавить первого человека</button>' +
+        '<button class="btn" id="emImport">Загрузить из файла</button>' +
+        '</div>' +
+        '<p class="note" style="margin:14px 0 0">Хотите сначала посмотреть, как всё устроено? ' +
+        '<button class="btn btn-sm" id="emDemo">Показать пример</button></p>' +
+        '</div>';
+      document.getElementById('emAdd').addEventListener('click', function () { self.addPerson(); });
+      document.getElementById('emImport').addEventListener('click', function () { self.openSettings('data'); });
+      document.getElementById('emDemo').addEventListener('click', function () {
+        self.seedDemo();
+        self.tree.setFocus(S.tree.meta.rootId);
+        self.afterSync();
+        setTimeout(function () { self.tree.fit(true); }, 40);
+        self.toast('Это пример. Удалить его целиком — Настройки → Данные → Очистить дерево');
+      });
     },
 
     /* ============ вход ============ */
@@ -100,7 +158,7 @@
         '<label for="gPass">Пароль</label><input id="gPass" type="password" autocomplete="current-password">' +
         '<div class="err" id="gErr"></div>' +
         '<div class="btn-row"><button class="btn btn-primary" id="gGo">Войти</button>' +
-        (hasBio ? '<button class="btn" id="gBio">👆 По отпечатку</button>' : '') + '</div>' +
+        (hasBio ? '<button class="btn" id="gBio">Войти по отпечатку</button>' : '') + '</div>' +
         '<p class="note" style="margin-top:14px">Нет доступа? Попросите у администратора дерева ссылку-приглашение.</p>');
       function go() {
         var login = val('gLogin'), pass = val('gPass');
@@ -210,8 +268,26 @@
       });
       document.getElementById('btnCalendar').addEventListener('click', function () { self.openCalendar(); });
       document.getElementById('btnMap').addEventListener('click', function () { self.openMap(); });
+      document.getElementById('btnAdd').addEventListener('click', function () { self.addPerson(); });
       document.getElementById('btnLogout').addEventListener('click', function () {
-        S.setSession(null); location.reload();
+        var Sy = global.Sync;
+        var warn = (S.sync && S.sync.mode !== 'off' && S.dirty)
+          ? 'Есть правки, которые ещё не ушли в общее хранилище. Синхронизировать перед выходом?'
+          : 'Дерево останется на этом устройстве. Войти снова можно будет по логину и паролю.';
+        self.modal('Выйти из программы?', '<p class="note">' + warn + '</p>',
+          (S.sync && S.sync.mode !== 'off' && S.dirty ? [{
+            text: 'Синхронизировать и выйти', primary: true, fn: function () {
+              self.closeModal();
+              self.toast('Отправляем правки…');
+              Sy.run({ media: true }).then(done, function () {
+                self.toast('Отправить не вышло — правки останутся на устройстве');
+                setTimeout(done, 1200);
+              });
+            }
+          }] : []).concat([{
+            text: 'Выйти', danger: true, fn: done
+          }]));
+        function done() { S.setSession(null); location.reload(); }
       });
       document.getElementById('viewdock').addEventListener('click', function (e) {
         var b = e.target.closest('[data-view]');
@@ -251,7 +327,8 @@
       box.innerHTML = res.map(function (r, i) {
         var p = r.person;
         var sub = r.media ? ('файл: ' + esc(r.media.name)) : esc([S.years(p), p.birth && p.birth.place].filter(Boolean).join(' · ') || '—');
-        return '<button data-i="' + i + '"><span class="mini-ph" data-ph="' + (p ? p.id : '') + '">👤</span>' +
+        return '<button data-i="' + i + '"><span class="mini-ph" data-ph="' + (p ? p.id : '') + '">' +
+          global.Icon('person') + '</span>' +
           '<span style="min-width:0"><span style="display:block">' + esc(p ? S.fullName(p) : '—') + '</span>' +
           '<span class="r-sub">' + sub + '</span></span></button>';
       }).join('');
@@ -266,7 +343,7 @@
         var p = S.person(el.dataset.ph);
         if (!p || !p.photo) return;
         S.mediaURL(p.photo).then(function (url) {
-          if (url) { el.style.backgroundImage = 'url(' + url + ')'; el.textContent = ''; }
+          if (url) { el.style.backgroundImage = 'url(' + url + ')'; el.innerHTML = ''; }
         });
       });
     },
@@ -292,7 +369,8 @@
       var self = this, bar = document.getElementById('tabs');
       bar.innerHTML = S.tree.tabs.map(function (t) {
         return '<button role="tab" data-tab="' + t.id + '" aria-selected="' + (self.activeTab === t.id) + '">' +
-          esc(t.title) + (t.builtin ? '' : ' <span class="tab-close" data-del="' + t.id + '">✕</span>') + '</button>';
+          esc(t.title) + (t.builtin ? '' : ' <span class="tab-close" data-del="' + t.id +
+            '" title="Убрать вкладку">' + global.Icon('close') + '</span>') + '</button>';
       }).join('') + '<button class="tab-add" id="tabAdd" title="Добавить вкладку">+</button>';
       bar.querySelectorAll('[data-tab]').forEach(function (b) {
         b.addEventListener('click', function (e) {
@@ -361,7 +439,7 @@
         '<div class="photo-wall">' + all.map(function (m) {
           var who = S.person(m.personId);
           return '<button class="media-tile" data-id="' + m.id + '" title="' + esc(m.name) + '">' +
-            (S.canSee(m.acl) ? '🖼' : '🔒') +
+            global.Icon(S.canSee(m.acl) ? 'photo' : 'lock') +
             '<span class="m-name">' + esc(who ? S.fullName(who) : m.name) + '</span></button>';
         }).join('') + '</div>';
       host.querySelectorAll('.media-tile').forEach(function (t) {
@@ -372,25 +450,61 @@
           if (!url) return;
           self._mediaUrls.push(url);
           t.style.backgroundImage = 'url(' + url + ')';
-          t.firstChild.textContent = '';
+          var ic1 = t.querySelector('.ico');
+          if (ic1) ic1.remove();
         });
       });
     },
 
     /* ============ вкладка «Изменения» ============ */
     renderChanges: function () {
-      var host = document.querySelector('#pane-changes .pane-scroll');
+      var host = document.querySelector('#pane-changes .pane-scroll'), self = this;
       var ch = S.tree.changes || [];
-      if (!ch.length) { host.innerHTML = '<div class="empty">Журнал пуст</div>'; return; }
+      var canEdit = S.isAdmin();
+      if (!ch.length) {
+        host.innerHTML = '<h2 style="margin-bottom:4px">Изменения</h2>' +
+          '<div class="empty">Журнал пуст</div>';
+        return;
+      }
       host.innerHTML = '<h2 style="margin-bottom:4px">Изменения</h2>' +
-        '<p class="note" style="margin:0 0 12px">Кто и когда что поправил в дереве. Последние ' + ch.length + ' записей.</p>' +
+        '<p class="note" style="margin:0 0 12px">Кто и когда что поправил в дереве. Записей: ' + ch.length +
+        (canEdit ? '. Лишние строки можно убрать — на сами данные это не влияет.' : '') + '</p>' +
+        (canEdit ? '<div class="btn-row" style="margin:0 0 12px">' +
+          '<button class="btn btn-sm btn-danger" id="chClear">Очистить журнал целиком</button></div>' : '') +
         '<div style="border:1px solid var(--line);border-radius:12px;background:var(--paper-2);overflow:hidden">' +
-        ch.slice(0, 300).map(function (c) {
-          return '<div class="change ' + esc(c.action) + '"><span class="c-dot"></span><div style="min-width:0">' +
+        ch.slice(0, 400).map(function (c) {
+          return '<div class="change ' + esc(c.action) + '"><span class="c-dot"></span>' +
+            '<div style="min-width:0;flex:1 1 auto">' +
             '<div>' + esc(c.summary) + '</div>' +
             '<div class="c-meta">' + esc(c.user) + ' · ' + new Date(c.ts).toLocaleString('ru-RU') + '</div>' +
-            '</div></div>';
-        }).join('') + '</div>';
+            '</div>' +
+            (canEdit ? '<button class="c-del" data-del="' + esc(c.id) +
+              '" type="button" title="Убрать эту строку" aria-label="Убрать эту строку">' +
+              global.Icon('trash') + '</button>' : '') +
+            '</div>';
+        }).join('') + '</div>' +
+        (ch.length > 400 ? '<p class="note" style="margin-top:10px">Показаны последние 400 записей из ' +
+          ch.length + '.</p>' : '');
+
+      host.querySelectorAll('[data-del]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          S.tree.changes = (S.tree.changes || []).filter(function (c) { return c.id !== b.dataset.del; });
+          S.save(true);
+          self.renderChanges();
+        });
+      });
+      var clr = document.getElementById('chClear');
+      if (clr) clr.addEventListener('click', function () {
+        self.confirm('Очистить журнал изменений?',
+          'Пропадёт только история правок — люди, фотографии и связи останутся на месте. ' +
+          'У других родственников журнал восстановится при следующей синхронизации с их устройств.',
+          function () {
+            S.tree.changes = [];
+            S.save(true);
+            self.renderChanges();
+            self.toast('Журнал очищен');
+          });
+      });
     },
 
     /* ============ список людей ============ */
@@ -420,7 +534,8 @@
         '<textarea id="tabNotes" style="width:100%;min-height:50vh;padding:12px;border:1px solid var(--line);' +
         'border-radius:12px;background:var(--paper-2);outline:none" placeholder="Записи, черновики, список того, что надо уточнить…">' +
         esc(tab.content || '') + '</textarea>' +
-        '<div class="btn-row"><button class="btn btn-sm" id="tabNoteMic">🎙 Надиктовать</button>' +
+        '<div class="btn-row"><button class="btn btn-sm" id="tabNoteMic">' +
+        global.Icon('mic') + ' Надиктовать</button>' +
         '<span class="note" id="tabNoteSaved" style="align-self:center"></span></div>';
       var ta = document.getElementById('tabNotes'), self = this;
       ta.addEventListener('input', function () {
@@ -517,6 +632,67 @@
           label: S.fullName(x.person) + ' — ' + (x.kind === 'birth' ? 'рождение' : x.kind === 'death' ? 'смерть' : x.kind)
         };
       });
+    },
+
+    /* ============ новая персона ============ */
+    addPerson: function () {
+      var self = this;
+      var near = this.tree && S.person(this.tree.focusId) ? S.person(this.tree.focusId) : null;
+      var relBlock = '';
+      if (near) {
+        relBlock =
+          '<div class="row"><label for="npRel">Кем приходится</label><select id="npRel">' +
+          '<option value="">Сам по себе, без связи</option>' +
+          '<option value="child">Ребёнок ' + esc(S.shortName(near)) + '</option>' +
+          '<option value="spouse">Супруг(а) ' + esc(S.shortName(near)) + '</option>' +
+          '<option value="parent">Родитель ' + esc(S.shortName(near)) + '</option>' +
+          '<option value="sibling">Брат или сестра ' + esc(S.shortName(near)) + '</option>' +
+          '</select></div>';
+      }
+      this.modal('Новый человек',
+        '<div class="row"><label for="npSur">Фамилия</label><input id="npSur" autocomplete="off"></div>' +
+        '<div class="row"><label for="npGiv">Имя</label><input id="npGiv" autocomplete="off"></div>' +
+        '<div class="row"><label for="npPat">Отчество</label><input id="npPat" autocomplete="off"></div>' +
+        '<div class="row"><label for="npSex">Пол</label><select id="npSex">' +
+        '<option value="M">Мужской</option><option value="F">Женский</option>' +
+        '<option value="U">Не указан</option></select></div>' +
+        '<div class="row"><label for="npBirth">Дата рождения</label><input id="npBirth" type="date"></div>' +
+        '<div class="row"><label for="npPlace">Место рождения</label><input id="npPlace" autocomplete="off"></div>' +
+        relBlock +
+        '<p class="note">Заполнять всё сразу не нужно — остальное допишете в карточке.</p>',
+        [{ text: 'Добавить', primary: true, fn: function () {
+          var giv = document.getElementById('npGiv').value.trim();
+          var sur = document.getElementById('npSur').value.trim();
+          if (!giv && !sur) { self.toast('Укажите хотя бы имя или фамилию'); return; }
+          var np = S.addPerson({
+            surname: sur, given: giv,
+            patronymic: document.getElementById('npPat').value.trim(),
+            sex: document.getElementById('npSex').value,
+            birth: {
+              date: document.getElementById('npBirth').value,
+              place: document.getElementById('npPlace').value.trim(),
+              lat: null, lng: null
+            }
+          });
+          var rel = near && document.getElementById('npRel') ? document.getElementById('npRel').value : '';
+          if (rel === 'child') S.linkChild(near.id, np.id);
+          else if (rel === 'spouse') S.linkSpouse(near.id, np.id);
+          else if (rel === 'parent') S.linkParent(near.id, np.id);
+          else if (rel === 'sibling') {
+            var f = S.childFamily(near.id) || S.addFamily({ children: [near.id] });
+            f.children.push(np.id);
+            S.save();
+          }
+          self.closeModal();
+          self.tree.setFocus(np.id);
+          self.renderTabs();
+          self.sheet.open(np.id);
+          setTimeout(function () { self.tree.fit(true); }, 40);
+        } }]);
+      setTimeout(function () {
+        var el = document.getElementById('npSur');
+        if (el) el.focus();
+      }, 50);
     },
 
     /* ============ родственники ============ */
@@ -664,7 +840,12 @@
     setPane: function (which) {
       var host = document.getElementById('setBody'), self = this, p = S.prefs;
       if (which === 'look') {
+        var bgList = ['auto', '#f6f1e6', '#ffffff', '#eef3f7', '#eef5ee', '#f6eef2', '#2a2622', '#1a1714'];
         host.innerHTML =
+          '<div class="set-card"><h3>Как это выглядит</h3>' +
+          '<div class="preview-stage" id="stStage"></div>' +
+          '<p class="preview-hint">Образец меняется сразу — двигайте ползунки и смотрите.</p></div>' +
+
           '<div class="set-card"><h3>Тема</h3>' +
           '<div class="set-row"><span>Оформление</span><select id="stTheme">' +
           ['auto:Как в системе', 'light:Светлая', 'dark:Тёмная'].map(function (x) {
@@ -676,9 +857,25 @@
             return '<button class="swatch" style="background:' + c + '" data-c="' + c + '" aria-pressed="' +
               (p.accent === c) + '" title="' + c + '"></button>';
           }).join('') + '</div></div>' +
+          '<div class="set-row"><span>Цвет фона древа</span><div class="color-pick">' +
+          '<div class="swatches" id="stBg">' +
+          bgList.map(function (c) {
+            var style = c === 'auto'
+              ? 'background:linear-gradient(135deg,var(--paper) 50%,var(--paper-2) 50%)'
+              : 'background:' + c;
+            return '<button class="swatch" style="' + style + '" data-c="' + c + '" aria-pressed="' +
+              (p.treeBg === c) + '" title="' + (c === 'auto' ? 'Как у страницы' : c) + '"></button>';
+          }).join('') + '</div>' +
+          '<input type="color" id="stBgPick" value="' +
+          (p.treeBg && p.treeBg !== 'auto' ? p.treeBg : '#f6f1e6') + '" title="Свой цвет">' +
+          '</div></div>' +
+          '<div class="set-row"><span>Сетка из точек на полотне</span>' +
+          '<input type="checkbox" id="stGrid"' + (p.treeGrid ? ' checked' : '') + '></div>' +
           rng('Размер текста в программе', 'stUi', 11, 20, p.ui.fontSize, 'px') +
           rng('Размер текста вкладок', 'stTab', 11, 20, p.ui.tabSize, 'px') +
+          rng('Размер значков в панели', 'stIcon', 13, 30, p.ui.iconSize || 17, 'px') +
           '</div>' +
+
           '<div class="set-card"><h3>Окошки людей в дереве</h3>' +
           '<div class="set-row"><span>Форма</span><select id="stShape">' +
           ['rounded:Скруглённый прямоугольник', 'square:Прямые углы', 'circle:Капсула'].map(function (x) {
@@ -698,6 +895,7 @@
 
         bindRange('stUi', function (v) { p.ui.fontSize = v; });
         bindRange('stTab', function (v) { p.ui.tabSize = v; });
+        bindRange('stIcon', function (v) { p.ui.iconSize = v; });
         bindRange('stRadius', function (v) { p.card.radius = v; });
         bindRange('stW', function (v) { p.card.w = v; });
         bindRange('stH', function (v) { p.card.h = v; });
@@ -706,6 +904,7 @@
         bindRange('stDate', function (v) { p.card.dateSize = v; });
         document.getElementById('stShape').addEventListener('change', function () { p.card.shape = this.value; apply(); });
         document.getElementById('stTheme').addEventListener('change', function () { p.theme = this.value; apply(); });
+        document.getElementById('stGrid').addEventListener('change', function () { p.treeGrid = this.checked; apply(); });
         document.getElementById('stShowPh').addEventListener('change', function () { p.showPhotos = this.checked; apply(); });
         document.getElementById('stShowDt').addEventListener('change', function () { p.showDates = this.checked; apply(); });
         document.getElementById('stAccent').addEventListener('click', function (e) {
@@ -717,6 +916,23 @@
           });
           apply();
         });
+        document.getElementById('stBg').addEventListener('click', function (e) {
+          var b = e.target.closest('[data-c]');
+          if (!b) return;
+          p.treeBg = b.dataset.c;
+          markBg();
+          apply();
+        });
+        document.getElementById('stBgPick').addEventListener('input', function () {
+          p.treeBg = this.value;
+          markBg();
+          apply();
+        });
+        function markBg() {
+          document.querySelectorAll('#stBg .swatch').forEach(function (s) {
+            s.setAttribute('aria-pressed', s.dataset.c === p.treeBg ? 'true' : 'false');
+          });
+        }
         function bindRange(id, fn) {
           var el = document.getElementById(id);
           el.addEventListener('input', function () {
@@ -724,7 +940,13 @@
             fn(+el.value); apply();
           });
         }
-        function apply() { S.savePrefs(); self.applyPrefs(); if (self.tree) self.tree.render(); }
+        function apply() {
+          S.savePrefs();
+          self.applyPrefs();
+          self.paintPreview();
+          if (self.tree) self.tree.render();
+        }
+        this.paintPreview();
 
       } else if (which === 'sync') {
         this.syncPane(host);
@@ -743,6 +965,11 @@
           '<button class="btn btn-sm" id="exSvg">Схема SVG</button>' +
           '<button class="btn btn-sm" id="exPdf">Печать / PDF</button>' +
           '</div><div class="note" id="exState" style="margin-top:8px"></div></div>' +
+          '<div class="set-card"><h3>Очистить дерево</h3>' +
+          '<p class="note">Убирает всех людей, связи и вложенные файлы с этого устройства. ' +
+          'Настройки оформления и список пользователей останутся. ' +
+          'Сначала сохраните копию, если данные ещё нужны.</p>' +
+          '<div class="btn-row"><button class="btn btn-sm btn-danger" id="dtWipe">Очистить дерево</button></div></div>' +
           '<div class="set-card"><h3>Загрузить данные</h3>' +
           '<p class="note">GEDCOM из MyHeritage, Ancestry или другой программы; простой текстовый список; ' +
           'или архив drevo.json из прежней копии.</p>' +
@@ -776,6 +1003,34 @@
               self.saveFile(blob, fname('zip'));
             });
         });
+        document.getElementById('dtWipe').addEventListener('click', function () {
+          var n = S.persons().length, f = S.allMedia().length;
+          self.confirm('Очистить дерево?',
+            'Будет удалено: ' + n + ' ' + plural(n, 'человек', 'человека', 'человек') +
+            ' и ' + f + ' ' + plural(f, 'файл', 'файла', 'файлов') + '. Отменить нельзя.' +
+            (S.sync && S.sync.mode !== 'off'
+              ? ' Пустое дерево уйдёт и в общее хранилище, то есть пропадёт у всех родственников.'
+              : ''),
+            function () {
+              S.allMedia().forEach(function (m) { S.removeMedia(m.id, true); });
+              Object.keys(S.tree.persons).forEach(function (id) { S.bury(id); });
+              Object.keys(S.tree.families).forEach(function (id) { S.bury(id); });
+              S.tree.persons = {};
+              S.tree.families = {};
+              S.tree.media = {};
+              S.tree.meta.rootId = null;
+              delete S.tree.meta.demo;
+              S.log('delete', 'Дерево очищено целиком');
+              S.save();
+              self.closeModal();
+              if (self.sheet) self.sheet.close();
+              self.tree.focusId = null;
+              self.tree.render();
+              self.renderTabs();
+              self.showTab('tree');
+              self.toast('Дерево очищено');
+            });
+        });
         document.getElementById('imGed').addEventListener('click', function () { self.importFile('ged'); });
         document.getElementById('imTxt').addEventListener('click', function () { self.importFile('txt'); });
         document.getElementById('imJson').addEventListener('click', function () { self.importFile('json'); });
@@ -801,7 +1056,8 @@
                 (u.role === 'admin' ? 'администратор' : 'пользователь') +
                 (u.invite ? ' · приглашение не принято' : '') + '</div></div>' +
                 (u.invite ? '<button class="btn btn-sm" data-inv="' + u.invite + '">Ссылка</button>' : '') +
-                (u.id === S.session.userId ? '' : '<button class="btn btn-sm btn-danger" data-rm="' + u.id + '">✕</button>') +
+                (u.id === S.session.userId ? '' : '<button class="btn btn-sm btn-danger" data-rm="' + u.id +
+                  '" title="Убрать пользователя" aria-label="Убрать пользователя">' + global.Icon('close') + '</button>') +
                 '</div>';
             }).join('') + '</div>' +
             '<div class="btn-row"><button class="btn btn-primary btn-sm" id="secAdd">Пригласить родственника</button></div>' +
@@ -1161,25 +1417,23 @@
         return;
       }
       btn.hidden = false;
-      var icon = '⟳', title = 'Синхронизировать';
+      var title = 'Синхронизировать';
       btn.classList.remove('spin', 'bad');
       if (state && state.state === 'run') {
         btn.classList.add('spin');
         title = state.text || 'Синхронизация…';
-      } else if (state && state.state === 'error') {
-        icon = '⚠';
+      } else if ((state && state.state === 'error') || s.lastError) {
         btn.classList.add('bad');
-        title = 'Не удалось: ' + state.text;
-      } else if (s.lastError) {
-        icon = '⚠';
-        btn.classList.add('bad');
-        title = 'Прошлая попытка не удалась: ' + s.lastError;
+        title = (state && state.state === 'error')
+          ? 'Не удалось: ' + state.text
+          : 'Прошлая попытка не удалась: ' + s.lastError;
       } else if (s.lastAt) {
         title = 'Синхронизировано ' + new Date(s.lastAt).toLocaleTimeString('ru-RU',
           { hour: '2-digit', minute: '2-digit' });
       }
-      btn.textContent = icon;
+      btn.innerHTML = global.Icon('sync');
       btn.title = title;
+      btn.setAttribute('aria-label', title);
     },
 
     inviteDialog: function () {
@@ -1259,6 +1513,41 @@
       root.style.setProperty('--accent', p.accent);
       root.style.setProperty('--ui-size', p.ui.fontSize + 'px');
       root.style.setProperty('--tab-size', p.ui.tabSize + 'px');
+      root.style.setProperty('--icon-size', (p.ui.iconSize || 17) + 'px');
+      if (p.treeBg && p.treeBg !== 'auto') root.style.setProperty('--tree-bg', p.treeBg);
+      else root.style.setProperty('--tree-bg', 'var(--paper)');
+    },
+
+    /** Образец окошка в настройках: те же правила, что и в дереве,
+        поэтому видно ровно то, что получится. */
+    paintPreview: function () {
+      var stage = document.getElementById('stStage');
+      if (!stage) return;
+      var p = S.prefs, I = global.Icon;
+      stage.style.background = (p.treeBg && p.treeBg !== 'auto') ? p.treeBg : 'var(--paper)';
+      stage.style.backgroundImage = p.treeGrid
+        ? 'radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0)' : '';
+      stage.style.backgroundSize = p.treeGrid ? '28px 28px' : '';
+
+      var r = p.card.shape === 'circle' ? Math.round(p.card.h / 2) : p.card.radius;
+      var pr = p.card.shape === 'circle' ? '50%' : Math.max(2, p.card.radius - 4) + 'px';
+      function node(cls, name, years) {
+        var h = '<div class="pv-node ' + cls + '" style="width:' + p.card.w + 'px;height:' + p.card.h +
+          'px;border-radius:' + r + 'px">';
+        if (p.showPhotos && p.card.photo > 0) {
+          h += '<div class="pv-ph" style="width:' + p.card.photo + 'px;height:' + p.card.photo +
+            'px;border-radius:' + pr + '">' + I('person') + '</div>';
+        }
+        h += '<div class="pv-txt"><div class="pv-name" style="font-size:' + p.card.nameSize + 'px">' +
+          esc(name) + '</div>';
+        if (p.showDates) {
+          h += '<div class="pv-years" style="font-size:' + p.card.dateSize + 'px">' + esc(years) + '</div>';
+        }
+        return h + '</div></div>';
+      }
+      stage.innerHTML = '<div class="pv-row">' +
+        node('f', 'Анна Петровна Смирнова', '1932 – 2011') +
+        node('m', 'Пётр Смирнов', '1928 – 1994') + '</div>';
     },
 
     /* ============ окна и мелочи ============ */
@@ -1270,7 +1559,8 @@
       }).join('');
       back.innerHTML = '<div class="modal" role="dialog" aria-modal="true">' +
         '<div class="modal-head"><h2>' + esc(title) + '</h2>' +
-        '<button class="icon-btn" data-close="1" aria-label="Закрыть">✕</button></div>' +
+        '<button class="icon-btn" data-close="1" aria-label="Закрыть" title="Закрыть">' +
+        global.Icon('close') + '</button></div>' +
         '<div class="modal-body">' + body + '</div>' +
         '<div class="modal-foot">' + foot + '<button class="btn" data-close="1">Закрыть</button></div></div>';
       back.hidden = false;

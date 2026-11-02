@@ -37,6 +37,8 @@
   --font-data:    "PT Mono", ui-monospace, "SF Mono", Consolas, monospace;
   --ui-size:      14px;
   --tab-size:     14px;
+  --icon-size:    17px;
+  --tree-bg:      var(--paper);
   color-scheme: light;
 }
 
@@ -86,6 +88,8 @@
 }
 
 * { box-sizing: border-box; }
+/* flex и grid перебивают стандартное поведение hidden — возвращаем его */
+[hidden] { display: none !important; }
 html, body { height: 100%; }
 body {
   margin: 0;
@@ -132,11 +136,16 @@ a { color: var(--accent); }
   background: var(--paper); outline: none;
 }
 .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,127,184,.18); }
-.search-ico { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-faint); font-size: 13px; }
+.search-ico {
+  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+  color: var(--ink-faint); font-size: 15px; display: flex; pointer-events: none;
+}
 .search-mic, .search-clear {
   position: absolute; top: 50%; transform: translateY(-50%);
-  border: 0; background: transparent; padding: 4px; border-radius: 50%; line-height: 1; color: var(--ink-faint);
+  border: 0; background: transparent; padding: 5px; border-radius: 50%;
+  line-height: 0; color: var(--ink-faint); font-size: 15px;
 }
+.search-mic:hover, .search-clear:hover { background: var(--neutral); color: var(--ink); }
 .search-mic { right: 6px; }
 .search-mic.rec { color: var(--bad); animation: pulse 1.1s infinite; }
 .search-clear { right: 32px; }
@@ -156,11 +165,21 @@ a { color: var(--accent); }
 .results .r-sub { font-size: 12px; color: var(--ink-faint); }
 
 .topbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.ico { width: 1.25em; height: 1.25em; flex: 0 0 auto; display: block; }
+
 .icon-btn {
   border: 1px solid transparent; background: transparent; color: var(--ink-soft);
-  width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 16px;
+  min-width: calc(var(--icon-size) * 2);
+  height: calc(var(--icon-size) * 2);
+  padding: 0 calc(var(--icon-size) * 0.4);
+  border-radius: 9px; display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; font-size: var(--icon-size); line-height: 1;
 }
+.icon-btn .lbl { font-size: calc(var(--ui-size) * 0.92); font-family: var(--font-body); }
 .icon-btn:hover { background: var(--neutral); color: var(--ink); }
+.icon-btn.accent { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.icon-btn.accent:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+@media (max-width: 1180px) { .icon-btn .lbl { display: none; } }
 .who { font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
 .who b { color: var(--ink); font-weight: 700; }
 
@@ -194,10 +213,13 @@ a { color: var(--accent); }
 /* ---------- полотно дерева ---------- */
 #treeHost {
   position: absolute; inset: 0; overflow: hidden; touch-action: none;
+  background: var(--tree-bg);
+  cursor: grab;
+}
+#treeHost.grid {
   background:
     radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/28px 28px,
-    var(--paper);
-  cursor: grab;
+    var(--tree-bg);
 }
 #treeHost.grabbing { cursor: grabbing; }
 #treeCanvas, #treeLines { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
@@ -218,10 +240,8 @@ a { color: var(--accent); }
   flex: 0 0 auto; background: var(--paper-2) center/cover no-repeat;
   border: 1px solid rgba(0,0,0,.08); position: relative;
 }
-.node-ph:not(.has-img)::after {
-  content: "👤"; position: absolute; inset: 0; display: grid; place-items: center;
-  font-size: 15px; opacity: .3;
-}
+.node-ph .ico { width: 58%; height: 58%; margin: 21%; color: var(--ink-faint); opacity: .5; }
+.node-ph.has-img .ico { display: none; }
 .node-txt { min-width: 0; flex: 1 1 auto; }
 .node-name { font-weight: 700; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .node-years { color: var(--ink-soft); font-family: var(--font-data); margin-top: 2px; }
@@ -245,7 +265,8 @@ a { color: var(--accent); }
 }
 .viewdock button {
   border: 0; background: transparent; color: var(--ink-soft);
-  padding: 7px 10px; border-radius: 9px; font-size: 13px; display: flex; align-items: center; gap: 5px;
+  padding: 7px 10px; border-radius: 9px; font-size: 13px;
+  display: flex; align-items: center; gap: 6px;
 }
 .viewdock button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 .zoomdock {
@@ -256,8 +277,10 @@ a { color: var(--accent); }
 }
 .zoomdock button {
   width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--line);
-  background: var(--paper-2); color: var(--ink-soft); box-shadow: var(--shadow); font-size: 15px;
+  background: var(--paper-2); color: var(--ink-soft); box-shadow: var(--shadow);
+  font-size: 15px; display: grid; place-items: center;
 }
+.zoomdock button:hover { color: var(--ink); background: var(--neutral); }
 
 /* ---------- карточка персоны ---------- */
 .sheet {
@@ -348,6 +371,14 @@ a { color: var(--accent); }
   background: var(--neutral) center/cover no-repeat; display: grid; place-items: center;
   font-size: 15px; color: var(--ink-faint); border: 1px solid var(--line);
 }
+.mini-ph .ico { width: 20px; height: 20px; }
+.sheet-ph .ico { width: 30px; height: 30px; }
+.media-tile .ico { width: 26px; height: 26px; }
+.m-lock .ico { width: 13px; height: 13px; }
+.node-lock .ico { width: 11px; height: 11px; }
+.tab-close .ico { width: 12px; height: 12px; vertical-align: -1px; }
+.mic-btn { padding: 5px 7px; line-height: 0; }
+.btn .ico { width: 1.1em; height: 1.1em; }
 
 /* ---------- модальные окна ---------- */
 .modal-back {
@@ -476,7 +507,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
   .topbar { gap: 7px; }
   .icon-btn { width: 32px; height: 32px; font-size: 15px; }
   .viewdock button { padding: 7px 9px; font-size: 12px; }
-  .viewdock button span { display: none; }
+  .viewdock button .lbl { display: none; }
 }
 @media (max-width: 420px) {
   #btnCalendar, #btnMap { display: none; }
@@ -485,12 +516,91 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
 }
 
 /* ---------- значок синхронизации ---------- */
-#btnSync.spin { animation: sync-spin 1.1s linear infinite; color: var(--accent); }
+#btnSync.spin .ico { animation: sync-spin 1.1s linear infinite; }
+#btnSync.spin { color: var(--accent); }
 #btnSync.bad { color: var(--warn); }
 @keyframes sync-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { #btnSync.spin { animation: none; opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { #btnSync.spin .ico { animation: none; } #btnSync.spin { opacity: .6; } }
 .set-card details summary { outline-offset: 3px; }
 .set-card ol { margin: 8px 0 0; }
+
+/* ---------- приглашение в пустом дереве ---------- */
+.tree-empty {
+  position: absolute; inset: 0; z-index: 4;
+  display: grid; place-items: center;
+  padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  pointer-events: none;
+}
+.tree-empty[hidden] { display: none !important; }
+.tree-empty > div {
+  pointer-events: auto; text-align: center; max-width: 420px;
+  background: var(--paper-2); border: 1px solid var(--line);
+  border-radius: 16px; padding: 26px 22px; box-shadow: var(--shadow);
+}
+.tree-empty h2 { font-size: 19px; margin-bottom: 8px; }
+.tree-empty p { color: var(--ink-soft); font-size: 13px; line-height: 1.6; margin: 0 0 16px; }
+.tree-empty .ico { width: 42px; height: 42px; color: var(--accent); margin: 0 auto 12px; }
+.tree-empty .btn-row { justify-content: center; }
+
+/* ---------- живой образец окошка в настройках ---------- */
+.preview-stage {
+  border: 1px solid var(--line); border-radius: 12px;
+  padding: 20px 14px; display: grid; place-items: center; gap: 12px;
+  min-height: 132px; overflow: hidden;
+}
+.preview-stage .pv-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.pv-node {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border: 1px solid var(--neutral-edge); background: var(--neutral);
+  box-shadow: var(--shadow); overflow: hidden; flex: 0 0 auto;
+}
+.pv-node.m { background: var(--male); border-color: var(--male-edge); }
+.pv-node.f { background: var(--female); border-color: var(--female-edge); }
+.pv-ph {
+  flex: 0 0 auto; background: var(--paper-2); border: 1px solid rgba(0,0,0,.08);
+  display: grid; place-items: center; color: var(--ink-faint);
+}
+.pv-ph .ico { width: 62%; height: 62%; }
+.pv-txt { min-width: 0; }
+.pv-name { font-weight: 700; line-height: 1.2; }
+.pv-years { color: var(--ink-soft); font-family: var(--font-data); margin-top: 2px; }
+.preview-hint { font-size: 11px; color: var(--ink-faint); text-align: center; }
+
+/* ---------- выбор цвета ---------- */
+.color-pick { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.color-pick input[type=color] {
+  width: 34px; height: 28px; padding: 0; border: 1px solid var(--line);
+  border-radius: 7px; background: transparent; cursor: pointer;
+}
+
+/* ---------- строка журнала с удалением ---------- */
+.change { position: relative; }
+.change .c-del {
+  opacity: 0; border: 0; background: transparent; color: var(--ink-faint);
+  padding: 4px; border-radius: 7px; line-height: 0; flex: 0 0 auto; align-self: center;
+}
+.change:hover .c-del, .change .c-del:focus-visible { opacity: 1; }
+.change .c-del:hover { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+@media (pointer: coarse) { .change .c-del { opacity: .65; } }
+
+/* ---------- настройки на узком экране ---------- */
+@media (max-width: 560px) {
+  .set-row {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    gap: 5px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .set-row:last-child { border-bottom: 0; }
+  .set-row > span:first-child { color: var(--ink-faint); font-size: 12px; }
+  .set-row input[type=range] { width: 100%; max-width: 260px; }
+  .set-row .inline { width: 100%; }
+  .set-row select { max-width: 100%; }
+  .color-pick { width: 100%; }
+}
 </style>
 </head>
 <body>
@@ -510,21 +620,25 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     </div>
 
     <div class="search-wrap">
-      <span class="search-ico" aria-hidden="true">🔍</span>
+      <span class="search-ico" id="qIco" aria-hidden="true"></span>
       <label class="sr" for="q">Поиск по людям и данным</label>
       <input id="q" type="search" placeholder="Имя, место, год, запись…" autocomplete="off">
-      <button class="search-clear" id="qClear" type="button" title="Очистить">✕</button>
-      <button class="search-mic" id="qMic" type="button" title="Найти голосом">🎙</button>
+      <button class="search-clear" id="qClear" type="button" title="Очистить" aria-label="Очистить"></button>
+      <button class="search-mic" id="qMic" type="button" title="Найти голосом" aria-label="Найти голосом"></button>
       <div class="results" id="qResults" hidden></div>
     </div>
 
     <div class="topbar-right">
-      <button class="icon-btn" id="btnSync" type="button" title="Синхронизировать" hidden>⟳</button>
-      <button class="icon-btn" id="btnCalendar" type="button" title="Календарь дат">📅</button>
-      <button class="icon-btn" id="btnMap" type="button" title="Карта мест">🗺</button>
-      <button class="icon-btn" id="btnSettings" type="button" title="Настройки">⚙</button>
+      <button class="icon-btn accent" id="btnAdd" type="button" title="Добавить человека">
+        <span class="lbl">Добавить</span></button>
+      <button class="icon-btn" id="btnSync" type="button" title="Синхронизировать" hidden></button>
+      <button class="icon-btn" id="btnCalendar" type="button" title="Календарь дат"></button>
+      <button class="icon-btn" id="btnMap" type="button" title="Карта мест"></button>
+      <button class="icon-btn" id="btnSettings" type="button" title="Настройки">
+        <span class="lbl">Настройки</span></button>
       <span class="who" id="who"></span>
-      <button class="icon-btn" id="btnLogout" type="button" title="Выйти">⏻</button>
+      <button class="icon-btn" id="btnLogout" type="button" title="Выйти из программы">
+        <span class="lbl">Выйти</span></button>
     </div>
   </header>
 
@@ -537,15 +651,16 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         <svg id="treeLines" xmlns="http://www.w3.org/2000/svg"></svg>
         <div id="treeCanvas"></div>
       </div>
+      <div class="tree-empty" id="treeEmpty" hidden></div>
       <div class="zoomdock">
-        <button id="zoomIn" type="button" title="Приблизить">+</button>
-        <button id="zoomOut" type="button" title="Отдалить">−</button>
-        <button id="zoomFit" type="button" title="Вписать всё дерево">⤢</button>
+        <button id="zoomIn" type="button" title="Приблизить" aria-label="Приблизить"></button>
+        <button id="zoomOut" type="button" title="Отдалить" aria-label="Отдалить"></button>
+        <button id="zoomFit" type="button" title="Вписать всё дерево" aria-label="Вписать всё дерево"></button>
       </div>
       <div class="viewdock" id="viewdock" role="group" aria-label="Вид дерева">
-        <button type="button" data-view="vertical" aria-pressed="true" title="Вертикальное дерево">↓<span> Вертикальное</span></button>
-        <button type="button" data-view="horizontal" aria-pressed="false" title="Горизонтальное дерево">→<span> Горизонтальное</span></button>
-        <button type="button" data-view="butterfly" aria-pressed="false" title="Вид «бабочка»">✦<span> Бабочка</span></button>
+        <button type="button" data-view="vertical" aria-pressed="true" title="Вертикальное дерево"><span class="lbl">Вертикальное</span></button>
+        <button type="button" data-view="horizontal" aria-pressed="false" title="Горизонтальное дерево"><span class="lbl">Горизонтальное</span></button>
+        <button type="button" data-view="butterfly" aria-pressed="false" title="Вид «бабочка»"><span class="lbl">Бабочка</span></button>
       </div>
       <aside class="sheet" id="sheet" hidden></aside>
     </section>
@@ -563,6 +678,97 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
 <div class="toast" id="toast" hidden></div>
 
 
+<script>/* Семейное Древо — значки.
+   Рисованные, одним цветом, тянутся за размером шрифта кнопки.
+   Эмодзи тут не годятся: на разных телефонах они выглядят по-разному,
+   а часть из них вообще не читается как действие. */
+(function (global) {
+  'use strict';
+
+  var P = {
+    /* шестерёнку заменяем на ползунки — её узнают увереннее */
+    settings: '<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/>' +
+      '<line x1="4" y1="17" x2="20" y2="17"/>' +
+      '<circle cx="9" cy="7" r="2.3"/><circle cx="15" cy="12" r="2.3"/><circle cx="8" cy="17" r="2.3"/>',
+
+    /* дверь со стрелкой наружу — «выйти», а не «выключить» */
+    logout: '<path d="M14 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/>' +
+      '<polyline points="17 8 21 12 17 16"/><line x1="21" y1="12" x2="10" y2="12"/>',
+
+    /* микрофон с подставкой — ни с чем не спутать */
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/>' +
+      '<path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/>' +
+      '<line x1="12" y1="18" x2="12" y2="21"/><line x1="8.5" y1="21" x2="15.5" y2="21"/>',
+
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/>' +
+      '<line x1="3" y1="10" x2="21" y2="10"/>' +
+      '<line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>' +
+      '<circle cx="8.5" cy="14.5" r="1.1" fill="currentColor" stroke="none"/>' +
+      '<circle cx="12" cy="14.5" r="1.1" fill="currentColor" stroke="none"/>' +
+      '<circle cx="15.5" cy="14.5" r="1.1" fill="currentColor" stroke="none"/>',
+
+    map: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>' +
+      '<line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+
+    pin: '<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+
+    search: '<circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.5" y1="15.5" x2="21" y2="21"/>',
+
+    /* человек с плюсом — «добавить персону» */
+    addPerson: '<circle cx="9" cy="8" r="3.6"/>' +
+      '<path d="M2.6 20a6.4 6.4 0 0 1 12.8 0"/>' +
+      '<line x1="18.5" y1="6" x2="18.5" y2="13"/><line x1="15" y1="9.5" x2="22" y2="9.5"/>',
+
+    person: '<circle cx="12" cy="8" r="3.8"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+
+    sync: '<path d="M20.5 11a8.5 8.5 0 0 0-14.8-5"/><polyline points="4 3 4 7 8 7"/>' +
+      '<path d="M3.5 13a8.5 8.5 0 0 0 14.8 5"/><polyline points="20 21 20 17 16 17"/>',
+
+    close: '<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>',
+    plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+    minus: '<line x1="5" y1="12" x2="19" y2="12"/>',
+    expand: '<polyline points="9 3 3 3 3 9"/><polyline points="15 21 21 21 21 15"/>' +
+      '<line x1="3" y1="3" x2="10" y2="10"/><line x1="21" y1="21" x2="14" y2="14"/>',
+    trash: '<polyline points="4 7 20 7"/><path d="M9 7V4.5h6V7"/>' +
+      '<path d="M6 7l1 13h10l1-13"/><line x1="10" y1="11" x2="10" y2="17"/>' +
+      '<line x1="14" y1="11" x2="14" y2="17"/>',
+    photo: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.8"/>' +
+      '<polyline points="4 17 9.5 12 13 15 16.5 12 20 15.5"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><polyline points="12 7 12 12 15.5 14"/>',
+    tree: '<circle cx="12" cy="4.6" r="2.4"/><circle cx="5.5" cy="19.4" r="2.4"/>' +
+      '<circle cx="18.5" cy="19.4" r="2.4"/><path d="M12 7v4H5.5v6M12 11h6.5v6"/>',
+    down: '<line x1="12" y1="4" x2="12" y2="18"/><polyline points="6 13 12 19 18 13"/>',
+    right: '<line x1="4" y1="12" x2="18" y2="12"/><polyline points="13 6 19 12 13 18"/>',
+    butterfly: '<path d="M12 5v14"/><path d="M11 7C8 3.5 3 4.5 3 9c0 3.5 4.5 4 8 3"/>' +
+      '<path d="M13 7c3-3.5 8-2.5 8 2 0 3.5-4.5 4-8 3"/>' +
+      '<path d="M11 13c-3 0-6 1.5-6 4.5 0 2 3 2.5 6-1"/>' +
+      '<path d="M13 13c3 0 6 1.5 6 4.5 0 2-3 2.5-6-1"/>',
+    note: '<path d="M5 3h9l5 5v13H5z"/><polyline points="14 3 14 8 19 8"/>' +
+      '<line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>',
+    lock: '<rect x="5" y="10" width="14" height="10" rx="2"/>' +
+      '<path d="M8.5 10V7a3.5 3.5 0 0 1 7 0v3"/>',
+    list: '<line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/>' +
+      '<line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none"/>' +
+      '<circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none"/>' +
+      '<circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none"/>'
+  };
+
+  /** Значок как строка SVG. size — в em, чтобы тянулся за шрифтом кнопки. */
+  function icon(name, opts) {
+    opts = opts || {};
+    var body = P[name];
+    if (!body) return '';
+    var cls = 'ico' + (opts.cls ? ' ' + opts.cls : '');
+    return '<svg class="' + cls + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false" ' +
+      'fill="none" stroke="currentColor" stroke-width="' + (opts.weight || 1.7) + '" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
+  }
+
+  icon.has = function (name) { return !!P[name]; };
+  icon.paths = P;
+  global.Icon = icon;
+})(window);
+</script>
 <script>/* Семейное Древо — слой данных.
    Дерево и люди общие для всех пользователей; оформление — у каждого своё.
    Медиафайлы лежат в IndexedDB, приватные — в зашифрованном виде (AES-GCM). */
@@ -850,7 +1056,9 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         accent: '#2f7fb8',
         layout: 'vertical',
         card: { w: 168, h: 76, radius: 10, photo: 44, nameSize: 12, dateSize: 11, shape: 'rounded' },
-        ui: { fontSize: 14, tabSize: 14 },
+        ui: { fontSize: 14, tabSize: 14, iconSize: 17 },
+        treeBg: 'auto',      // 'auto' — как у страницы, иначе цвет
+        treeGrid: false,     // точечная сетка на полотне
         showPhotos: true,
         showDates: true
       };
@@ -1360,6 +1568,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     this.tx = 0; this.ty = 0;
     this.onSelect = opts.onSelect || function () {};
     this.onAdd = opts.onAdd || function () {};
+    this.onRender = opts.onRender || function () {};
     this.cards = [];
     this.links = [];
     this._bindPanZoom();
@@ -1537,6 +1746,18 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
   /* ---------------- отрисовка ---------------- */
   Tree.prototype.render = function (recenter) {
     var self = this;
+    this.host.classList.toggle('grid', !!(S.prefs && S.prefs.treeGrid));
+    if (!S.persons().length) {
+      this.canvas.innerHTML = '';
+      this.svg.innerHTML = '';
+      this.cards = []; this.links = [];
+      this.onRender(this);
+      return;
+    }
+    if (!this.focusId || !S.person(this.focusId)) {
+      this.focusId = S.tree.meta.rootId && S.person(S.tree.meta.rootId)
+        ? S.tree.meta.rootId : Object.keys(S.tree.persons)[0];
+    }
     var res = this.compute();
     this.cards = res.cards; this.links = res.links;
     var prefs = S.prefs;
@@ -1602,6 +1823,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
 
     this.applyTransform();
     if (recenter) this.centerOn(this.focusId);
+    this.onRender(this);
   };
 
   Tree.prototype.cardEl = function (c) {
@@ -1617,8 +1839,9 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
 
     var html = '';
     if (prefs.showPhotos) {
-      html += '<div class="node-ph" style="width:' + prefs.card.photo + 'px;height:' + prefs.card.photo + 'px;border-radius:' +
-        (prefs.card.shape === 'circle' ? '50%' : Math.max(2, prefs.card.radius - 4) + 'px') + '"></div>';
+      html += '<div class="node-ph" style="width:' + prefs.card.photo + 'px;height:' + prefs.card.photo +
+        'px;border-radius:' + (prefs.card.shape === 'circle' ? '50%' : Math.max(2, prefs.card.radius - 4) + 'px') +
+        '">' + global.Icon('person') + '</div>';
     }
     html += '<div class="node-txt"><div class="node-name" style="font-size:' + prefs.card.nameSize + 'px">' +
       esc(S.shortName(p)) + '</div>';
@@ -1626,7 +1849,9 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       html += '<div class="node-years" style="font-size:' + prefs.card.dateSize + 'px">' + esc(S.years(p)) + '</div>';
     }
     html += '</div>';
-    if (p.acl && (p.acl.locked || p.acl.level !== 'public')) html += '<span class="node-lock" title="Ограниченный доступ">🔒</span>';
+    if (p.acl && (p.acl.locked || p.acl.level !== 'public')) {
+      html += '<span class="node-lock" title="Ограниченный доступ">' + global.Icon('lock') + '</span>';
+    }
     el.innerHTML = html;
 
     // кнопка «добавить родственника»
@@ -1644,7 +1869,11 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     if (prefs.showPhotos && p.photo) {
       S.mediaURL(p.photo).then(function (url) {
         var ph = el.querySelector('.node-ph');
-        if (url && ph) { ph.style.backgroundImage = 'url(' + url + ')'; ph.classList.add('has-img'); }
+        if (url && ph) {
+          ph.style.backgroundImage = 'url(' + url + ')';
+          ph.classList.add('has-img');
+          ph.innerHTML = '';
+        }
       });
     }
     return el;
@@ -2951,9 +3180,12 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     var self = this;
     this.host.innerHTML =
       '<div class="map-ctl">' +
-      '<button class="btn btn-sm" data-z="1" type="button">+</button>' +
-      '<button class="btn btn-sm" data-z="-1" type="button">−</button>' +
-      '<button class="btn btn-sm" data-fit="1" type="button" title="Показать все">⤢</button>' +
+      '<button class="btn btn-sm" data-z="1" type="button" title="Приблизить" aria-label="Приблизить">' +
+      global.Icon('plus') + '</button>' +
+      '<button class="btn btn-sm" data-z="-1" type="button" title="Отдалить" aria-label="Отдалить">' +
+      global.Icon('minus') + '</button>' +
+      '<button class="btn btn-sm" data-fit="1" type="button" title="Показать все" aria-label="Показать все">' +
+      global.Icon('expand') + '</button>' +
       '</div><div class="map-attr">© OpenStreetMap</div>';
     this.layer = document.createElement('div');
     this.layer.style.cssText = 'position:absolute;inset:0';
@@ -3055,6 +3287,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
   var S = global.Store;
   var U = S.util;
   var esc = global.TreeView.esc;
+  var I = global.Icon;
 
   var ACL_LEVELS = [
     { v: 'public', t: 'Видно всем' },
@@ -3126,7 +3359,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     ];
     this.el.innerHTML =
       '<div class="sheet-head">' +
-      '<div class="sheet-ph" id="shPhoto">👤</div>' +
+      '<div class="sheet-ph" id="shPhoto">' + I('person') + '</div>' +
       '<div style="flex:1 1 auto;min-width:0">' +
       '<div class="sheet-title" id="shName"></div>' +
       '<div class="sheet-sub" id="shSub"></div>' +
@@ -3134,7 +3367,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       '<button class="btn btn-sm" data-act="focus">В центр дерева</button>' +
       '<button class="btn btn-sm" data-act="addRel">+ Родственник</button>' +
       '</div></div>' +
-      '<button class="icon-btn" data-act="close" title="Закрыть">✕</button>' +
+      '<button class="icon-btn" data-act="close" title="Закрыть" aria-label="Закрыть">' + I('close') + '</button>' +
       '</div>' +
       '<div class="sheet-tabs" role="tablist">' +
       tabs.map(function (t) {
@@ -3155,13 +3388,13 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     this.el.querySelector('#shSub').textContent = bits.join(' · ') || 'даты не указаны';
     var ph = this.el.querySelector('#shPhoto');
     ph.style.backgroundImage = '';
-    ph.textContent = '👤';
+    ph.innerHTML = I('person');
     if (p.photo) {
       S.mediaURL(p.photo).then(function (url) {
         if (!url) return;
         self.urls.push(url);
         ph.style.backgroundImage = 'url(' + url + ')';
-        ph.textContent = '';
+        ph.innerHTML = '';
       });
     }
     this.el.querySelectorAll('[data-act="tab"]').forEach(function (b) {
@@ -3182,7 +3415,8 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
   };
 
   function micBtn(target) {
-    return '<button class="btn btn-sm" data-act="dictate" data-target="' + target + '" title="Надиктовать">🎙</button>';
+    return '<button class="btn btn-sm mic-btn" data-act="dictate" data-target="' + target +
+      '" title="Надиктовать" aria-label="Надиктовать">' + I('mic') + '</button>';
   }
   function aclSelect(bindAttr, acl) {
     acl = acl || { level: 'public', locked: false };
@@ -3217,7 +3451,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       var list = S.mediaOf(p.id);
       var html = '<div class="btn-row" style="margin-top:0">' +
         '<button class="btn btn-primary btn-sm" data-act="pickFile">Добавить файлы</button>' +
-        '<button class="btn btn-sm" data-act="recVoice">🎙 Голосовая заметка</button>' +
+        '<button class="btn btn-sm" data-act="recVoice">' + I('mic') + ' Голосовая заметка</button>' +
         '</div>' +
         '<p class="note" style="margin:8px 0 0">Фото, документы, аудио и видео — без ограничения количества. ' +
         'Для каждого файла можно включить замок: тогда он хранится и попадает в резервную копию в зашифрованном виде.</p>' +
@@ -3226,10 +3460,12 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       html += '<div class="sect-title">Файлы (' + list.length + ')</div><div class="media-grid" id="shMedia">';
       list.forEach(function (m) {
         var visible = S.canSee(m.acl);
-        var ic = m.kind === 'photo' ? '🖼' : m.kind === 'audio' ? '🎧' : m.kind === 'video' ? '🎬' : '📄';
+        var ic = I(m.kind === 'photo' ? 'photo' : m.kind === 'audio' ? 'mic' :
+          m.kind === 'video' ? 'map' : 'note');
         html += '<button class="media-tile" data-act="openMedia" data-id="' + m.id + '" title="' + esc(m.name) + '">' +
-          (visible ? ic : '🔒') +
-          (m.acl && (m.acl.locked || m.acl.level !== 'public') ? '<span class="m-lock">🔒</span>' : '') +
+          (visible ? ic : I('lock')) +
+          (m.acl && (m.acl.locked || m.acl.level !== 'public')
+            ? '<span class="m-lock">' + I('lock') + '</span>' : '') +
           '<span class="m-name">' + esc(m.caption || m.name) + '</span></button>';
       });
       return html + '</div>';
@@ -3293,11 +3529,12 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         var h = '<div class="sect-title">' + title + '</div>';
         if (!arr.length) return h + '<p class="note">нет</p>';
         return h + '<div class="list">' + arr.map(function (x) {
-          return '<div class="list-item"><div class="mini-ph" data-ph="' + x.id + '">👤</div>' +
+          return '<div class="list-item"><div class="mini-ph" data-ph="' + x.id + '">' + I('person') + '</div>' +
             '<div class="li-main"><div>' + esc(S.fullName(x)) + '</div>' +
             '<div class="li-sub">' + esc(S.years(x) || '—') + '</div></div>' +
             '<button class="btn btn-sm" data-act="goto" data-id="' + x.id + '">Открыть</button>' +
-            (rel ? '<button class="btn btn-sm btn-danger" data-act="unlink" data-id="' + x.id + '">✕</button>' : '') +
+            (rel ? '<button class="btn btn-sm btn-danger" data-act="unlink" data-id="' + x.id +
+              '" title="Убрать связь" aria-label="Убрать связь">' + I('close') + '</button>' : '') +
             '</div>';
         }).join('') + '</div>';
       }
@@ -3331,7 +3568,8 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           if (!url) return;
           self.urls.push(url);
           tile.style.backgroundImage = 'url(' + url + ')';
-          tile.firstChild.textContent = '';
+          var ic0 = tile.querySelector('.ico');
+          if (ic0) ic0.remove();
         });
       });
     },
@@ -3344,7 +3582,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           if (!url) return;
           self.urls.push(url);
           el.style.backgroundImage = 'url(' + url + ')';
-          el.textContent = '';
+          el.innerHTML = '';
         });
       });
     },
@@ -3648,7 +3886,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       this.applyPrefs();
       document.getElementById('gate').hidden = true;
       document.getElementById('app').hidden = false;
-      if (!S.persons().length) this.seedDemo();
+      this.paintIcons();
 
       var self = this;
       this.tree = new global.TreeView({
@@ -3656,10 +3894,12 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         canvas: document.getElementById('treeCanvas'),
         svg: document.getElementById('treeLines'),
         onSelect: function (id) { self.sheet.open(id); },
-        onAdd: function (id) { self.addRelative(id); }
+        onAdd: function (id) { self.addRelative(id); },
+        onRender: function () { self.paintEmpty(); }
       });
       this.tree.mode = S.prefs.layout;
-      this.tree.setFocus(S.tree.meta.rootId || S.persons()[0].id);
+      // Пустое дерево так и остаётся пустым: образец больше не подставляется сам.
+      if (S.persons().length) this.tree.setFocus(S.tree.meta.rootId || S.persons()[0].id);
 
       this.sheet = new global.PersonSheet({
         el: document.getElementById('sheet'),
@@ -3675,6 +3915,62 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       this.showTab('tree');
       setTimeout(function () { self.tree.fit(true); }, 60);
       this.startSync();
+    },
+
+    /* ============ значки ============ */
+    paintIcons: function () {
+      var I = global.Icon;
+      function put(id, name, before) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var lbl = el.querySelector('.lbl');
+        el.innerHTML = I(name) + (lbl ? lbl.outerHTML : '');
+      }
+      put('qIco', 'search');
+      put('qClear', 'close');
+      put('qMic', 'mic');
+      put('btnAdd', 'addPerson');
+      put('btnSync', 'sync');
+      put('btnCalendar', 'calendar');
+      put('btnMap', 'map');
+      put('btnSettings', 'settings');
+      put('btnLogout', 'logout');
+      put('zoomIn', 'plus');
+      put('zoomOut', 'minus');
+      put('zoomFit', 'expand');
+      var views = { vertical: 'down', horizontal: 'right', butterfly: 'butterfly' };
+      document.querySelectorAll('#viewdock [data-view]').forEach(function (b) {
+        var lbl = b.querySelector('.lbl');
+        b.innerHTML = I(views[b.dataset.view]) + (lbl ? lbl.outerHTML : '');
+      });
+    },
+
+    /* ============ пустое дерево ============ */
+    paintEmpty: function () {
+      var box = document.getElementById('treeEmpty'), self = this;
+      if (!box) return;
+      if (S.persons().length) { box.hidden = true; return; }
+      box.hidden = false;
+      box.innerHTML = '<div>' + global.Icon('tree') +
+        '<h2>Дерево пока пустое</h2>' +
+        '<p>Начните с себя или с того, о ком знаете больше всех. Дальше к каждому человеку ' +
+        'можно будет добавлять родителей, супругов и детей — кнопкой «+» на его окошке.</p>' +
+        '<div class="btn-row">' +
+        '<button class="btn btn-primary" id="emAdd">Добавить первого человека</button>' +
+        '<button class="btn" id="emImport">Загрузить из файла</button>' +
+        '</div>' +
+        '<p class="note" style="margin:14px 0 0">Хотите сначала посмотреть, как всё устроено? ' +
+        '<button class="btn btn-sm" id="emDemo">Показать пример</button></p>' +
+        '</div>';
+      document.getElementById('emAdd').addEventListener('click', function () { self.addPerson(); });
+      document.getElementById('emImport').addEventListener('click', function () { self.openSettings('data'); });
+      document.getElementById('emDemo').addEventListener('click', function () {
+        self.seedDemo();
+        self.tree.setFocus(S.tree.meta.rootId);
+        self.afterSync();
+        setTimeout(function () { self.tree.fit(true); }, 40);
+        self.toast('Это пример. Удалить его целиком — Настройки → Данные → Очистить дерево');
+      });
     },
 
     /* ============ вход ============ */
@@ -3724,7 +4020,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         '<label for="gPass">Пароль</label><input id="gPass" type="password" autocomplete="current-password">' +
         '<div class="err" id="gErr"></div>' +
         '<div class="btn-row"><button class="btn btn-primary" id="gGo">Войти</button>' +
-        (hasBio ? '<button class="btn" id="gBio">👆 По отпечатку</button>' : '') + '</div>' +
+        (hasBio ? '<button class="btn" id="gBio">Войти по отпечатку</button>' : '') + '</div>' +
         '<p class="note" style="margin-top:14px">Нет доступа? Попросите у администратора дерева ссылку-приглашение.</p>');
       function go() {
         var login = val('gLogin'), pass = val('gPass');
@@ -3834,8 +4130,26 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       });
       document.getElementById('btnCalendar').addEventListener('click', function () { self.openCalendar(); });
       document.getElementById('btnMap').addEventListener('click', function () { self.openMap(); });
+      document.getElementById('btnAdd').addEventListener('click', function () { self.addPerson(); });
       document.getElementById('btnLogout').addEventListener('click', function () {
-        S.setSession(null); location.reload();
+        var Sy = global.Sync;
+        var warn = (S.sync && S.sync.mode !== 'off' && S.dirty)
+          ? 'Есть правки, которые ещё не ушли в общее хранилище. Синхронизировать перед выходом?'
+          : 'Дерево останется на этом устройстве. Войти снова можно будет по логину и паролю.';
+        self.modal('Выйти из программы?', '<p class="note">' + warn + '</p>',
+          (S.sync && S.sync.mode !== 'off' && S.dirty ? [{
+            text: 'Синхронизировать и выйти', primary: true, fn: function () {
+              self.closeModal();
+              self.toast('Отправляем правки…');
+              Sy.run({ media: true }).then(done, function () {
+                self.toast('Отправить не вышло — правки останутся на устройстве');
+                setTimeout(done, 1200);
+              });
+            }
+          }] : []).concat([{
+            text: 'Выйти', danger: true, fn: done
+          }]));
+        function done() { S.setSession(null); location.reload(); }
       });
       document.getElementById('viewdock').addEventListener('click', function (e) {
         var b = e.target.closest('[data-view]');
@@ -3875,7 +4189,8 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       box.innerHTML = res.map(function (r, i) {
         var p = r.person;
         var sub = r.media ? ('файл: ' + esc(r.media.name)) : esc([S.years(p), p.birth && p.birth.place].filter(Boolean).join(' · ') || '—');
-        return '<button data-i="' + i + '"><span class="mini-ph" data-ph="' + (p ? p.id : '') + '">👤</span>' +
+        return '<button data-i="' + i + '"><span class="mini-ph" data-ph="' + (p ? p.id : '') + '">' +
+          global.Icon('person') + '</span>' +
           '<span style="min-width:0"><span style="display:block">' + esc(p ? S.fullName(p) : '—') + '</span>' +
           '<span class="r-sub">' + sub + '</span></span></button>';
       }).join('');
@@ -3890,7 +4205,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         var p = S.person(el.dataset.ph);
         if (!p || !p.photo) return;
         S.mediaURL(p.photo).then(function (url) {
-          if (url) { el.style.backgroundImage = 'url(' + url + ')'; el.textContent = ''; }
+          if (url) { el.style.backgroundImage = 'url(' + url + ')'; el.innerHTML = ''; }
         });
       });
     },
@@ -3916,7 +4231,8 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       var self = this, bar = document.getElementById('tabs');
       bar.innerHTML = S.tree.tabs.map(function (t) {
         return '<button role="tab" data-tab="' + t.id + '" aria-selected="' + (self.activeTab === t.id) + '">' +
-          esc(t.title) + (t.builtin ? '' : ' <span class="tab-close" data-del="' + t.id + '">✕</span>') + '</button>';
+          esc(t.title) + (t.builtin ? '' : ' <span class="tab-close" data-del="' + t.id +
+            '" title="Убрать вкладку">' + global.Icon('close') + '</span>') + '</button>';
       }).join('') + '<button class="tab-add" id="tabAdd" title="Добавить вкладку">+</button>';
       bar.querySelectorAll('[data-tab]').forEach(function (b) {
         b.addEventListener('click', function (e) {
@@ -3985,7 +4301,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         '<div class="photo-wall">' + all.map(function (m) {
           var who = S.person(m.personId);
           return '<button class="media-tile" data-id="' + m.id + '" title="' + esc(m.name) + '">' +
-            (S.canSee(m.acl) ? '🖼' : '🔒') +
+            global.Icon(S.canSee(m.acl) ? 'photo' : 'lock') +
             '<span class="m-name">' + esc(who ? S.fullName(who) : m.name) + '</span></button>';
         }).join('') + '</div>';
       host.querySelectorAll('.media-tile').forEach(function (t) {
@@ -3996,25 +4312,61 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           if (!url) return;
           self._mediaUrls.push(url);
           t.style.backgroundImage = 'url(' + url + ')';
-          t.firstChild.textContent = '';
+          var ic1 = t.querySelector('.ico');
+          if (ic1) ic1.remove();
         });
       });
     },
 
     /* ============ вкладка «Изменения» ============ */
     renderChanges: function () {
-      var host = document.querySelector('#pane-changes .pane-scroll');
+      var host = document.querySelector('#pane-changes .pane-scroll'), self = this;
       var ch = S.tree.changes || [];
-      if (!ch.length) { host.innerHTML = '<div class="empty">Журнал пуст</div>'; return; }
+      var canEdit = S.isAdmin();
+      if (!ch.length) {
+        host.innerHTML = '<h2 style="margin-bottom:4px">Изменения</h2>' +
+          '<div class="empty">Журнал пуст</div>';
+        return;
+      }
       host.innerHTML = '<h2 style="margin-bottom:4px">Изменения</h2>' +
-        '<p class="note" style="margin:0 0 12px">Кто и когда что поправил в дереве. Последние ' + ch.length + ' записей.</p>' +
+        '<p class="note" style="margin:0 0 12px">Кто и когда что поправил в дереве. Записей: ' + ch.length +
+        (canEdit ? '. Лишние строки можно убрать — на сами данные это не влияет.' : '') + '</p>' +
+        (canEdit ? '<div class="btn-row" style="margin:0 0 12px">' +
+          '<button class="btn btn-sm btn-danger" id="chClear">Очистить журнал целиком</button></div>' : '') +
         '<div style="border:1px solid var(--line);border-radius:12px;background:var(--paper-2);overflow:hidden">' +
-        ch.slice(0, 300).map(function (c) {
-          return '<div class="change ' + esc(c.action) + '"><span class="c-dot"></span><div style="min-width:0">' +
+        ch.slice(0, 400).map(function (c) {
+          return '<div class="change ' + esc(c.action) + '"><span class="c-dot"></span>' +
+            '<div style="min-width:0;flex:1 1 auto">' +
             '<div>' + esc(c.summary) + '</div>' +
             '<div class="c-meta">' + esc(c.user) + ' · ' + new Date(c.ts).toLocaleString('ru-RU') + '</div>' +
-            '</div></div>';
-        }).join('') + '</div>';
+            '</div>' +
+            (canEdit ? '<button class="c-del" data-del="' + esc(c.id) +
+              '" type="button" title="Убрать эту строку" aria-label="Убрать эту строку">' +
+              global.Icon('trash') + '</button>' : '') +
+            '</div>';
+        }).join('') + '</div>' +
+        (ch.length > 400 ? '<p class="note" style="margin-top:10px">Показаны последние 400 записей из ' +
+          ch.length + '.</p>' : '');
+
+      host.querySelectorAll('[data-del]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          S.tree.changes = (S.tree.changes || []).filter(function (c) { return c.id !== b.dataset.del; });
+          S.save(true);
+          self.renderChanges();
+        });
+      });
+      var clr = document.getElementById('chClear');
+      if (clr) clr.addEventListener('click', function () {
+        self.confirm('Очистить журнал изменений?',
+          'Пропадёт только история правок — люди, фотографии и связи останутся на месте. ' +
+          'У других родственников журнал восстановится при следующей синхронизации с их устройств.',
+          function () {
+            S.tree.changes = [];
+            S.save(true);
+            self.renderChanges();
+            self.toast('Журнал очищен');
+          });
+      });
     },
 
     /* ============ список людей ============ */
@@ -4044,7 +4396,8 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         '<textarea id="tabNotes" style="width:100%;min-height:50vh;padding:12px;border:1px solid var(--line);' +
         'border-radius:12px;background:var(--paper-2);outline:none" placeholder="Записи, черновики, список того, что надо уточнить…">' +
         esc(tab.content || '') + '</textarea>' +
-        '<div class="btn-row"><button class="btn btn-sm" id="tabNoteMic">🎙 Надиктовать</button>' +
+        '<div class="btn-row"><button class="btn btn-sm" id="tabNoteMic">' +
+        global.Icon('mic') + ' Надиктовать</button>' +
         '<span class="note" id="tabNoteSaved" style="align-self:center"></span></div>';
       var ta = document.getElementById('tabNotes'), self = this;
       ta.addEventListener('input', function () {
@@ -4141,6 +4494,67 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           label: S.fullName(x.person) + ' — ' + (x.kind === 'birth' ? 'рождение' : x.kind === 'death' ? 'смерть' : x.kind)
         };
       });
+    },
+
+    /* ============ новая персона ============ */
+    addPerson: function () {
+      var self = this;
+      var near = this.tree && S.person(this.tree.focusId) ? S.person(this.tree.focusId) : null;
+      var relBlock = '';
+      if (near) {
+        relBlock =
+          '<div class="row"><label for="npRel">Кем приходится</label><select id="npRel">' +
+          '<option value="">Сам по себе, без связи</option>' +
+          '<option value="child">Ребёнок ' + esc(S.shortName(near)) + '</option>' +
+          '<option value="spouse">Супруг(а) ' + esc(S.shortName(near)) + '</option>' +
+          '<option value="parent">Родитель ' + esc(S.shortName(near)) + '</option>' +
+          '<option value="sibling">Брат или сестра ' + esc(S.shortName(near)) + '</option>' +
+          '</select></div>';
+      }
+      this.modal('Новый человек',
+        '<div class="row"><label for="npSur">Фамилия</label><input id="npSur" autocomplete="off"></div>' +
+        '<div class="row"><label for="npGiv">Имя</label><input id="npGiv" autocomplete="off"></div>' +
+        '<div class="row"><label for="npPat">Отчество</label><input id="npPat" autocomplete="off"></div>' +
+        '<div class="row"><label for="npSex">Пол</label><select id="npSex">' +
+        '<option value="M">Мужской</option><option value="F">Женский</option>' +
+        '<option value="U">Не указан</option></select></div>' +
+        '<div class="row"><label for="npBirth">Дата рождения</label><input id="npBirth" type="date"></div>' +
+        '<div class="row"><label for="npPlace">Место рождения</label><input id="npPlace" autocomplete="off"></div>' +
+        relBlock +
+        '<p class="note">Заполнять всё сразу не нужно — остальное допишете в карточке.</p>',
+        [{ text: 'Добавить', primary: true, fn: function () {
+          var giv = document.getElementById('npGiv').value.trim();
+          var sur = document.getElementById('npSur').value.trim();
+          if (!giv && !sur) { self.toast('Укажите хотя бы имя или фамилию'); return; }
+          var np = S.addPerson({
+            surname: sur, given: giv,
+            patronymic: document.getElementById('npPat').value.trim(),
+            sex: document.getElementById('npSex').value,
+            birth: {
+              date: document.getElementById('npBirth').value,
+              place: document.getElementById('npPlace').value.trim(),
+              lat: null, lng: null
+            }
+          });
+          var rel = near && document.getElementById('npRel') ? document.getElementById('npRel').value : '';
+          if (rel === 'child') S.linkChild(near.id, np.id);
+          else if (rel === 'spouse') S.linkSpouse(near.id, np.id);
+          else if (rel === 'parent') S.linkParent(near.id, np.id);
+          else if (rel === 'sibling') {
+            var f = S.childFamily(near.id) || S.addFamily({ children: [near.id] });
+            f.children.push(np.id);
+            S.save();
+          }
+          self.closeModal();
+          self.tree.setFocus(np.id);
+          self.renderTabs();
+          self.sheet.open(np.id);
+          setTimeout(function () { self.tree.fit(true); }, 40);
+        } }]);
+      setTimeout(function () {
+        var el = document.getElementById('npSur');
+        if (el) el.focus();
+      }, 50);
     },
 
     /* ============ родственники ============ */
@@ -4288,7 +4702,12 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     setPane: function (which) {
       var host = document.getElementById('setBody'), self = this, p = S.prefs;
       if (which === 'look') {
+        var bgList = ['auto', '#f6f1e6', '#ffffff', '#eef3f7', '#eef5ee', '#f6eef2', '#2a2622', '#1a1714'];
         host.innerHTML =
+          '<div class="set-card"><h3>Как это выглядит</h3>' +
+          '<div class="preview-stage" id="stStage"></div>' +
+          '<p class="preview-hint">Образец меняется сразу — двигайте ползунки и смотрите.</p></div>' +
+
           '<div class="set-card"><h3>Тема</h3>' +
           '<div class="set-row"><span>Оформление</span><select id="stTheme">' +
           ['auto:Как в системе', 'light:Светлая', 'dark:Тёмная'].map(function (x) {
@@ -4300,9 +4719,25 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
             return '<button class="swatch" style="background:' + c + '" data-c="' + c + '" aria-pressed="' +
               (p.accent === c) + '" title="' + c + '"></button>';
           }).join('') + '</div></div>' +
+          '<div class="set-row"><span>Цвет фона древа</span><div class="color-pick">' +
+          '<div class="swatches" id="stBg">' +
+          bgList.map(function (c) {
+            var style = c === 'auto'
+              ? 'background:linear-gradient(135deg,var(--paper) 50%,var(--paper-2) 50%)'
+              : 'background:' + c;
+            return '<button class="swatch" style="' + style + '" data-c="' + c + '" aria-pressed="' +
+              (p.treeBg === c) + '" title="' + (c === 'auto' ? 'Как у страницы' : c) + '"></button>';
+          }).join('') + '</div>' +
+          '<input type="color" id="stBgPick" value="' +
+          (p.treeBg && p.treeBg !== 'auto' ? p.treeBg : '#f6f1e6') + '" title="Свой цвет">' +
+          '</div></div>' +
+          '<div class="set-row"><span>Сетка из точек на полотне</span>' +
+          '<input type="checkbox" id="stGrid"' + (p.treeGrid ? ' checked' : '') + '></div>' +
           rng('Размер текста в программе', 'stUi', 11, 20, p.ui.fontSize, 'px') +
           rng('Размер текста вкладок', 'stTab', 11, 20, p.ui.tabSize, 'px') +
+          rng('Размер значков в панели', 'stIcon', 13, 30, p.ui.iconSize || 17, 'px') +
           '</div>' +
+
           '<div class="set-card"><h3>Окошки людей в дереве</h3>' +
           '<div class="set-row"><span>Форма</span><select id="stShape">' +
           ['rounded:Скруглённый прямоугольник', 'square:Прямые углы', 'circle:Капсула'].map(function (x) {
@@ -4322,6 +4757,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
 
         bindRange('stUi', function (v) { p.ui.fontSize = v; });
         bindRange('stTab', function (v) { p.ui.tabSize = v; });
+        bindRange('stIcon', function (v) { p.ui.iconSize = v; });
         bindRange('stRadius', function (v) { p.card.radius = v; });
         bindRange('stW', function (v) { p.card.w = v; });
         bindRange('stH', function (v) { p.card.h = v; });
@@ -4330,6 +4766,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         bindRange('stDate', function (v) { p.card.dateSize = v; });
         document.getElementById('stShape').addEventListener('change', function () { p.card.shape = this.value; apply(); });
         document.getElementById('stTheme').addEventListener('change', function () { p.theme = this.value; apply(); });
+        document.getElementById('stGrid').addEventListener('change', function () { p.treeGrid = this.checked; apply(); });
         document.getElementById('stShowPh').addEventListener('change', function () { p.showPhotos = this.checked; apply(); });
         document.getElementById('stShowDt').addEventListener('change', function () { p.showDates = this.checked; apply(); });
         document.getElementById('stAccent').addEventListener('click', function (e) {
@@ -4341,6 +4778,23 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           });
           apply();
         });
+        document.getElementById('stBg').addEventListener('click', function (e) {
+          var b = e.target.closest('[data-c]');
+          if (!b) return;
+          p.treeBg = b.dataset.c;
+          markBg();
+          apply();
+        });
+        document.getElementById('stBgPick').addEventListener('input', function () {
+          p.treeBg = this.value;
+          markBg();
+          apply();
+        });
+        function markBg() {
+          document.querySelectorAll('#stBg .swatch').forEach(function (s) {
+            s.setAttribute('aria-pressed', s.dataset.c === p.treeBg ? 'true' : 'false');
+          });
+        }
         function bindRange(id, fn) {
           var el = document.getElementById(id);
           el.addEventListener('input', function () {
@@ -4348,7 +4802,13 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
             fn(+el.value); apply();
           });
         }
-        function apply() { S.savePrefs(); self.applyPrefs(); if (self.tree) self.tree.render(); }
+        function apply() {
+          S.savePrefs();
+          self.applyPrefs();
+          self.paintPreview();
+          if (self.tree) self.tree.render();
+        }
+        this.paintPreview();
 
       } else if (which === 'sync') {
         this.syncPane(host);
@@ -4367,6 +4827,11 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           '<button class="btn btn-sm" id="exSvg">Схема SVG</button>' +
           '<button class="btn btn-sm" id="exPdf">Печать / PDF</button>' +
           '</div><div class="note" id="exState" style="margin-top:8px"></div></div>' +
+          '<div class="set-card"><h3>Очистить дерево</h3>' +
+          '<p class="note">Убирает всех людей, связи и вложенные файлы с этого устройства. ' +
+          'Настройки оформления и список пользователей останутся. ' +
+          'Сначала сохраните копию, если данные ещё нужны.</p>' +
+          '<div class="btn-row"><button class="btn btn-sm btn-danger" id="dtWipe">Очистить дерево</button></div></div>' +
           '<div class="set-card"><h3>Загрузить данные</h3>' +
           '<p class="note">GEDCOM из MyHeritage, Ancestry или другой программы; простой текстовый список; ' +
           'или архив drevo.json из прежней копии.</p>' +
@@ -4400,6 +4865,34 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
               self.saveFile(blob, fname('zip'));
             });
         });
+        document.getElementById('dtWipe').addEventListener('click', function () {
+          var n = S.persons().length, f = S.allMedia().length;
+          self.confirm('Очистить дерево?',
+            'Будет удалено: ' + n + ' ' + plural(n, 'человек', 'человека', 'человек') +
+            ' и ' + f + ' ' + plural(f, 'файл', 'файла', 'файлов') + '. Отменить нельзя.' +
+            (S.sync && S.sync.mode !== 'off'
+              ? ' Пустое дерево уйдёт и в общее хранилище, то есть пропадёт у всех родственников.'
+              : ''),
+            function () {
+              S.allMedia().forEach(function (m) { S.removeMedia(m.id, true); });
+              Object.keys(S.tree.persons).forEach(function (id) { S.bury(id); });
+              Object.keys(S.tree.families).forEach(function (id) { S.bury(id); });
+              S.tree.persons = {};
+              S.tree.families = {};
+              S.tree.media = {};
+              S.tree.meta.rootId = null;
+              delete S.tree.meta.demo;
+              S.log('delete', 'Дерево очищено целиком');
+              S.save();
+              self.closeModal();
+              if (self.sheet) self.sheet.close();
+              self.tree.focusId = null;
+              self.tree.render();
+              self.renderTabs();
+              self.showTab('tree');
+              self.toast('Дерево очищено');
+            });
+        });
         document.getElementById('imGed').addEventListener('click', function () { self.importFile('ged'); });
         document.getElementById('imTxt').addEventListener('click', function () { self.importFile('txt'); });
         document.getElementById('imJson').addEventListener('click', function () { self.importFile('json'); });
@@ -4425,7 +4918,8 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
                 (u.role === 'admin' ? 'администратор' : 'пользователь') +
                 (u.invite ? ' · приглашение не принято' : '') + '</div></div>' +
                 (u.invite ? '<button class="btn btn-sm" data-inv="' + u.invite + '">Ссылка</button>' : '') +
-                (u.id === S.session.userId ? '' : '<button class="btn btn-sm btn-danger" data-rm="' + u.id + '">✕</button>') +
+                (u.id === S.session.userId ? '' : '<button class="btn btn-sm btn-danger" data-rm="' + u.id +
+                  '" title="Убрать пользователя" aria-label="Убрать пользователя">' + global.Icon('close') + '</button>') +
                 '</div>';
             }).join('') + '</div>' +
             '<div class="btn-row"><button class="btn btn-primary btn-sm" id="secAdd">Пригласить родственника</button></div>' +
@@ -4785,25 +5279,23 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         return;
       }
       btn.hidden = false;
-      var icon = '⟳', title = 'Синхронизировать';
+      var title = 'Синхронизировать';
       btn.classList.remove('spin', 'bad');
       if (state && state.state === 'run') {
         btn.classList.add('spin');
         title = state.text || 'Синхронизация…';
-      } else if (state && state.state === 'error') {
-        icon = '⚠';
+      } else if ((state && state.state === 'error') || s.lastError) {
         btn.classList.add('bad');
-        title = 'Не удалось: ' + state.text;
-      } else if (s.lastError) {
-        icon = '⚠';
-        btn.classList.add('bad');
-        title = 'Прошлая попытка не удалась: ' + s.lastError;
+        title = (state && state.state === 'error')
+          ? 'Не удалось: ' + state.text
+          : 'Прошлая попытка не удалась: ' + s.lastError;
       } else if (s.lastAt) {
         title = 'Синхронизировано ' + new Date(s.lastAt).toLocaleTimeString('ru-RU',
           { hour: '2-digit', minute: '2-digit' });
       }
-      btn.textContent = icon;
+      btn.innerHTML = global.Icon('sync');
       btn.title = title;
+      btn.setAttribute('aria-label', title);
     },
 
     inviteDialog: function () {
@@ -4883,6 +5375,41 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       root.style.setProperty('--accent', p.accent);
       root.style.setProperty('--ui-size', p.ui.fontSize + 'px');
       root.style.setProperty('--tab-size', p.ui.tabSize + 'px');
+      root.style.setProperty('--icon-size', (p.ui.iconSize || 17) + 'px');
+      if (p.treeBg && p.treeBg !== 'auto') root.style.setProperty('--tree-bg', p.treeBg);
+      else root.style.setProperty('--tree-bg', 'var(--paper)');
+    },
+
+    /** Образец окошка в настройках: те же правила, что и в дереве,
+        поэтому видно ровно то, что получится. */
+    paintPreview: function () {
+      var stage = document.getElementById('stStage');
+      if (!stage) return;
+      var p = S.prefs, I = global.Icon;
+      stage.style.background = (p.treeBg && p.treeBg !== 'auto') ? p.treeBg : 'var(--paper)';
+      stage.style.backgroundImage = p.treeGrid
+        ? 'radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0)' : '';
+      stage.style.backgroundSize = p.treeGrid ? '28px 28px' : '';
+
+      var r = p.card.shape === 'circle' ? Math.round(p.card.h / 2) : p.card.radius;
+      var pr = p.card.shape === 'circle' ? '50%' : Math.max(2, p.card.radius - 4) + 'px';
+      function node(cls, name, years) {
+        var h = '<div class="pv-node ' + cls + '" style="width:' + p.card.w + 'px;height:' + p.card.h +
+          'px;border-radius:' + r + 'px">';
+        if (p.showPhotos && p.card.photo > 0) {
+          h += '<div class="pv-ph" style="width:' + p.card.photo + 'px;height:' + p.card.photo +
+            'px;border-radius:' + pr + '">' + I('person') + '</div>';
+        }
+        h += '<div class="pv-txt"><div class="pv-name" style="font-size:' + p.card.nameSize + 'px">' +
+          esc(name) + '</div>';
+        if (p.showDates) {
+          h += '<div class="pv-years" style="font-size:' + p.card.dateSize + 'px">' + esc(years) + '</div>';
+        }
+        return h + '</div></div>';
+      }
+      stage.innerHTML = '<div class="pv-row">' +
+        node('f', 'Анна Петровна Смирнова', '1932 – 2011') +
+        node('m', 'Пётр Смирнов', '1928 – 1994') + '</div>';
     },
 
     /* ============ окна и мелочи ============ */
@@ -4894,7 +5421,8 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       }).join('');
       back.innerHTML = '<div class="modal" role="dialog" aria-modal="true">' +
         '<div class="modal-head"><h2>' + esc(title) + '</h2>' +
-        '<button class="icon-btn" data-close="1" aria-label="Закрыть">✕</button></div>' +
+        '<button class="icon-btn" data-close="1" aria-label="Закрыть" title="Закрыть">' +
+        global.Icon('close') + '</button></div>' +
         '<div class="modal-body">' + body + '</div>' +
         '<div class="modal-foot">' + foot + '<button class="btn" data-close="1">Закрыть</button></div></div>';
       back.hidden = false;

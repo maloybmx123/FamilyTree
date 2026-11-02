@@ -19,6 +19,7 @@
     this.tx = 0; this.ty = 0;
     this.onSelect = opts.onSelect || function () {};
     this.onAdd = opts.onAdd || function () {};
+    this.onRender = opts.onRender || function () {};
     this.cards = [];
     this.links = [];
     this._bindPanZoom();
@@ -196,6 +197,18 @@
   /* ---------------- отрисовка ---------------- */
   Tree.prototype.render = function (recenter) {
     var self = this;
+    this.host.classList.toggle('grid', !!(S.prefs && S.prefs.treeGrid));
+    if (!S.persons().length) {
+      this.canvas.innerHTML = '';
+      this.svg.innerHTML = '';
+      this.cards = []; this.links = [];
+      this.onRender(this);
+      return;
+    }
+    if (!this.focusId || !S.person(this.focusId)) {
+      this.focusId = S.tree.meta.rootId && S.person(S.tree.meta.rootId)
+        ? S.tree.meta.rootId : Object.keys(S.tree.persons)[0];
+    }
     var res = this.compute();
     this.cards = res.cards; this.links = res.links;
     var prefs = S.prefs;
@@ -261,6 +274,7 @@
 
     this.applyTransform();
     if (recenter) this.centerOn(this.focusId);
+    this.onRender(this);
   };
 
   Tree.prototype.cardEl = function (c) {
@@ -276,8 +290,9 @@
 
     var html = '';
     if (prefs.showPhotos) {
-      html += '<div class="node-ph" style="width:' + prefs.card.photo + 'px;height:' + prefs.card.photo + 'px;border-radius:' +
-        (prefs.card.shape === 'circle' ? '50%' : Math.max(2, prefs.card.radius - 4) + 'px') + '"></div>';
+      html += '<div class="node-ph" style="width:' + prefs.card.photo + 'px;height:' + prefs.card.photo +
+        'px;border-radius:' + (prefs.card.shape === 'circle' ? '50%' : Math.max(2, prefs.card.radius - 4) + 'px') +
+        '">' + global.Icon('person') + '</div>';
     }
     html += '<div class="node-txt"><div class="node-name" style="font-size:' + prefs.card.nameSize + 'px">' +
       esc(S.shortName(p)) + '</div>';
@@ -285,7 +300,9 @@
       html += '<div class="node-years" style="font-size:' + prefs.card.dateSize + 'px">' + esc(S.years(p)) + '</div>';
     }
     html += '</div>';
-    if (p.acl && (p.acl.locked || p.acl.level !== 'public')) html += '<span class="node-lock" title="Ограниченный доступ">🔒</span>';
+    if (p.acl && (p.acl.locked || p.acl.level !== 'public')) {
+      html += '<span class="node-lock" title="Ограниченный доступ">' + global.Icon('lock') + '</span>';
+    }
     el.innerHTML = html;
 
     // кнопка «добавить родственника»
@@ -303,7 +320,11 @@
     if (prefs.showPhotos && p.photo) {
       S.mediaURL(p.photo).then(function (url) {
         var ph = el.querySelector('.node-ph');
-        if (url && ph) { ph.style.backgroundImage = 'url(' + url + ')'; ph.classList.add('has-img'); }
+        if (url && ph) {
+          ph.style.backgroundImage = 'url(' + url + ')';
+          ph.classList.add('has-img');
+          ph.innerHTML = '';
+        }
       });
     }
     return el;

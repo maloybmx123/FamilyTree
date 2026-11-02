@@ -27,21 +27,25 @@
     </div>
 
     <div class="search-wrap">
-      <span class="search-ico" aria-hidden="true">🔍</span>
+      <span class="search-ico" id="qIco" aria-hidden="true"></span>
       <label class="sr" for="q">Поиск по людям и данным</label>
       <input id="q" type="search" placeholder="Имя, место, год, запись…" autocomplete="off">
-      <button class="search-clear" id="qClear" type="button" title="Очистить">✕</button>
-      <button class="search-mic" id="qMic" type="button" title="Найти голосом">🎙</button>
+      <button class="search-clear" id="qClear" type="button" title="Очистить" aria-label="Очистить"></button>
+      <button class="search-mic" id="qMic" type="button" title="Найти голосом" aria-label="Найти голосом"></button>
       <div class="results" id="qResults" hidden></div>
     </div>
 
     <div class="topbar-right">
-      <button class="icon-btn" id="btnSync" type="button" title="Синхронизировать" hidden>⟳</button>
-      <button class="icon-btn" id="btnCalendar" type="button" title="Календарь дат">📅</button>
-      <button class="icon-btn" id="btnMap" type="button" title="Карта мест">🗺</button>
-      <button class="icon-btn" id="btnSettings" type="button" title="Настройки">⚙</button>
+      <button class="icon-btn accent" id="btnAdd" type="button" title="Добавить человека">
+        <span class="lbl">Добавить</span></button>
+      <button class="icon-btn" id="btnSync" type="button" title="Синхронизировать" hidden></button>
+      <button class="icon-btn" id="btnCalendar" type="button" title="Календарь дат"></button>
+      <button class="icon-btn" id="btnMap" type="button" title="Карта мест"></button>
+      <button class="icon-btn" id="btnSettings" type="button" title="Настройки">
+        <span class="lbl">Настройки</span></button>
       <span class="who" id="who"></span>
-      <button class="icon-btn" id="btnLogout" type="button" title="Выйти">⏻</button>
+      <button class="icon-btn" id="btnLogout" type="button" title="Выйти из программы">
+        <span class="lbl">Выйти</span></button>
     </div>
   </header>
 
@@ -54,15 +58,16 @@
         <svg id="treeLines" xmlns="http://www.w3.org/2000/svg"></svg>
         <div id="treeCanvas"></div>
       </div>
+      <div class="tree-empty" id="treeEmpty" hidden></div>
       <div class="zoomdock">
-        <button id="zoomIn" type="button" title="Приблизить">+</button>
-        <button id="zoomOut" type="button" title="Отдалить">−</button>
-        <button id="zoomFit" type="button" title="Вписать всё дерево">⤢</button>
+        <button id="zoomIn" type="button" title="Приблизить" aria-label="Приблизить"></button>
+        <button id="zoomOut" type="button" title="Отдалить" aria-label="Отдалить"></button>
+        <button id="zoomFit" type="button" title="Вписать всё дерево" aria-label="Вписать всё дерево"></button>
       </div>
       <div class="viewdock" id="viewdock" role="group" aria-label="Вид дерева">
-        <button type="button" data-view="vertical" aria-pressed="true" title="Вертикальное дерево">↓<span> Вертикальное</span></button>
-        <button type="button" data-view="horizontal" aria-pressed="false" title="Горизонтальное дерево">→<span> Горизонтальное</span></button>
-        <button type="button" data-view="butterfly" aria-pressed="false" title="Вид «бабочка»">✦<span> Бабочка</span></button>
+        <button type="button" data-view="vertical" aria-pressed="true" title="Вертикальное дерево"><span class="lbl">Вертикальное</span></button>
+        <button type="button" data-view="horizontal" aria-pressed="false" title="Горизонтальное дерево"><span class="lbl">Горизонтальное</span></button>
+        <button type="button" data-view="butterfly" aria-pressed="false" title="Вид «бабочка»"><span class="lbl">Бабочка</span></button>
       </div>
       <aside class="sheet" id="sheet" hidden></aside>
     </section>
@@ -79,6 +84,7 @@
 <div class="modal-back" id="modalBack" hidden></div>
 <div class="toast" id="toast" hidden></div>
 
+<script src="js/icons.js"></script>
 <script src="js/store.js"></script>
 <script src="js/tree.js"></script>
 <script src="js/io.js"></script>

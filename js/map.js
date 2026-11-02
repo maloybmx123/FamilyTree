@@ -28,9 +28,12 @@
     var self = this;
     this.host.innerHTML =
       '<div class="map-ctl">' +
-      '<button class="btn btn-sm" data-z="1" type="button">+</button>' +
-      '<button class="btn btn-sm" data-z="-1" type="button">−</button>' +
-      '<button class="btn btn-sm" data-fit="1" type="button" title="Показать все">⤢</button>' +
+      '<button class="btn btn-sm" data-z="1" type="button" title="Приблизить" aria-label="Приблизить">' +
+      global.Icon('plus') + '</button>' +
+      '<button class="btn btn-sm" data-z="-1" type="button" title="Отдалить" aria-label="Отдалить">' +
+      global.Icon('minus') + '</button>' +
+      '<button class="btn btn-sm" data-fit="1" type="button" title="Показать все" aria-label="Показать все">' +
+      global.Icon('expand') + '</button>' +
       '</div><div class="map-attr">© OpenStreetMap</div>';
     this.layer = document.createElement('div');
     this.layer.style.cssText = 'position:absolute;inset:0';

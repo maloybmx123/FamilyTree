@@ -3,7 +3,7 @@
 var CACHE = 'drevo-v1';
 var SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest',
-  './js/store.js', './js/tree.js', './js/io.js', './js/sync.js', './js/map.js',
+  './js/icons.js', './js/store.js', './js/tree.js', './js/io.js', './js/sync.js', './js/map.js',
   './js/person.js', './js/app.js',
   './icons/icon-192.png', './icons/icon-512.png'
 ];

@@ -5,7 +5,7 @@ base = os.path.dirname(os.path.abspath(__file__))
 os.chdir(base)
 html = open('index.html', encoding='utf-8').read()
 css  = open('styles.css', encoding='utf-8').read()
-jsfiles = ['js/store.js','js/tree.js','js/io.js','js/sync.js','js/map.js','js/person.js','js/app.js']
+jsfiles = ['js/icons.js','js/store.js','js/tree.js','js/io.js','js/sync.js','js/map.js','js/person.js','js/app.js']
 js = {f: open(f, encoding='utf-8').read() for f in jsfiles}
 body = html.split('<body>',1)[1].split('</body>',1)[0]
 body = re.sub(r'<script src="js/[^"]+"></script>\s*', '', body)

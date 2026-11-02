@@ -285,7 +285,9 @@
         accent: '#2f7fb8',
         layout: 'vertical',
         card: { w: 168, h: 76, radius: 10, photo: 44, nameSize: 12, dateSize: 11, shape: 'rounded' },
-        ui: { fontSize: 14, tabSize: 14 },
+        ui: { fontSize: 14, tabSize: 14, iconSize: 17 },
+        treeBg: 'auto',      // 'auto' — как у страницы, иначе цвет
+        treeGrid: false,     // точечная сетка на полотне
         showPhotos: true,
         showDates: true
       };
