@@ -261,11 +261,14 @@ a { color: var(--accent); }
 #treeHost.grabbing { cursor: grabbing; }
 #treeCanvas, #treeLines { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 #treeLines { pointer-events: none; }
+/* Все связи одного цвета: разноцветные линии читались как разные по смыслу,
+   хотя смысл у них один — родство. Повороты скруглены, поэтому crispEdges
+   здесь нельзя: он превратил бы дуги в лесенку. Чёткость держится на целых
+   координатах и чётной толщине штриха. */
 .lnk-parent, .lnk-couple {
   fill: none; stroke: var(--line-tree); stroke-width: 2;
-  shape-rendering: crispEdges;          /* линии строго по осям — без размытия */
+  stroke-linecap: round; stroke-linejoin: round;
 }
-.lnk-couple { stroke: var(--accent); opacity: .6; }
 
 .node {
   position: absolute; display: flex; align-items: center; gap: 8px;
@@ -998,23 +1001,12 @@ table.data tbody tr:hover { background: var(--neutral); }
     /* Профиль сбоку, лицом влево — как на приложенном образце.
        Заливкой: силуэт читается лучше контура на размере 40 точек.
        Опорные точки лица: нос — самая левая вершина (5.8), подбородок — 10.4. */
-    personM:
-      '<path d="M13.2 2.8C17 2.8 19 5.4 19 8.6c0 2.4-.7 4.3-2 5.5' +
-      'c-1 1-2.7 1.7-4.2 1.5L11.6 15.2 11.9 14.1 11.1 13.4 7.4 12 10.5 10.2' +
-      'C10.1 7.4 10.6 2.8 13.2 2.8z"/>' +
-      '<path d="M2.6 21.8c.2-2.9 2.4-4.4 5.2-5l3-.7v-2.3l1.2.6c1.3.6 2.8.5 4-.3' +
-      'l.3-.2v2.2l3 .7c2.8.6 5 2.1 5.2 5z"/>',
+    /* Профиль-камея: обводка образцов, которые прислал Сергей.
+       Лицом вправо, заливкой — на размере фотокарточки силуэт читается
+       лучше контура, а пол виден по причёске. */
+    personM: '<path d="M14.05 22.55C12.11 20.51 9.41 19.12 5.87 18.32C5.29 18.19 4.81 18.05 4.81 18.02C4.81 17.98 5.18 17.48 5.64 16.92C7.82 14.19 7.87 13.38 6.1 10.12C5.7 9.37 5.29 8.47 5.2 8.11C4.96 7.2 4.98 5.46 5.24 4.71C5.35 4.39 5.42 4.07 5.39 4.0C5.36 3.92 5.39 3.83 5.46 3.79C5.64 3.68 5.59 3.49 5.39 3.56C5.29 3.6 5.34 3.51 5.5 3.36C5.66 3.21 5.82 3.09 5.84 3.09C5.87 3.09 6.12 2.85 6.4 2.57C6.69 2.29 7.19 1.92 7.52 1.74C7.84 1.57 8.25 1.28 8.43 1.09C8.71 0.81 8.75 0.79 8.79 0.96C8.82 1.1 8.89 1.13 9.01 1.08C9.74 0.77 10.19 0.67 11.14 0.63C12.26 0.57 14.09 0.78 15.35 1.1C16.07 1.29 16.63 1.24 16.92 0.98C17.1 0.81 17.12 0.83 17.24 1.2C17.31 1.41 17.35 1.71 17.32 1.85C17.25 2.2 17.43 2.19 17.52 1.84C17.62 1.46 17.74 1.51 17.96 2.0C18.15 2.44 18.25 2.52 18.38 2.33C18.54 2.07 18.61 2.26 18.52 2.73C18.41 3.33 17.99 4.02 17.63 4.18C17.38 4.3 17.38 4.31 17.52 4.91C17.96 6.73 18.04 7.41 17.85 7.8C17.57 8.38 17.62 8.54 18.44 9.8C18.9 10.5 19.18 11.04 19.15 11.14C19.11 11.23 18.87 11.4 18.61 11.51L18.13 11.71L18.25 12.15C18.35 12.52 18.34 12.62 18.17 12.79C18.05 12.93 18.02 13.03 18.1 13.08C18.27 13.18 18.24 13.45 18.01 13.74C17.84 13.96 17.82 14.07 17.9 14.38C18.1 15.08 17.99 15.53 17.56 15.81C17.21 16.05 17.13 16.07 16.27 15.98C15.76 15.94 15.13 15.9 14.87 15.89L14.39 15.89L14.18 16.54C14.07 16.89 13.89 17.36 13.77 17.58C13.49 18.12 13.51 18.34 13.96 19.8C14.47 21.45 14.88 23.07 14.84 23.22C14.82 23.29 14.47 22.99 14.05 22.55Z"/>',
 
-    personF:
-      /* та же голова и плечи, плюс волосы, уходящие на спину */
-      '<path d="M13.2 2.6c4.4 0 7.2 2.9 7.2 6.9 0 2.2-.45 4-1.35 5.3l1.35 4.5' +
-      'c.24.8-.36 1.6-1.2 1.6h-2.6l-1.3-4.9.55-.5c1.5-1.35 2.25-3.2 2.25-5.5' +
-      'c0-2.6-1.8-4.5-4.4-4.6z"/>' +
-      '<path d="M13.2 2.8C17 2.8 19 5.4 19 8.6c0 2.4-.7 4.3-2 5.5' +
-      'c-1 1-2.7 1.7-4.2 1.5L11.6 15.2 11.9 14.1 11.1 13.4 7.4 12 10.5 10.2' +
-      'C10.1 7.4 10.6 2.8 13.2 2.8z"/>' +
-      '<path d="M2.6 21.8c.2-2.9 2.4-4.4 5.2-5l3-.7v-2.3l1.2.6c1.3.6 2.8.5 4-.3' +
-      'l.3-.2v2.2l3 .7c2.8.6 5 2.1 5.2 5z"/>',
+    personF: '<path d="M13.91 22.99C12.8 21.81 10.36 20.37 8.77 19.96C8.34 19.84 7.97 19.73 7.95 19.72C7.93 19.7 8.19 19.34 8.54 18.91C9.4 17.86 9.86 16.86 9.85 16.06C9.85 15.2 9.68 14.97 8.8 14.6C6.9 13.79 6.02 12.59 6.02 10.79C6.02 10.41 5.96 9.72 5.89 9.26L5.77 8.43L5.19 8.15C4.2 7.68 3.87 6.68 4.37 5.67C4.61 5.2 4.6 5.15 4.32 5.4C4.07 5.63 4.01 5.56 4.26 5.31C4.38 5.18 4.39 5.06 4.3 4.7C4.07 3.85 4.58 3.0 5.39 2.87C5.63 2.83 5.85 2.73 5.88 2.64C5.92 2.53 5.87 2.5 5.69 2.55C5.56 2.58 5.48 2.56 5.52 2.51C5.55 2.45 5.66 2.41 5.76 2.41C5.86 2.41 6.21 2.27 6.55 2.11C7.18 1.8 7.45 1.8 8.33 2.12L8.56 2.2L8.33 2.01C8.11 1.82 8.11 1.82 8.36 1.89C8.53 1.95 8.72 1.89 8.98 1.69C10.06 0.88 11.52 0.61 12.73 0.98C13.15 1.11 13.59 1.14 14.39 1.1C14.99 1.07 15.7 1.1 15.97 1.16C16.23 1.22 16.47 1.24 16.5 1.22C16.59 1.12 15.88 0.91 15.3 0.85C14.98 0.82 14.74 0.75 14.77 0.7C14.99 0.34 16.57 0.91 17.36 1.63C18.12 2.33 18.29 2.77 18.1 3.6C17.99 4.13 18.0 4.26 18.23 4.91C18.45 5.51 18.49 5.85 18.49 7.07C18.49 8.51 18.49 8.52 18.74 8.47C19.08 8.4 19.07 8.59 18.72 8.75L18.44 8.87L18.68 9.22C18.82 9.42 19.15 9.81 19.41 10.1C20.0 10.75 20.02 10.9 19.5 11.36C19.13 11.68 19.11 11.74 19.18 12.18C19.23 12.55 19.21 12.68 19.06 12.76C18.9 12.85 18.89 12.91 19.01 13.16C19.13 13.42 19.12 13.5 18.94 13.7C18.77 13.88 18.73 14.09 18.75 14.63C18.78 15.78 18.35 16.05 16.83 15.83C15.75 15.67 15.26 15.75 14.78 16.18C13.5 17.3 13.18 21.08 14.19 23.04C14.43 23.5 14.39 23.49 13.91 22.99Z"/>',
 
     sync: '<path d="M20.5 11a8.5 8.5 0 0 0-14.8-5"/><polyline points="4 3 4 7 8 7"/>' +
       '<path d="M3.5 13a8.5 8.5 0 0 0 14.8 5"/><polyline points="20 21 20 17 16 17"/>',
@@ -2060,132 +2052,157 @@ table.data tbody tr:hover { background: var(--neutral); }
      вправо, потомки уходят вниз. Это другая раскладка, а не вертикальная
      с перекосом, поэтому считается отдельно. */
   Tree.prototype.computeButterfly = function () {
-    var self = this, prefs = S.prefs;
+    var prefs = S.prefs;
     var CW = prefs.card.w, CH = prefs.card.h;
-    var COL = CW + 64;        // шаг между поколениями предков
-    var ROW = CH + 18;        // шаг между соседями по вертикали
-    var LEVEL = CH + 78;      // шаг между поколениями потомков
+    var COL = CW + 64;          // шаг между поколениями предков вбок
+    var VGAP = 18;              // просвет между соседями по вертикали
+    var LEVEL = CH + 78;        // шаг между поколениями потомков
+    var MATE = CW + 14;         // шаг внутри пары супругов
+    var KGAP = 26;              // просвет между ветками потомков
 
     var focus = S.person(this.focusId);
-    if (!focus) return { cards: [], links: [], w: 0, h: 0, map: {}, paths: [] };
+    if (!focus) return { cards: [], links: [], w: 0, h: 0, map: {}, butterfly: true };
 
-    var cards = [], links = [], placed = {};
+    var cards = [], links = [], placed = {}, used = {};
     function put(person, x, y, role) {
-      var c = { id: person.id, person: person, x: Math.round(x), y: Math.round(y),
-        w: CW, h: CH, role: role || 'blood' };
-      cards.push(c);
-      placed[person.id] = c;
+      var c = { id: person.id, person: person, x: x, y: y, w: CW, h: CH, role: role || 'blood' };
+      cards.push(c); placed[person.id] = c;
       return c;
     }
 
-    /* ---- крылья предков ---- */
-    // side: -1 влево (по отцу), +1 вправо (по матери)
-    function wing(pid, gen, side, cursor) {
-      var par = gen <= self.up ? S.parentsOf(pid).filter(function (p) { return !placed[p.id]; }) : [];
-      var y;
-      if (!par.length) {
-        y = cursor.v;
-        cursor.v += ROW;
-      } else {
-        var ys = par.map(function (p) { return wing(p.id, gen + 1, side, cursor); });
-        y = (ys[0] + ys[ys.length - 1]) / 2;
+    used[focus.id] = 1;
+
+    /* ---- крылья предков: дерево «человек → его родители» ---- */
+    function ancNode(pid, gen, depth) {
+      used[pid] = 1;
+      var n = { id: pid, gen: gen, w: CH, kids: [] };   // разводим по вертикали
+      if (depth > 0) {
+        S.parentsOf(pid).forEach(function (p) {
+          if (used[p.id]) return;
+          n.kids.push(ancNode(p.id, gen + 1, depth - 1));
+        });
       }
-      var p = S.person(pid);
-      if (p && !placed[pid]) put(p, side * gen * COL - CW / 2, y - CH / 2);
-      return y;
+      return n;
     }
 
     var parents = S.parentsOf(focus.id);
     var father = parents.filter(function (p) { return p.sex !== 'F'; })[0] || parents[0] || null;
     var mother = parents.filter(function (p) { return p !== father; })[0] || null;
 
-    placed[focus.id] = true;                       // чтобы крылья его не заняли
-    var leftCur = { v: 0 }, rightCur = { v: 0 };
-    var leftY = father ? wing(father.id, 1, -1, leftCur) : null;
-    var rightY = mother ? wing(mother.id, 1, 1, rightCur) : null;
-    delete placed[focus.id];
+    /* ---- супруги фокуса справа ---- */
+    var mates = S.spousesOf(focus.id).filter(function (x) { return !used[x.id]; });
+    mates.forEach(function (m) { used[m.id] = 1; });
+    var mateRight = CW / 2;                       // правый край занятого фокусом и супругами
+    if (mates.length) mateRight = CW / 2 + 14 + (mates.length - 1) * MATE + CW;
+    // правое крыло отодвигаем, чтобы не наехать на супругов
+    var shiftR = Math.max(0, mateRight + 28 - (COL - CW / 2));
 
-    // выровнять крылья по вертикали друг относительно друга
-    function shift(side, dy) {
-      cards.forEach(function (c) {
-        if ((side < 0 && c.x < -CW / 2) || (side > 0 && c.x > CW / 2)) c.y += dy;
+    function wing(rootPerson, side) {
+      if (!rootPerson) return null;
+      var tree = ancNode(rootPerson.id, 1, self_up - 1);
+      tidy(tree, VGAP);
+      var list = [];
+      placeTree(tree, 0, list);
+      list.forEach(function (n) {
+        var p = S.person(n.id);
+        if (!p) return;
+        var x = side * n.gen * COL - CW / 2 + (side > 0 ? shiftR : 0);
+        put(p, x, n.x - CH / 2);
       });
+      // связи: родитель → ребёнок, и связка между двумя родителями
+      (function links2(n) {
+        if (n.kids.length === 2) links.push({ kind: 'couple', a: n.kids[0].id, b: n.kids[1].id });
+        n.kids.forEach(function (k) {
+          links.push({ kind: 'wing', from: k.id, to: n.id });
+          links2(k);
+        });
+      })(tree);
+      return tree;
     }
-    if (leftY != null && rightY != null) {
-      var mid = (leftY + rightY) / 2;
-      shift(-1, mid - leftY); shift(1, mid - rightY);
-      leftY = rightY = mid;
-    }
-    var axis = leftY != null ? leftY : (rightY != null ? rightY : 0);
+    var self_up = this.up;
+    var wl = wing(father, -1), wr = wing(mother, 1);
 
-    /* ---- фокус и его супруги ---- */
-    var me = put(focus, -CW / 2, axis - CH / 2, 'focus');
-    var mates = S.spousesOf(focus.id).filter(function (x) { return !placed[x.id]; });
-    var mateCards = [];
-    if (mates.length) {
-      // супруг встаёт справа от фокуса — правое крыло отодвигаем, чтобы не наложилось
-      var push = CW + 28;
-      cards.forEach(function (c) { if (c.x > 0) c.x += push; });
-      mateCards.push(put(mates[0], CW / 2 + 14, axis - CH / 2, 'spouse'));
-      links.push({ kind: 'couple', a: focus.id, b: mates[0].id });
-    }
-
-    /* ---- потомки вниз ---- */
-    var kidsTop = axis + CH / 2 + 46;
-    function descend(pid, gen, cursor) {
-      var kids = S.childrenOf(pid).filter(function (k) { return !placed[k.id]; });
-      var xs = [];
-      kids.forEach(function (k) {
-        placed[k.id] = true;
-        var kx = descend(k.id, gen + 1, cursor);
-        xs.push(kx);
-      });
-      var x;
-      if (!xs.length) { x = cursor.v; cursor.v += CW + 26; }
-      else x = (xs[0] + xs[xs.length - 1]) / 2;
-      var p = S.person(pid);
-      if (p && placed[pid] === true) put(p, x - CW / 2, kidsTop + (gen - 1) * LEVEL);
-      return x;
-    }
-    var kidCursor = { v: 0 };
-    var directKids = S.childrenOf(focus.id);
-    var kidXs = [];
-    directKids.forEach(function (k) {
-      if (placed[k.id]) return;
-      placed[k.id] = true;
-      kidXs.push(descend(k.id, 1, kidCursor));
+    /* ---- фокус и супруги ---- */
+    put(focus, -CW / 2, -CH / 2, 'focus');
+    mates.forEach(function (m, i) {
+      put(m, CW / 2 + 14 + i * MATE, -CH / 2, 'spouse');
+      links.push({ kind: 'couple', a: i === 0 ? focus.id : mates[i - 1].id, b: m.id });
     });
-    if (kidXs.length) {
-      // сдвинуть всех потомков так, чтобы их середина была под фокусом
-      var mid2 = (kidXs[0] + kidXs[kidXs.length - 1]) / 2;
-      var anchor = mateCards.length ? (me.x + me.w + 14 + CW / 2) / 2 : 0;
-      var dx = anchor - mid2;
-      cards.forEach(function (c) { if (c.y > axis + CH) c.x += dx; });
-      directKids.forEach(function (k) {
-        if (placed[k.id] && typeof placed[k.id] === 'object') {
-          links.push({ kind: 'parent', from: mateCards.length ? [focus.id, mates[0].id] : [focus.id], to: k.id });
-        }
+    // от фокуса к его родителям
+    if (father) links.push({ kind: 'wing', from: father.id, to: focus.id });
+    if (mother) links.push({ kind: 'wing', from: mother.id, to: focus.id });
+
+    /* ---- потомки вниз, тем же алгоритмом ---- */
+    function unitOf(pid) {
+      var u = [pid];
+      S.spousesOf(pid).forEach(function (sp) {
+        if (u.indexOf(sp.id) < 0 && !used[sp.id]) u.push(sp.id);
       });
-      // связи внутри потомков
-      cards.forEach(function (c) {
-        if (c.y <= axis + CH) return;
-        S.childrenOf(c.id).forEach(function (ch) {
-          if (placed[ch.id] && typeof placed[ch.id] === 'object') {
-            links.push({ kind: 'parent', from: [c.id], to: ch.id });
-          }
+      return u;
+    }
+    function kidNode(ids, gen, depth) {
+      ids.forEach(function (id) { used[id] = 1; });
+      var n = { ids: ids, gen: gen, bloodId: ids[0], w: (ids.length - 1) * MATE + CW, kids: [] };
+      if (depth > 0) {
+        var seen = {};
+        ids.forEach(function (pid) {
+          S.childrenOf(pid).forEach(function (ch) {
+            if (seen[ch.id] || used[ch.id]) return;
+            seen[ch.id] = 1;
+            n.kids.push(kidNode(unitOf(ch.id), gen + 1, depth - 1));
+          });
+        });
+      }
+      return n;
+    }
+    var rootIds = [focus.id].concat(mates.map(function (m) { return m.id; }));
+    var kidsRoot = { ids: rootIds, gen: 0, w: (rootIds.length - 1) * MATE + CW, kids: [] };
+    var seenK = {}, this_down = this.down;
+    rootIds.forEach(function (pid) {
+      S.childrenOf(pid).forEach(function (ch) {
+        if (seenK[ch.id] || used[ch.id]) return;
+        seenK[ch.id] = 1;
+        kidsRoot.kids.push(kidNode(unitOf(ch.id), 1, this_down - 1));
+      });
+    });
+
+    if (kidsRoot.kids.length) {
+      tidy(kidsRoot, KGAP);
+      var klist = [];
+      placeTree(kidsRoot, (mates.length ? (mateRight - CW / 2) / 2 : 0), klist);
+
+      /* Потомки опускаются ниже всего, что висит над ними в тех же столбцах:
+         иначе длинное крыло предков спускается прямо на детей. */
+      var top = CH / 2 + 46;
+      klist.forEach(function (n) {
+        if (n === kidsRoot) return;
+        var l = n.x - n.w / 2, r = n.x + n.w / 2;
+        cards.forEach(function (c) {
+          if (c.x + c.w <= l || c.x >= r) return;         // столбцы не пересекаются
+          top = Math.max(top, c.y + c.h + 40);
         });
       });
-    }
-
-    /* ---- связи в крыльях: ребёнок ← родитель ---- */
-    cards.forEach(function (c) {
-      if (c.y > axis + CH) return;                 // потомков уже связали
-      S.parentsOf(c.id).forEach(function (par) {
-        if (placed[par.id] && typeof placed[par.id] === 'object') {
-          links.push({ kind: 'wing', from: par.id, to: c.id });
+      klist.forEach(function (n) {
+        if (n === kidsRoot) return;
+        var left = n.x - n.w / 2;
+        n.ids.forEach(function (pid, i) {
+          var p = S.person(pid);
+          if (p && !placed[pid]) put(p, left + i * MATE, top + (n.gen - 1) * LEVEL);
+        });
+        for (var i2 = 1; i2 < n.ids.length; i2++) {
+          links.push({ kind: 'couple', a: n.ids[i2 - 1], b: n.ids[i2] });
         }
       });
-    });
+      (function kidLinks(n) {
+        n.kids.forEach(function (k) {
+          var par = n.ids.filter(function (pid) {
+            return S.childrenOf(pid).some(function (c) { return c.id === k.bloodId; });
+          });
+          links.push({ kind: 'parent', from: par.length ? par : n.ids, to: k.bloodId });
+          kidLinks(k);
+        });
+      })(kidsRoot);
+    }
 
     /* ---- в пиксели ---- */
     var PAD = 60;
@@ -2205,6 +2222,54 @@ table.data tbody tr:hover { background: var(--neutral); }
     };
   };
 
+  /* ---------------- укладка по контурам ----------------
+     Приём Райнгольда–Тилфорда в варианте Уокера, тот же, что под деревьями
+     в MyHeritage и Gramps. Соседние ветки разводятся не по приблизительной
+     ширине, а по фактическому контуру поддерева на каждом уровне, поэтому
+     наложение невозможно по построению, а не потому что зазор угадан.
+     node: { w, kids: [] } → после укладки у каждого узла есть rel —
+     смещение его центра относительно центра родителя. */
+  function tidy(node, gap) {
+    var kids = node.kids || [];
+    kids.forEach(function (k) { tidy(k, gap); });
+    if (!kids.length) {
+      node.cl = [-node.w / 2];
+      node.cr = [node.w / 2];
+      return;
+    }
+    var cl = null, cr = null;          // контуры уже уложенных соседей
+    kids.forEach(function (k, i) {
+      if (i === 0) k.off = 0;
+      else {
+        var need = 0, L = Math.min(cr.length, k.cl.length);
+        for (var d = 0; d < L; d++) need = Math.max(need, cr[d] - k.cl[d] + gap);
+        k.off = need;
+      }
+      var a = k.cl.map(function (v) { return v + k.off; });
+      var b = k.cr.map(function (v) { return v + k.off; });
+      if (!cl) { cl = a; cr = b; }
+      else {
+        for (var d2 = 0; d2 < a.length; d2++) {
+          if (d2 < cl.length) { cl[d2] = Math.min(cl[d2], a[d2]); cr[d2] = Math.max(cr[d2], b[d2]); }
+          else { cl.push(a[d2]); cr.push(b[d2]); }
+        }
+      }
+    });
+    var mid = (kids[0].off + kids[kids.length - 1].off) / 2;
+    kids.forEach(function (k) { k.rel = k.off - mid; });
+    node.cl = [-node.w / 2];
+    node.cr = [node.w / 2];
+    for (var d3 = 0; d3 < cl.length; d3++) {
+      node.cl.push(cl[d3] - mid);
+      node.cr.push(cr[d3] - mid);
+    }
+  }
+  function placeTree(node, x, out) {
+    node.x = x;
+    out.push(node);
+    (node.kids || []).forEach(function (k) { placeTree(k, x + k.rel, out); });
+  }
+
   Tree.prototype.compute = function () {
     if (this.mode === 'butterfly') return this.computeButterfly();
     var self = this, prefs = S.prefs;
@@ -2221,146 +2286,124 @@ table.data tbody tr:hover { background: var(--neutral); }
     // детей на половину зазора — и линия вниз получается с изломом.
     var CARD = (mode === 'horizontal') ? CH : CW;
 
+    var GAP = SLOT - CARD;              // просвет между соседними эскизами
+
     var cards = [], links = [];
     var focus = S.person(this.focusId);
-    if (!focus) return { cards: [], links: [], w: 0, h: 0 };
+    if (!focus) return { cards: [], links: [], w: 0, h: 0, map: {} };
 
     var placed = {};           // personId -> card
-    var cursor = { v: 0 };
+    var used = {};             // кто уже попал в какой-нибудь узел
 
-    function unitOf(personId) {
-      var u = [personId];
-      S.spousesOf(personId).forEach(function (sp) {
-        if (u.indexOf(sp.id) < 0 && !placed[sp.id]) u.push(sp.id);
+    /* Узел укладки — «юнит»: пара супругов или одиночка, то есть люди,
+       которые всегда стоят рядом и двигаются вместе. */
+    function makeUnit(ids, gen) {
+      ids.forEach(function (id) { used[id] = 1; });
+      // при втором и третьем браке в юните больше двух человек —
+      // ширина обязана расти с каждым, иначе соседи наезжают
+      return { ids: ids, gen: gen, w: (ids.length - 1) * MATE + CARD, kids: [] };
+    }
+    function unitOf(pid) {
+      var u = [pid];
+      S.spousesOf(pid).forEach(function (sp) {
+        if (u.indexOf(sp.id) < 0 && !used[sp.id]) u.push(sp.id);
       });
       return u;
     }
-    function unitSize(u) { return u.length * MATE - (MATE - SLOT); }
 
-    function addCard(personId, gen, pos, role) {
-      var p = S.person(personId);
-      if (!p) return null;
-      var c = { id: personId, person: p, gen: gen, pos: pos, role: role || 'blood' };
-      cards.push(c); placed[personId] = c;
-      return c;
-    }
-
-    /* потомки: раскладываем пару и её детей */
-    function descend(unit, gen, depth) {
-      unit.forEach(function (pid) { placed[pid] = 'res'; });   // занимаем места, чтобы супруга не забрали дважды
-      var start = cards.length;
-      var uw = unitSize(unit);
-
-      var kids = [];
-      if (depth > 0) {
-        var seen = {};
-        unit.forEach(function (pid) {
-          S.childrenOf(pid).forEach(function (ch) {
-            if (!seen[ch.id] && !placed[ch.id]) { seen[ch.id] = 1; kids.push(ch.id); }
-          });
+    /* вниз: дети юнита становятся его ветками */
+    function buildDown(node, depth) {
+      if (depth <= 0) return node;
+      var seen = {}, kids = [];
+      node.ids.forEach(function (pid) {
+        S.childrenOf(pid).forEach(function (ch) {
+          if (!seen[ch.id] && !used[ch.id]) { seen[ch.id] = 1; kids.push(ch.id); }
         });
-      }
-
-      var centers = [];
+      });
       kids.forEach(function (kid) {
-        if (placed[kid]) return;
-        centers.push(descend(unitOf(kid), gen + 1, depth - 1));
+        if (used[kid]) return;
+        var kn = makeUnit(unitOf(kid), node.gen + 1);
+        kn.bloodId = kid;
+        node.kids.push(kn);
+        buildDown(kn, depth - 1);
       });
-
-      var center;
-      if (!centers.length) {
-        center = cursor.v + uw / 2;
-        cursor.v += uw + SLOT * 0.2;
-      } else {
-        var span = centers[centers.length - 1] - centers[0];
-        center = centers[0] + span / 2;
-        if (uw > span + SLOT) {                                 // пара шире, чем её дети
-          var delta = (uw - span - SLOT) / 2;
-          for (var i = start; i < cards.length; i++) cards[i].pos += delta;
-          center += delta;
-          cursor.v += delta;
-        }
-      }
-
-      // ставим по настоящей ширине карточек, а не по ширине слота
-      var span = (unit.length > 1 ? MATE : 0) + CARD;
-      var left = center - span / 2;
-      unit.forEach(function (pid, i) {
-        addCard(pid, gen, left + i * MATE, i === 0 ? 'blood' : 'spouse');
-      });
-      if (unit.length > 1) links.push({ kind: 'couple', a: unit[0], b: unit[1] });
-      kids.forEach(function (kid) {
-        if (placed[kid] && placed[kid] !== 'res') links.push({ kind: 'parent', from: unit, to: kid });
-      });
-      return center;
+      return node;
     }
 
-    /* предки: пирамида над человеком */
-    function ancWidth(pid, depth) {
-      if (!pid || depth <= 0) return SLOT;
-      var par = S.parentsOf(pid);
-      if (!par.length) return SLOT;
-      var w = 0;
-      par.forEach(function (p) { w += ancWidth(p.id, depth - 1); });
-      return Math.max(SLOT, w);
-    }
-    function ascend(pid, centerPos, gen, depth, wing) {
-      if (depth <= 0) return;
-      var par = S.parentsOf(pid);
-      if (!par.length) return;
-      var widths = par.map(function (p) { return ancWidth(p.id, depth - 1); });
-      var total = widths.reduce(function (a, b) { return a + b; }, 0);
-      var x = centerPos - total / 2;
-      par.forEach(function (p, i) {
-        var c = x + widths[i] / 2;
-        x += widths[i];
-        if (placed[p.id]) return;
-        var w2 = wing;
-        if (w2 === 0) w2 = (p.sex === 'F' ? 1 : -1);
-        var bias = (mode === 'butterfly') ? w2 * SLOT * 0.9 * (self.up - depth + 1) : 0;
-        addCard(p.id, gen, c - CARD / 2 + bias, 'blood');
-        ascend(p.id, c + bias, gen - 1, depth - 1, w2);
+    /* вверх: родительская пара каждого члена юнита становится веткой */
+    function buildUp(node, depth) {
+      if (depth <= 0) return node;
+      node.ids.forEach(function (pid) {
+        var par = S.parentsOf(pid).filter(function (p) { return !used[p.id]; });
+        if (!par.length) return;
+        var pn = makeUnit(par.map(function (p) { return p.id; }), node.gen - 1);
+        pn.childOf = pid;
+        node.kids.push(pn);
+        buildUp(pn, depth - 1);
       });
-      var both = par.length === 2 && placed[par[0].id] && placed[par[1].id];
-      if (both) {
-        // от пары к ребёнку идёт одна линия — из середины связки супругов
-        links.push({ kind: 'couple', a: par[0].id, b: par[1].id });
-        links.push({ kind: 'parent', from: [par[0].id, par[1].id], to: pid });
-      } else {
-        par.forEach(function (p) {
-          if (placed[p.id]) links.push({ kind: 'parent', from: [p.id], to: pid });
-        });
-      }
+      return node;
     }
 
-    /* старт: опора — родительская пара фокуса (тогда видны братья и сёстры) */
+    /* опора — родительская пара фокуса: тогда рядом видны братья и сёстры */
     var pivotFam = S.childFamily(focus.id);
-    var rootUnit;
-    if (pivotFam && (pivotFam.husb || pivotFam.wife)) {
-      rootUnit = [pivotFam.husb, pivotFam.wife].filter(Boolean);
-      descend(rootUnit, -1, this.down + 1);
-    } else {
-      rootUnit = unitOf(focus.id);
-      descend(rootUnit, 0, this.down);
+    var onParents = !!(pivotFam && (pivotFam.husb || pivotFam.wife));
+    var rootIds = onParents
+      ? [pivotFam.husb, pivotFam.wife].filter(Boolean)
+      : unitOf(focus.id);
+    var root = makeUnit(rootIds, onParents ? -1 : 0);
+    root.bloodId = rootIds[0];
+    buildDown(root, this.down + (onParents ? 1 : 0));
+
+    /* Предки висят на том же корне. Два дерева с общим корнем укладываются
+       порознь, но корень у обоих в нуле — поэтому они стыкуются без зазора
+       и без наложения: уровни у них разные. */
+    var upRoot = { ids: root.ids, gen: root.gen, w: root.w, kids: [] };
+    buildUp(upRoot, this.up);
+
+    tidy(root, GAP);
+    tidy(upRoot, GAP);
+    var downNodes = [], upNodes = [];
+    placeTree(root, 0, downNodes);
+    placeTree(upRoot, 0, upNodes);
+
+    function emit(nodes, skip) {
+      nodes.forEach(function (n) {
+        if (n === skip) return;
+        var left = n.x - n.w / 2;
+        n.ids.forEach(function (pid, i) {
+          if (placed[pid]) return;
+          var p = S.person(pid);
+          if (!p) return;
+          var c = { id: pid, person: p, gen: n.gen, pos: left + i * MATE,
+            role: i === 0 ? 'blood' : 'spouse' };
+          cards.push(c); placed[pid] = c;
+        });
+      });
     }
+    emit(downNodes, null);
+    emit(upNodes, upRoot);
 
-    // предки над каждым членом опорной пары
-    rootUnit.forEach(function (pid) {
-      var c = placed[pid];
-      if (!c) return;
-      ascend(pid, c.pos + CARD / 2, c.gen - 1, self.up, 0);
-    });
-
-    // развести предков, которые наехали друг на друга
-    var byGen = {};
-    cards.forEach(function (c) { (byGen[c.gen] = byGen[c.gen] || []).push(c); });
-    Object.keys(byGen).forEach(function (g) {
-      if (+g >= 0) return;
-      var row = byGen[g].sort(function (a, b) { return a.pos - b.pos; });
-      for (var i = 1; i < row.length; i++) {
-        var need = row[i - 1].pos + SLOT * 0.96;
-        if (row[i].pos < need) row[i].pos = need;
+    // связка рисуется между каждыми соседями в юните: при втором браке
+    // супруги стоят цепочкой, и одной линии на всех не хватает
+    function coupleLinks(n) {
+      for (var i = 1; i < n.ids.length; i++) {
+        links.push({ kind: 'couple', a: n.ids[i - 1], b: n.ids[i] });
       }
+    }
+    downNodes.forEach(function (n) {
+      coupleLinks(n);
+      n.kids.forEach(function (k) {
+        // линия к ребёнку идёт от той пары, в которой он родился
+        var par = n.ids.filter(function (pid) {
+          return S.childrenOf(pid).some(function (c) { return c.id === k.bloodId; });
+        });
+        links.push({ kind: 'parent', from: par.length ? par : n.ids, to: k.bloodId });
+      });
+    });
+    upNodes.forEach(function (n) {
+      if (n === upRoot) return;
+      coupleLinks(n);
+      links.push({ kind: 'parent', from: n.ids, to: n.childOf });
     });
 
     /* перевод в пиксели */
@@ -2418,6 +2461,28 @@ table.data tbody tr:hover { background: var(--neutral); }
     // двумя столбцами точек и на глаз выглядит кривой.
     function q(v) { return Math.round(v); }
 
+    /* Ломаная со скруглёнными поворотами. Углы срезаются дугой, радиус
+       уменьшается сам, если колено короткое, — иначе дуга съела бы весь отрезок. */
+    var BEND = 10;
+    function poly(pts) {
+      var p = pts.map(function (o) { return { x: q(o.x), y: q(o.y) }; });
+      if (p.length < 2) return '';
+      var d = 'M' + p[0].x + ',' + p[0].y;
+      for (var i = 1; i < p.length - 1; i++) {
+        var a = p[i - 1], c = p[i], b = p[i + 1];
+        var la = Math.abs(c.x - a.x) + Math.abs(c.y - a.y);
+        var lb = Math.abs(b.x - c.x) + Math.abs(b.y - c.y);
+        var r = Math.min(BEND, la / 2, lb / 2);
+        if (r < 1) { d += ' L' + c.x + ',' + c.y; continue; }
+        var ax = c.x + (a.x - c.x) / la * r, ay = c.y + (a.y - c.y) / la * r;
+        var bx = c.x + (b.x - c.x) / lb * r, by = c.y + (b.y - c.y) / lb * r;
+        d += ' L' + Math.round(ax) + ',' + Math.round(ay) +
+             ' Q' + c.x + ',' + c.y + ' ' + Math.round(bx) + ',' + Math.round(by);
+      }
+      var z = p[p.length - 1];
+      return d + ' L' + z.x + ',' + z.y;
+    }
+
     function coupleLine(a, b) {
       return horiz
         ? { x1: a.x + a.w / 2, y1: a.y + a.h, x2: b.x + b.w / 2, y2: b.y }
@@ -2444,9 +2509,9 @@ table.data tbody tr:hover { background: var(--neutral); }
         var sx = toLeft ? par.x + par.w - OVER : par.x + OVER;
         var ex = toLeft ? ch.x + OVER : ch.x + ch.w - OVER;
         var mx2 = (sx + ex) / 2;
+        var py = par.y + par.h / 2, cy = ch.y + ch.h / 2;
         paths.push({
-          d: 'M' + q(sx) + ',' + q(par.y + par.h / 2) + ' H' + q(mx2) +
-             ' V' + q(ch.y + ch.h / 2) + ' H' + q(ex),
+          d: poly([{ x: sx, y: py }, { x: mx2, y: py }, { x: mx2, y: cy }, { x: ex, y: cy }]),
           cls: 'lnk-parent'
         });
         return;
@@ -2475,14 +2540,14 @@ table.data tbody tr:hover { background: var(--neutral); }
         var tx = kid.x + OVER, ty = kid.y + kid.h / 2;
         var mx = Math.max(ox + 12, (ox + tx) / 2);
         paths.push({
-          d: 'M' + q(ox) + ',' + q(oy) + ' H' + q(mx) + ' V' + q(ty) + ' H' + q(tx),
+          d: poly([{ x: ox, y: oy }, { x: mx, y: oy }, { x: mx, y: ty }, { x: tx, y: ty }]),
           cls: 'lnk-parent'
         });
       } else {
         var tx2 = kid.x + kid.w / 2, ty2 = kid.y + OVER;
         var my = Math.max(oy + 12, (oy + ty2) / 2);
         paths.push({
-          d: 'M' + q(ox) + ',' + q(oy) + ' V' + q(my) + ' H' + q(tx2) + ' V' + q(ty2),
+          d: poly([{ x: ox, y: oy }, { x: ox, y: my }, { x: tx2, y: my }, { x: tx2, y: ty2 }]),
           cls: 'lnk-parent'
         });
       }
@@ -2644,6 +2709,7 @@ table.data tbody tr:hover { background: var(--neutral); }
       self.host.classList.add('grabbing');
     });
     this.host.addEventListener('pointermove', function (e) {
+      if (pinch) { drag = null; return; }          // идёт щипок — не тащим
       if (!drag || drag.id !== e.pointerId) return;
       self.tx = drag.tx + (e.clientX - drag.x);
       self.ty = drag.ty + (e.clientY - drag.y);
@@ -2658,25 +2724,43 @@ table.data tbody tr:hover { background: var(--neutral); }
       self.zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top);
     }, { passive: false });
 
-    // щипок на сенсорном экране
-    var pts = {};
+    /* Щипок на сенсорном экране.
+       Здесь была причина, по которой дерево на телефоне уезжало вбок:
+       первый палец уже запустил перетаскивание, и пока второй масштабировал,
+       pointermove продолжал тащить холст — два движения складывались.
+       Поэтому при появлении второго пальца перетаскивание отменяется,
+       а после щипка не возобновляется, пока палец не поднимут. */
     this.host.addEventListener('touchstart', function (e) {
       if (e.touches.length === 2) {
-        pinch = { d: dist(e.touches), s: self.scale };
+        drag = null;
+        self.host.classList.remove('grabbing');
+        var r0 = self.host.getBoundingClientRect();
+        pinch = {
+          d: dist(e.touches), s: self.scale,
+          cx: (e.touches[0].clientX + e.touches[1].clientX) / 2 - r0.left,
+          cy: (e.touches[0].clientY + e.touches[1].clientY) / 2 - r0.top,
+          tx: self.tx, ty: self.ty
+        };
       }
     }, { passive: true });
     this.host.addEventListener('touchmove', function (e) {
       if (pinch && e.touches.length === 2) {
         e.preventDefault();
-        var r = self.host.getBoundingClientRect();
+        drag = null;
         var d = dist(e.touches);
-        var target = pinch.s * (d / pinch.d);
-        var cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
-        var cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
-        self.zoom(target / self.scale, cx, cy);
+        // считаем от состояния на начало щипка, а не от предыдущего кадра:
+        // так не копится ошибка округления и картинка не ползёт
+        var ns = Math.min(2.5, Math.max(0.2, pinch.s * (d / pinch.d)));
+        var k = ns / pinch.s;
+        self.scale = ns;
+        self.tx = pinch.cx - k * (pinch.cx - pinch.tx);
+        self.ty = pinch.cy - k * (pinch.cy - pinch.ty);
+        self.applyTransform();
       }
     }, { passive: false });
-    this.host.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+    this.host.addEventListener('touchend', function (e) {
+      if (e.touches.length < 2) { pinch = null; drag = null; }
+    });
     function dist(t) {
       var dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
       return Math.sqrt(dx * dx + dy * dy) || 1;
@@ -3221,6 +3305,217 @@ table.data tbody tr:hover { background: var(--neutral); }
   };
 })(window);
 </script>
+<script>/* Семейное Древо — точки восстановления и откат.
+
+   Зачем. Дерево общее: любой может поправить дату или удалить человека,
+   и у администратора должен быть способ вернуть как было. Журнал «Изменения»
+   показывает, что произошло, но не возвращает — для возврата нужны снимки.
+
+   Как устроено. Снимок — это дерево без самих файлов (фотографии лежат
+   отдельно и никуда не деваются), сжатое и положенное в хранилище браузера.
+   Снимки делаются перед тем, как что-то может пропасть: перед приёмом чужих
+   правок, перед импортом, перед очисткой, и просто по времени во время работы.
+
+   Откат не «подменяет» дерево задним числом. Он вычисляет разницу между
+   нынешним состоянием и снимком и применяет её как новые правки — иначе
+   при следующей синхронизации чужое устройство вернуло бы всё обратно,
+   ведь там записи «свежее». */
+(function (global) {
+  'use strict';
+
+  var S = global.Store, U = S.util;
+  var LS_INDEX = 'drevo.snaps';
+  var MIN_GAP_MIN = 10;        // чаще этого по ходу работы не снимаем
+  var KEEP = 80;               // сколько точек держим после прореживания
+
+  function nowISO() { return new Date().toISOString(); }
+
+  var History = {
+    index: [],
+
+    load: function () {
+      try { this.index = JSON.parse(localStorage.getItem(LS_INDEX) || '[]'); }
+      catch (e) { this.index = []; }
+      if (!Array.isArray(this.index)) this.index = [];
+      return this;
+    },
+    saveIndex: function () {
+      try { localStorage.setItem(LS_INDEX, JSON.stringify(this.index)); } catch (e) {}
+    },
+
+    /** Слепок дерева без двоичных файлов. */
+    capture: function () {
+      var t = S.tree;
+      return {
+        meta: t.meta, persons: t.persons, families: t.families,
+        media: t.media, tabs: t.tabs, users: t.users,
+        invites: t.invites, tombstones: t.tombstones
+      };
+    },
+
+    /** Снять точку восстановления. reason — чем вызвана, для подписи в списке. */
+    snapshot: function (reason) {
+      var self = this;
+      var data = JSON.stringify(this.capture());
+      var id = 'snap-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+      var who = (S.session && S.session.displayName) || 'кто-то';
+      var rec = {
+        id: id, at: nowISO(), by: who, byId: (S.session || {}).userId || null,
+        reason: reason || 'работа',
+        persons: Object.keys(S.tree.persons || {}).length,
+        families: Object.keys(S.tree.families || {}).length,
+        media: Object.keys(S.tree.media || {}).length,
+        size: data.length
+      };
+      return U.blobPut(id, new Blob([data], { type: 'application/json' })).then(function () {
+        self.index.push(rec);
+        self.saveIndex();
+        return self.prune().then(function () { return rec; });
+      }, function () { return null; });
+    },
+
+    /** Снять, если с прошлого раза прошло достаточно времени. */
+    maybeSnapshot: function (reason) {
+      var last = this.index[this.index.length - 1];
+      if (last && (Date.now() - new Date(last.at).getTime()) < MIN_GAP_MIN * 60000) {
+        return Promise.resolve(null);
+      }
+      return this.snapshot(reason || 'работа');
+    },
+
+    /** Прореживание: свежее держим подробно, старое — по одной точке на день. */
+    prune: function () {
+      if (this.index.length <= KEEP) return Promise.resolve();
+      var keep = {}, out = [];
+      var day = 86400000, now = Date.now();
+      // всё за последние сутки оставляем как есть
+      for (var i = this.index.length - 1; i >= 0; i--) {
+        var r = this.index[i], age = now - new Date(r.at).getTime();
+        var key;
+        if (age < day) key = r.id;                                    // всё
+        else if (age < 30 * day) key = r.at.slice(0, 13);             // по часу
+        else key = r.at.slice(0, 10);                                 // по дню
+        if (keep[key]) { out.push(r.id); continue; }
+        keep[key] = 1;
+      }
+      var left = this.index.filter(function (r) { return out.indexOf(r.id) < 0; });
+      // если и так слишком много — срезаем самые старые
+      while (left.length > KEEP) out.push(left.shift().id);
+      this.index = left;
+      this.saveIndex();
+      out.forEach(function (id) { U.blobDel(id); });
+      return Promise.resolve();
+    },
+
+    read: function (id) {
+      return U.blobGet(id).then(function (b) {
+        if (!b) return null;
+        return b.text().then(function (t) {
+          try { return JSON.parse(t); } catch (e) { return null; }
+        });
+      });
+    },
+
+    drop: function (id) {
+      this.index = this.index.filter(function (r) { return r.id !== id; });
+      this.saveIndex();
+      return U.blobDel(id);
+    },
+
+    /** Что изменилось между снимком и нынешним деревом. */
+    diff: function (snap) {
+      var out = { persons: { back: 0, revive: 0, remove: 0 },
+                  families: { back: 0, revive: 0, remove: 0 }, names: [] };
+      ['persons', 'families'].forEach(function (kind) {
+        var was = snap[kind] || {}, now = S.tree[kind] || {};
+        for (var id in was) {
+          if (!now[id]) { out[kind].revive++; if (kind === 'persons') out.names.push('вернётся: ' + name(was[id])); }
+          else if (JSON.stringify(now[id]) !== JSON.stringify(was[id])) {
+            out[kind].back++;
+            if (kind === 'persons') out.names.push('как было: ' + name(now[id]));
+          }
+        }
+        for (var id2 in now) {
+          if (!was[id2]) { out[kind].remove++; if (kind === 'persons') out.names.push('исчезнет: ' + name(now[id2])); }
+        }
+      });
+      return out;
+      function name(p) {
+        return [p.given, p.surname].filter(Boolean).join(' ') || 'без имени';
+      }
+    },
+
+    /** Откат: превращаем разницу в новые правки, чтобы она разошлась по устройствам. */
+    restore: function (id) {
+      var self = this;
+      return this.read(id).then(function (snap) {
+        if (!snap) throw new Error('Точка восстановления не читается');
+        // перед откатом сохраняем нынешнее состояние — вдруг откатили зря
+        return self.snapshot('перед откатом').then(function () { return snap; });
+      }).then(function (snap) {
+        var stamp = nowISO();
+        var t = S.tree;
+        t.tombstones = t.tombstones || {};
+
+        ['persons', 'families', 'media', 'tabs'].forEach(function (kind) {
+          var was = snap[kind], now = t[kind];
+          if (!was || !now || typeof was !== 'object') return;
+          if (Array.isArray(now)) { t[kind] = JSON.parse(JSON.stringify(was)); return; }
+          for (var id2 in was) {
+            if (!now[id2] || JSON.stringify(now[id2]) !== JSON.stringify(was[id2])) {
+              var rec = JSON.parse(JSON.stringify(was[id2]));
+              rec.updated = stamp;            // свежее чужих правок — иначе откат отменят
+              now[id2] = rec;
+              delete t.tombstones[id2];
+            }
+          }
+          for (var id3 in now) {
+            if (!was[id3]) { delete now[id3]; t.tombstones[id3] = stamp; }
+          }
+        });
+
+        var snapAt = (self.index.filter(function (r) { return r.id === id; })[0] || {}).at;
+        S.log('rollback', 'Откат к состоянию на ' +
+          (snapAt ? new Date(snapAt).toLocaleString('ru-RU') : 'выбранную точку'));
+        S.save();
+        return true;
+      });
+    },
+
+    /** Список точек, сгруппированный так, как просят показать. */
+    grouped: function (how) {
+      var rows = this.index.slice().sort(function (a, b) { return a.at < b.at ? 1 : -1; });
+      if (how === 'all') return rows.map(function (r) { return { head: null, items: [r] }; });
+      var map = {}, order = [];
+      rows.forEach(function (r) {
+        var d = new Date(r.at), key, head;
+        if (how === 'hour') {
+          key = r.at.slice(0, 13);
+          head = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ', ' +
+            d.getHours() + ':00';
+        } else if (how === 'day') {
+          key = r.at.slice(0, 10);
+          head = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+        } else {                         // по сеансам работы: тот же человек, перерыв меньше часа
+          var prev = order.length ? map[order[order.length - 1]] : null;
+          var cont = prev && prev.by === r.by &&
+            Math.abs(new Date(prev.items[prev.items.length - 1].at) - d) < 3600000;
+          if (cont) { prev.items.push(r); return; }
+          key = r.id;
+          head = r.by + ' · ' + d.toLocaleString('ru-RU',
+            { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+        }
+        if (!map[key]) { map[key] = { head: head, by: r.by, items: [] }; order.push(key); }
+        map[key].items.push(r);
+      });
+      return order.map(function (k) { return map[k]; });
+    }
+  };
+
+  History.load();
+  global.History = History;
+})(window);
+</script>
 <script>/* Семейное Древо — синхронизация.
 
    Дерево у всех родственников общее, поэтому правки сливаются, а не затирают
@@ -3382,6 +3677,23 @@ table.data tbody tr:hover { background: var(--neutral); }
     }
   }
 
+  /** Понятное объяснение, почему файлы не передались. Чаще всего в Supabase
+      просто не заведено хранилище файлов: таблица есть, фотографиям лечь некуда. */
+  function mediaTrouble(report) {
+    var all = report.failed.concat(report.failedDown);
+    var why = (all[0] && all[0].why) || '';
+    if (/bucket not found|404/i.test(why) && S.sync.mode === 'supabase') {
+      return 'Фотографии некуда класть: в Supabase не создано хранилище файлов «drevo». ' +
+        'Откройте в Supabase раздел Storage, создайте bucket с именем drevo — ' +
+        'и нажмите «Синхронизировать» ещё раз, файлы уедут сами.';
+    }
+    if (/403|401|policy|permission/i.test(why)) {
+      return 'Хранилище файлов не пускает: проверьте права доступа к нему. Ответ сервера: ' + why;
+    }
+    return 'Не передались файлы: ' + all.slice(0, 3).map(function (f) { return f.name; }).join(', ') +
+      (all.length > 3 ? ' и ещё ' + (all.length - 3) : '') + '. ' + why;
+  }
+
   function statsText(st) {
     var bits = [];
     function part(label, s) {
@@ -3459,13 +3771,46 @@ table.data tbody tr:hover { background: var(--neutral); }
       },
       check: function (cfg) {
         var b = backends.supabase;
+        /* Проверяем обе половины: таблицу для дерева и хранилище для файлов.
+           Их заводят отдельно, и без второго фотографии остаются на одном
+           устройстве — молча, что хуже всего. */
         return fetch(b.base(cfg) + '/rest/v1/trees?select=id&limit=1', { headers: b.head(cfg) })
           .then(function (r) {
-            if (r.ok) return { ok: true, message: 'Связь есть, таблица найдена' };
             if (r.status === 404) return { ok: false, message: 'Таблица trees не создана — выполните SQL из инструкции' };
             if (r.status === 401 || r.status === 403) return { ok: false, message: 'Ключ не подошёл' };
-            return { ok: false, message: 'Ответ сервера: ' + r.status };
+            if (!r.ok) return { ok: false, message: 'Ответ сервера: ' + r.status };
+            return b.checkStorage(cfg).then(function (st) {
+              if (st.ok) return { ok: true, message: 'Связь есть: таблица и хранилище файлов на месте' };
+              return { ok: false, message: 'Таблица найдена, но ' + st.message };
+            });
           }, function (e) { return { ok: false, message: 'Сервер не отвечает: ' + e.message }; });
+      },
+      /** пробуем положить и убрать крошечный файл — иначе о проблеме узнаём поздно */
+      checkStorage: function (cfg) {
+        var b = backends.supabase;
+        var path = '/storage/v1/object/drevo/' + encodeURIComponent(cfg.treeId || 'drevo') + '/__proba';
+        return fetch(b.base(cfg) + path, {
+          method: 'POST',
+          headers: Object.assign(b.head(cfg), { 'x-upsert': 'true', 'Content-Type': 'application/octet-stream' }),
+          body: new Blob([new Uint8Array([1])])
+        }).then(function (r) {
+          if (r.ok) {
+            fetch(b.base(cfg) + path, { method: 'DELETE', headers: b.head(cfg) }).catch(function () {});
+            return { ok: true };
+          }
+          return r.text().then(function (t) {
+            if (r.status === 404 || /bucket not found/i.test(t)) {
+              return { ok: false, message: 'хранилища файлов нет. В Supabase откройте Storage, ' +
+                'создайте bucket с именем drevo — тогда поедут и фотографии.' };
+            }
+            if (r.status === 400 && /row-level security|policy/i.test(t)) {
+              return { ok: false, message: 'хранилище drevo не разрешает запись. В Supabase: Storage → drevo → ' +
+                'Policies, разрешите чтение и запись для anon.' };
+            }
+            return { ok: false, message: 'хранилище файлов отвечает ошибкой ' + r.status +
+              (t ? ' — ' + t.slice(0, 120) : '') };
+          });
+        }, function (e) { return { ok: false, message: 'до хранилища файлов не достучаться: ' + e.message }; });
       },
       base: function (cfg) { return String(cfg.url || '').replace(/\/+$/, ''); },
       pull: function (cfg) {
@@ -3712,11 +4057,14 @@ table.data tbody tr:hover { background: var(--neutral); }
 
       this.busy = true;
       this.emit({ state: 'run', text: 'Синхронизация…' });
-      var report = { pulled: null, stats: null, up: 0, down: 0 };
+      var report = { pulled: null, stats: null, up: 0, down: 0, failed: [], failedDown: [] };
 
       return b.pull(cfg)
         .then(function (remote) {
           report.pulled = remote;
+          // точка восстановления до чужих правок: если кто-то удалил человека,
+          // администратору будет куда вернуться
+          if (global.History && remote) global.History.maybeSnapshot('перед приёмом правок');
           var res = merge(S.tree, remote);
           report.stats = res.stats;
           // сохранить слияние у себя
@@ -3727,13 +4075,23 @@ table.data tbody tr:hover { background: var(--neutral); }
         .then(function () { return self.syncMedia(b, cfg, opts, report); })
         .then(function () {
           S.sync.lastAt = new Date().toISOString();
-          S.sync.lastError = null;
           S.dirty = false;
-          S.saveSync();
-          self.busy = false;
+          var stuck = report.failed.length + report.failedDown.length;
           var txt = statsText(report.stats) +
             (report.up ? ' · отправлено файлов: ' + report.up : '') +
             (report.down ? ' · получено файлов: ' + report.down : '');
+          if (stuck) {
+            // молчать тут нельзя: человек будет уверен, что фотографии уехали
+            S.sync.lastError = mediaTrouble(report);
+            txt += ' · файлов не передалось: ' + stuck;
+            S.saveSync();
+            self.busy = false;
+            self.emit({ state: 'warn', text: txt, report: report, detail: S.sync.lastError });
+            return report;
+          }
+          S.sync.lastError = null;
+          S.saveSync();
+          self.busy = false;
           self.emit({ state: 'ok', text: txt, report: report });
           return report;
         })
@@ -3771,7 +4129,11 @@ table.data tbody tr:hover { background: var(--neutral); }
               }
               report.up++;
             });
-          }).catch(function (e) { console.warn('Файл не ушёл', id, e); }).then(step);
+          }).catch(function (e) {
+            /* Раньше ошибка только писалась в консоль — человек видел «всё хорошо»,
+               а фотографии оставались на одном устройстве. Теперь она доходит до отчёта. */
+            report.failed.push({ id: id, name: (S.tree.media[id] || {}).name || id, why: e.message });
+          }).then(step);
         }
         return step();
       }
@@ -3796,7 +4158,9 @@ table.data tbody tr:hover { background: var(--neutral); }
           self.emit({ state: 'run', text: 'Загрузка файлов ' + i + ' из ' + list.length });
           return b.getMedia(cfg, id).then(function (blob) {
             if (blob) return U.blobPut(id, blob).then(function () { report.down++; });
-          }).catch(function (e) { console.warn('Файл не пришёл', id, e); }).then(step);
+          }).catch(function (e) {
+            report.failedDown.push({ id: id, name: (S.tree.media[id] || {}).name || id, why: e.message });
+          }).then(step);
         }
         return step();
       }
@@ -3825,7 +4189,7 @@ table.data tbody tr:hover { background: var(--neutral); }
       if (!b) return Promise.reject(new Error('Способ синхронизации не выбран'));
       this.busy = true;
       this.emit({ state: 'run', text: 'Отправка дерева…' });
-      var report = { stats: zeroStats(), up: 0, down: 0 };
+      var report = { stats: zeroStats(), up: 0, down: 0, failed: [], failedDown: [] };
       return b.push(cfg, S.tree)
         .then(function () { return self.syncMedia(b, cfg, { media: false }, report); })
         .then(function () {
@@ -3923,7 +4287,7 @@ table.data tbody tr:hover { background: var(--neutral); }
     this.onClick = null;      // выбор точки: fn(lat, lng)
     this.host.addEventListener('click', function (e) {
       var b = e.target.closest('[data-z]');
-      if (b) { self.z = Math.max(2, Math.min(17, self.z + (+b.dataset.z))); self.draw(); return; }
+      if (b) { self.zoomTo(self.z + (+b.dataset.z)); return; }
       if (e.target.closest('[data-fit]')) { self.fit(); return; }
       if (e.target.closest('.map-ctl') || e.target.closest('.map-pin')) return;
       if (!self.onClick || self._moved) return;
@@ -3934,6 +4298,26 @@ table.data tbody tr:hover { background: var(--neutral); }
     });
     var drag = null;
     this.host.addEventListener('dragstart', function (e) { e.preventDefault(); });
+    /* Щипок двумя пальцами: без него на телефоне карту было нечем приблизить.
+       Тайлы бывают только целых уровней, поэтому уровень переключается,
+       когда пальцы разошлись или сошлись заметно. */
+    var pinch = null;
+    this.host.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2) { drag = null; pinch = { d: tdist(e.touches), z: self.z }; }
+    }, { passive: true });
+    this.host.addEventListener('touchmove', function (e) {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault();
+      var k = tdist(e.touches) / pinch.d;
+      var nz = Math.max(2, Math.min(17, Math.round(pinch.z + Math.log(k) / Math.log(1.8))));
+      if (nz !== self.z) { self.zoomTo(nz); }
+    }, { passive: false });
+    this.host.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+    function tdist(t) {
+      var dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy) || 1;
+    }
+
     this.host.addEventListener('pointerdown', function (e) {
       if (e.target.closest('.map-ctl') || e.target.closest('.map-pin')) return;
       if (e.target.closest('.map-tools')) return;
@@ -3957,9 +4341,26 @@ table.data tbody tr:hover { background: var(--neutral); }
     this.host.addEventListener('pointercancel', end);
     this.host.addEventListener('wheel', function (e) {
       e.preventDefault();
-      self.z = Math.max(2, Math.min(17, self.z + (e.deltaY < 0 ? 1 : -1)));
-      self.draw();
+      self.zoomTo(self.z + (e.deltaY < 0 ? 1 : -1));
     }, { passive: false });
+  };
+
+  /* Масштаб меняется вокруг того, что человек уже видит в середине, а если
+     точка выбрана — вокруг неё. Иначе после каждого приближения приходится
+     заново искать нужное место. */
+  MiniMap.prototype.zoomTo = function (z) {
+    z = Math.max(2, Math.min(17, z));
+    if (z === this.z) return;
+    this.z = z;
+    if (this.marker) { this.cx = this.marker.lat; this.cy = this.marker.lng; }
+    this.draw();
+  };
+  /** отметить выбранную точку; она держится в середине при масштабировании */
+  MiniMap.prototype.setMarker = function (lat, lng, center) {
+    if (lat == null || lng == null) { this.marker = null; return; }
+    this.marker = { lat: lat, lng: lng };
+    if (center !== false) { this.cx = lat; this.cy = lng; }
+    this.draw();
   };
 
   MiniMap.prototype.setPins = function (pins) { this.pins = pins || []; this.draw(); };
@@ -4712,6 +5113,8 @@ table.data tbody tr:hover { background: var(--neutral); }
       chosen.lat = lat; chosen.lng = lng;
       m.setPins([{ lat: lat, lng: lng, kind: 'event', label: placeName }]);
       if (zoom) m.goTo(lat, lng, zoom);
+      // выбранная точка держится в середине при любом масштабировании
+      m.setMarker(lat, lng, !!zoom);
       var info = document.getElementById('pkInfo');
       if (info) info.textContent = 'Выбрано: ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
     }
@@ -4928,7 +5331,7 @@ table.data tbody tr:hover { background: var(--neutral); }
 
   /* Номер сборки. Виден на экране входа — по нему сразу понятно,
      обновилась ли программа на сайте и на телефоне. */
-  var BUILD = '11', BUILD_DATE = '2 ноября 2026';
+  var BUILD = '12', BUILD_DATE = '2 ноября 2026';
 
   var App = {
     BUILD: BUILD, BUILD_DATE: BUILD_DATE,
@@ -4957,17 +5360,20 @@ table.data tbody tr:hover { background: var(--neutral); }
     /** Адрес, с которого ссылка откроется у других. Программа, запущенная
         из файла на диске, знает только путь вида file:///C:/… — такая ссылка
         не откроется ни на телефоне, ни у родни, поэтому адрес сайта задаётся руками. */
+    /** Привести введённый адрес к рабочему виду: с протоколом и верным хвостом. */
+    normBase: function (site) {
+      var b = String(site || '').split('#')[0].split('?')[0].trim();
+      if (!b) return null;
+      // адрес без «https://» браузер понимает как путь — дописываем сами
+      if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(b)) b = 'https://' + b.replace(/^\/+/, '');
+      // «…/FamilyTree» — папка, ей нужен слеш; «…/index.html» — файл, слеш его сломает
+      var last = b.split('/').pop();
+      if (last.indexOf('.') < 0) b = b.replace(/\/+$/, '') + '/';
+      return b;
+    },
     linkBase: function () {
-      var site = (S.sync && S.sync.siteUrl || '').trim();
-      if (site) {
-        var b = site.split('#')[0].split('?')[0].trim();
-        // адрес без «https://» браузер понимает как путь — дописываем сами
-        if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(b)) b = 'https://' + b.replace(/^\/+/, '');
-        // «…/FamilyTree» — папка, ей нужен слеш; «…/index.html» — файл, слеш его сломает
-        var last = b.split('/').pop();
-        if (last.indexOf('.') < 0) b = b.replace(/\/+$/, '') + '/';
-        return b;
-      }
+      var site = this.normBase(S.sync && S.sync.siteUrl);
+      if (site) return site;
       if (location.protocol === 'file:') return null;
       return location.href.split('#')[0];
     },
@@ -5008,19 +5414,26 @@ table.data tbody tr:hover { background: var(--neutral); }
       var mine = Object.keys(S.tree.persons || {}).length;
       var replacing = mine && !S.tree.meta.demo;
 
+      /* Человек пришёл по ссылке — значит дерево уже есть и заводить новое
+         ему незачем. Поэтому здесь одна кнопка, а уйти «заводить своё» можно
+         только с устройства, где своё дерево уже лежит. */
       this.gate(
-        '<h1>' + (cfg.t ? 'Приглашение в дерево' : 'Вход с этого устройства') + '</h1>' +
-        '<p class="lede">Ссылка принесла настройки общего хранилища. Сейчас заберём оттуда ' +
-        'дерево, а дальше ' + (cfg.t ? 'вы представитесь и придумаете себе вход.'
-          : 'войдёте своим логином и паролем.') + '</p>' +
+        '<h1>Семейное Древо</h1>' +
+        '<p class="lede">' + (cfg.t
+          ? 'Вас пригласили в семейное древо. Сейчас программа заберёт его из общего ' +
+            'хранилища, а дальше вы напишете своё имя и придумаете логин с паролем.'
+          : 'Ссылка принесла настройки вашего хранилища. Программа заберёт дерево, ' +
+            'и вы войдёте тем же логином и паролем, что и на первом устройстве.') + '</p>' +
         (replacing ? '<p class="note" style="color:var(--warn)">На этом устройстве уже есть своё ' +
           'дерево (' + mine + ' персон). Оно будет заменено общим. Если в нём есть что-то ценное, ' +
           'сначала сохраните копию.</p>' : '') +
         '<div class="err" id="gErr"></div>' +
-        '<div class="btn-row"><button class="btn btn-primary" id="jGo">Забрать дерево</button>' +
-        '<button class="btn" id="jSkip">Не сейчас</button></div>');
+        '<div class="btn-row"><button class="btn btn-primary" id="jGo">' +
+        'Присоединиться к семейному древу</button>' +
+        (replacing ? '<button class="btn" id="jSkip">Оставить своё</button>' : '') + '</div>');
 
-      document.getElementById('jSkip').addEventListener('click', function () {
+      var skip = document.getElementById('jSkip');
+      if (skip) skip.addEventListener('click', function () {
         location.hash = '';
         if (S.users.length) self.gateLogin(); else self.gateFirstRun();
       });
@@ -5087,6 +5500,7 @@ table.data tbody tr:hover { background: var(--neutral); }
       this.showTab('tree');
       setTimeout(function () { self.tree.fit(true); }, 60);
       this.startSync();
+      this.watchForHistory();
     },
 
     /* ============ показ пароля ============
@@ -6506,6 +6920,15 @@ table.data tbody tr:hover { background: var(--neutral); }
           'Настройки оформления и список пользователей останутся. ' +
           'Сначала сохраните копию, если данные ещё нужны.</p>' +
           '<div class="btn-row"><button class="btn btn-sm btn-danger" id="dtWipe">Очистить дерево</button></div></div>' +
+          (S.isAdmin() ?
+            '<div class="set-card"><h3>Откат изменений</h3>' +
+            '<p class="note">Программа сама сохраняет состояние дерева: перед приёмом чужих правок, ' +
+            'перед загрузкой из файла и по ходу работы. Если кто-то удалил человека или стёр данные, ' +
+            'можно вернуть всё как было на выбранный момент.</p>' +
+            '<p class="note">Точек сохранено: <b>' +
+            ((global.History && global.History.index.length) || 0) + '</b></p>' +
+            '<div class="btn-row"><button class="btn btn-sm" id="dtHist">Посмотреть и откатить</button></div>' +
+            '</div>' : '') +
           '<div class="set-card"><h3>Загрузить данные</h3>' +
           '<p class="note">GEDCOM из MyHeritage, Ancestry или другой программы; простой текстовый список; ' +
           'или полная копия (ZIP) — из неё приедут и дерево, и учётные записи, и вложенные файлы.</p>' +
@@ -6514,6 +6937,8 @@ table.data tbody tr:hover { background: var(--neutral); }
           '<button class="btn btn-sm" id="imTxt">Из текста</button>' +
           '<button class="btn btn-sm" id="imJson">Из полной копии (ZIP)</button>' +
           '</div></div>';
+        var dtHist = document.getElementById('dtHist');
+        if (dtHist) dtHist.addEventListener('click', function () { self.historyDialog('session'); });
         document.getElementById('stRename').addEventListener('click', function () {
           S.tree.meta.name = document.getElementById('stTreeName').value.trim() || 'Моё дерево';
           S.save();
@@ -6548,6 +6973,7 @@ table.data tbody tr:hover { background: var(--neutral); }
               ? ' Пустое дерево уйдёт и в общее хранилище, то есть пропадёт у всех родственников.'
               : ''),
             function () {
+              if (global.History) global.History.snapshot('перед очисткой дерева');
               S.allMedia().forEach(function (m) { S.removeMedia(m.id, true); });
               Object.keys(S.tree.persons).forEach(function (id) { S.bury(id); });
               Object.keys(S.tree.families).forEach(function (id) { S.bury(id); });
@@ -6570,6 +6996,32 @@ table.data tbody tr:hover { background: var(--neutral); }
         document.getElementById('imGed').addEventListener('click', function () { self.importFile('ged'); });
         document.getElementById('imTxt').addEventListener('click', function () { self.importFile('txt'); });
         document.getElementById('imJson').addEventListener('click', function () { self.importFile('json'); });
+
+      } else if (which === 'about') {
+        var nPers = S.persons().length;
+        var nFam = Object.keys(S.tree.families || {}).length;
+        var nMedia = Object.keys(S.tree.media || {}).length;
+        var modeName = { off: 'выключена', supabase: 'Supabase', server: 'свой сервер', file: 'файл на облачном диске' };
+        host.innerHTML =
+          '<div class="set-card"><h3>Семейное Древо</h3>' +
+          '<table class="data"><tbody>' +
+          '<tr><th>Сборка</th><td>' + BUILD + ' от ' + BUILD_DATE + '</td></tr>' +
+          '<tr><th>Открыто с адреса</th><td>' + esc(location.protocol === 'file:'
+            ? 'файла на этом компьютере' : location.origin + location.pathname) + '</td></tr>' +
+          '<tr><th>Хранилище</th><td>' + esc(modeName[(S.sync || {}).mode] || '—') + '</td></tr>' +
+          '<tr><th>В дереве</th><td>' + nPers + ' человек · ' + nFam + ' связей · ' + nMedia + ' файлов</td></tr>' +
+          '<tr><th>Учётных записей</th><td>' + S.users.length + '</td></tr>' +
+          '</tbody></table>' +
+          '<p class="note" style="margin-top:10px">Номер сборки виден и на экране входа. ' +
+          'Если на телефоне он меньше, чем здесь, — откройте сайт и обновите страницу ещё раз.</p>' +
+          '</div>' +
+          '<div class="set-card"><h3>Проверить, всё ли на месте</h3>' +
+          '<p class="note">Сверяет дерево само с собой: не потерялись ли файлы, нет ли ссылок ' +
+          'на удалённых людей, доехали ли фотографии до общего хранилища.</p>' +
+          '<div class="btn-row"><button class="btn btn-sm" id="abCheck">Проверить</button></div>' +
+          '<div id="abOut" class="note" style="margin-top:8px"></div></div>';
+        var abc = document.getElementById('abCheck');
+        if (abc) abc.addEventListener('click', function () { self.selfCheck(); });
 
       } else if (which === 'sec') {
         var isAdmin = S.isAdmin();
@@ -6708,11 +7160,25 @@ table.data tbody tr:hover { background: var(--neutral); }
     },
 
     /* ============ синхронизация ============ */
+    /* Точки восстановления по ходу работы: сам модуль не чаще чем раз
+       в десять минут, так что на каждую правку хранилище не раздувается. */
+    watchForHistory: function () {
+      if (!global.History) return;
+      S.on(function (what) {
+        if (what !== 'tree') return;
+        clearTimeout(this._hT);
+        this._hT = setTimeout(function () { global.History.maybeSnapshot('работа'); }, 4000);
+      }.bind(this));
+    },
+
     startSync: function () {
       var self = this, Sy = global.Sync;
       Sy.on(function (state) {
         self.paintSync(state);
-        if (state.state === 'ok') self.afterSync();
+        if (state.state === 'ok' || state.state === 'warn') self.afterSync();
+        // файлы не уехали — сказать вслух, иначе человек узнает об этом
+        // только когда откроет дерево на другом устройстве
+        if (state.state === 'warn' && state.detail) self.toast(state.detail, 9000);
       });
       this.countMissing();
       Sy.restore().then(function () {
@@ -7020,13 +7486,17 @@ table.data tbody tr:hover { background: var(--neutral); }
       var self = this;
       var syncOn = S.sync && (S.sync.mode === 'supabase' || S.sync.mode === 'server');
 
-      this.modal(token ? 'Ссылка-приглашение' : 'Ссылка для своих устройств',
-        '<p class="note" style="margin:0 0 12px">' +
+      this.modal(token ? 'Приглашение родственнику' : 'Ссылка для ваших устройств',
+        '<p class="note" style="margin:0 0 12px;padding:9px 11px;border-radius:9px;' +
+        'background:color-mix(in srgb, var(--accent) 10%, transparent)">' +
         (token
-          ? 'Отправьте её родственнику любым способом. Он откроет ссылку, программа заберёт ' +
-            'дерево из общего хранилища, а дальше он сам представится и придумает себе вход.'
-          : 'Откройте её на телефоне или другом компьютере. Программа подхватит настройки ' +
-            'хранилища, заберёт дерево, и вы войдёте своим обычным логином и паролем.') +
+          ? '<b>Эта ссылка — для другого человека.</b> Отправьте её родственнику любым способом. ' +
+            'Он откроет её, программа заберёт дерево из общего хранилища, а дальше он сам ' +
+            'напишет своё имя и придумает себе логин с паролем. Вашим входом он не воспользуется.'
+          : '<b>Эта ссылка — для вас самих.</b> Откройте её на своём телефоне или втором ' +
+            'компьютере. Программа подхватит настройки хранилища и заберёт дерево, а войдёте вы ' +
+            'тем же логином и паролем, что и здесь. Родственнику её отправлять не нужно — ' +
+            'для них есть отдельная кнопка «Пригласить родственника».') +
         '</p>' +
         '<div class="row"><label for="lkBase">Адрес программы в интернете</label>' +
         '<input id="lkBase" placeholder="https://имя.github.io/FamilyTree/" autocomplete="off" ' +
@@ -7047,8 +7517,8 @@ table.data tbody tr:hover { background: var(--neutral); }
 
       function paint() {
         var typed = baseInp.value.trim();
-        var base = typed ? typed.split('#')[0].replace(/\/+$/, '') + '/' :
-          (self.isLocalFile() ? null : location.href.split('#')[0]);
+        var base = typed ? self.normBase(typed)
+          : (self.isLocalFile() ? null : location.href.split('#')[0]);
         link = syncOn ? self.packLink(token, base) : null;
 
         if (!syncOn) {
@@ -7166,6 +7636,7 @@ table.data tbody tr:hover { background: var(--neutral); }
     /** Заменить дерево загруженным. blobs — вложенные файлы, если они были. */
     applyImport: function (incoming, fileName, blobs) {
       var self = this;
+      if (global.History) global.History.snapshot('перед загрузкой из файла');
       var n = Object.keys((incoming && incoming.persons) || {}).length;
       if (!n) { this.toast('В файле не нашлось ни одной персоны'); return; }
       var users = ((incoming.users || []).length);
@@ -7394,12 +7865,147 @@ table.data tbody tr:hover { background: var(--neutral); }
         } }]);
       setTimeout(function () { var el = document.getElementById('pmVal'); if (el) el.focus(); }, 40);
     },
-    toast: function (msg) {
+    /* ============ откат изменений ============ */
+    /** Список точек восстановления. how: session | hour | day | all */
+    historyDialog: function (how) {
+      var self = this, H = global.History;
+      if (!H) return;
+      if (!S.isAdmin()) { this.toast('Откат доступен администратору дерева'); return; }
+      how = how || 'session';
+      var groups = H.grouped(how);
+      var modes = [['session', 'По сеансам'], ['hour', 'По часам'], ['day', 'По дням'], ['all', 'Все точки']];
+
+      var body =
+        '<div class="sort-bar">' + modes.map(function (m) {
+          return '<button class="btn btn-sm" data-how="' + m[0] + '" aria-pressed="' +
+            (m[0] === how) + '">' + m[1] + '</button>';
+        }).join('') + '</div>' +
+        (groups.length ? '' : '<p class="empty">Точек восстановления пока нет. ' +
+          'Они появятся сами: перед приёмом чужих правок, перед загрузкой из файла ' +
+          'и по ходу работы с деревом.</p>') +
+        groups.map(function (g) {
+          return (g.head ? '<div class="sect-title">' + esc(g.head) + '</div>' : '') +
+            '<div class="list">' + g.items.map(function (r) {
+              var d = new Date(r.at);
+              return '<div class="list-item">' +
+                '<div class="li-main"><div>' +
+                d.toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) +
+                ' · ' + esc(r.by) + '</div>' +
+                '<div class="li-sub">' + esc(r.reason) + ' · ' + r.persons + ' человек, ' +
+                r.media + ' файлов</div></div>' +
+                '<button class="btn btn-sm" data-see="' + r.id + '">Что изменится</button>' +
+                '<button class="btn btn-sm btn-danger" data-del="' + r.id +
+                '" title="Убрать точку" aria-label="Убрать точку">' + global.Icon('close') + '</button>' +
+                '</div>';
+            }).join('') + '</div>';
+        }).join('');
+
+      this.modal('Откат изменений', body, [], { wide: true });
+
+      var back = document.getElementById('modalBack');
+      back.querySelectorAll('[data-how]').forEach(function (b) {
+        b.addEventListener('click', function () { self.closeModal(); self.historyDialog(b.dataset.how); });
+      });
+      back.querySelectorAll('[data-see]').forEach(function (b) {
+        b.addEventListener('click', function () { self.rollbackPreview(b.dataset.see); });
+      });
+      back.querySelectorAll('[data-del]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          H.drop(b.dataset.del).then(function () { self.closeModal(); self.historyDialog(how); });
+        });
+      });
+    },
+
+    /** Показать, что именно изменится, и только потом откатывать. */
+    rollbackPreview: function (id) {
+      var self = this, H = global.History;
+      var rec = H.index.filter(function (r) { return r.id === id; })[0];
+      H.read(id).then(function (snap) {
+        if (!snap) { self.toast('Точка не читается'); return; }
+        var d = H.diff(snap);
+        var when = rec ? new Date(rec.at).toLocaleString('ru-RU') : '';
+        var lines = [];
+        if (d.persons.revive) lines.push('вернётся людей: ' + d.persons.revive);
+        if (d.persons.back) lines.push('вернутся прежние данные у: ' + d.persons.back);
+        if (d.persons.remove) lines.push('исчезнет людей, добавленных позже: ' + d.persons.remove);
+        if (d.families.revive || d.families.back || d.families.remove) {
+          lines.push('изменится связей: ' +
+            (d.families.revive + d.families.back + d.families.remove));
+        }
+        self.modal('Откат к ' + when,
+          (lines.length
+            ? '<p class="note">' + lines.join('<br>') + '</p>'
+            : '<p class="note">Дерево уже в этом состоянии — откатывать нечего.</p>') +
+          (d.names.length
+            ? '<div class="sect-title">Кого это коснётся</div><p class="note">' +
+              esc(d.names.slice(0, 25).join('; ')) +
+              (d.names.length > 25 ? ' и ещё ' + (d.names.length - 25) : '') + '</p>'
+            : '') +
+          '<p class="note" style="margin-top:10px">Фотографии и документы не пропадут: ' +
+          'они хранятся отдельно. Перед откатом программа сохранит нынешнее состояние — ' +
+          'если откатили зря, можно вернуться обратно.</p>' +
+          (S.sync && S.sync.mode !== 'off'
+            ? '<p class="note" style="color:var(--warn)">Откат уйдёт в общее хранилище, ' +
+              'то есть применится у всех родственников.</p>' : ''),
+          lines.length ? [{ text: 'Откатить', primary: true, fn: function () {
+            H.restore(id).then(function () {
+              self.closeAllModals();
+              self.afterSync();
+              self.toast('Дерево возвращено к состоянию на ' + when, 6000);
+              if (global.Sync && global.Sync.ready()) global.Sync.run({ media: false });
+            }, function (e) { self.toast('Не вышло: ' + e.message); });
+          } }] : []);
+      });
+    },
+
+    /** Самопроверка дерева: показывает то, что иначе замечаешь слишком поздно. */
+    selfCheck: function () {
+      var out = document.getElementById('abOut');
+      if (!out) return;
+      out.textContent = 'Проверяю…';
+      var t = S.tree, lines = [];
+      var media = Object.keys(t.media || {});
+      var notUp = media.filter(function (id) { return !t.media[id].uploaded; });
+      var orphanFam = 0;
+      for (var fid in t.families) {
+        var f = t.families[fid];
+        if ((f.husb && !t.persons[f.husb]) || (f.wife && !t.persons[f.wife])) orphanFam++;
+      }
+      var noPhoto = 0;
+      S.persons().forEach(function (p) { if (!p.photo) noPhoto++; });
+
+      var missing = [];
+      var i = 0;
+      function step() {
+        if (i >= media.length) return Promise.resolve();
+        var id = media[i++];
+        return S.util.blobGet(id).then(function (b) { if (!b) missing.push(id); }).then(step);
+      }
+      step().then(function () {
+        lines.push('Людей: ' + S.persons().length + ', связей: ' +
+          Object.keys(t.families || {}).length + ', файлов: ' + media.length + '.');
+        if (noPhoto) lines.push('Без фотографии: ' + noPhoto + '.');
+        if (orphanFam) lines.push('⚠ Связей с исчезнувшими людьми: ' + orphanFam +
+          '. Это чинится следующей синхронизацией.');
+        if (notUp.length) {
+          lines.push('⚠ Не отправлено в общее хранилище файлов: ' + notUp.length +
+            '. На других устройствах они не покажутся. Нажмите «Синхронизировать».');
+        }
+        if (missing.length) {
+          lines.push('Файлов нет на этом устройстве: ' + missing.length +
+            ' — они подтянутся, когда их откроют, или при синхронизации.');
+        }
+        if (!notUp.length && !orphanFam && !missing.length) lines.push('Всё на месте.');
+        out.innerHTML = lines.map(function (s) { return esc(s); }).join('<br>');
+      });
+    },
+
+    toast: function (msg, ms) {
       var t = document.getElementById('toast');
       t.textContent = msg;
       t.hidden = false;
       clearTimeout(this._tt);
-      this._tt = setTimeout(function () { t.hidden = true; }, 3200);
+      this._tt = setTimeout(function () { t.hidden = true; }, ms || 3200);
     },
 
     /* ============ демонстрационное дерево ============ */
