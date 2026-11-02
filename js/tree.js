@@ -505,12 +505,15 @@
     el.style.borderRadius = radius + 'px';
     el.dataset.id = p.id;
 
+    var gone = isGone(p);
+    var hasPhoto = prefs.showPhotos && prefs.card.photo > 0;
     var html = '';
-    if (prefs.showPhotos && prefs.card.photo > 0) {
+    if (hasPhoto) {
       var silhouette = p.sex === 'M' ? 'personM' : p.sex === 'F' ? 'personF' : 'person';
       html += '<div class="node-ph" style="width:' + prefs.card.photo + 'px;height:' + prefs.card.photo +
         'px;border-radius:' + (prefs.card.shape === 'circle' ? '50%' : Math.max(2, prefs.card.radius - 4) + 'px') +
-        '">' + global.Icon(silhouette) + '</div>';
+        '">' + global.Icon(silhouette) +
+        (gone ? '<span class="mourn-corner" aria-hidden="true"></span>' : '') + '</div>';
     }
     html += '<div class="node-txt"><div class="node-name" style="font-size:' + prefs.card.nameSize + 'px">' +
       esc(S.shortName(p)) + '</div>';
@@ -519,10 +522,8 @@
         'px;font-weight:' + (prefs.card.dateWeight || 400) + '">' + esc(S.years(p)) + '</div>';
     }
     html += '</div>';
-    if (isGone(p)) {
-      // траурная полоса на верхнем левом углу
-      html += '<span class="node-mourn" aria-hidden="true"></span>';
-    }
+    // без фотокарточки лента ложится на угол самого эскиза
+    if (gone && !hasPhoto) html += '<span class="node-mourn" aria-hidden="true"></span>';
     if (p.acl && (p.acl.locked || p.acl.level !== 'public')) {
       html += '<span class="node-lock" title="Ограниченный доступ">' + global.Icon('lock') + '</span>';
     }
@@ -547,7 +548,7 @@
         if (url && ph) {
           ph.style.backgroundImage = 'url(' + url + ')';
           ph.classList.add('has-img');
-          ph.innerHTML = '';
+          ph.innerHTML = gone ? '<span class="mourn-corner"></span>' : '';
         }
       });
     }

@@ -277,19 +277,24 @@ a { color: var(--accent); }
 /* раскрыта карточка этого человека — пометка снимается при закрытии */
 .node.is-open { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* Траурная полоса на углу: человека нет в живых.
-   Слой во весь эскиз с его же скруглением — поэтому полоса видна и при
-   капсуле, и при любом радиусе, и ложится поверх фотокарточки. */
+/* Траурная лента: человека нет в живых. Лежит на верхнем левом углу
+   фотокарточки под 45°, обрезается её же формой — поэтому видна и при
+   круглом фото, и при любом скруглении. */
+.node-ph .mourn-corner,
+.pv-ph .mourn-corner,
+.sheet-ph .mourn-corner {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  pointer-events: none; z-index: 3;
+  background: linear-gradient(135deg, var(--mourn) 0 34%, transparent 34%);
+}
+/* Если фотокарточка отключена, лента ложится на угол самого эскиза. */
 .node-mourn {
   position: absolute; inset: 0; border-radius: inherit;
   overflow: hidden; pointer-events: none; z-index: 4;
 }
-/* Полоса идёт вдоль левого края во всю высоту: уголок при капсуле
-   или большом радиусе срезается скруглением, а эта видна всегда
-   и заходит на фотокарточку. */
 .node-mourn::before {
-  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 12px;
-  background: var(--mourn);
+  content: ""; position: absolute; left: 0; top: 0; width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--mourn) 0 15px, transparent 15px);
 }
 
 .node-ph {
@@ -447,7 +452,8 @@ label.inline { cursor: pointer; }
   font-size: 15px; color: var(--ink-faint); border: 1px solid var(--line);
 }
 .mini-ph .ico { width: 20px; height: 20px; }
-.sheet-ph .ico { width: 30px; height: 30px; }
+.sheet-ph { position: relative; overflow: hidden; }
+.sheet-ph .ico { width: 34px; height: 34px; opacity: .45; }
 .media-tile .ico { width: 26px; height: 26px; }
 .m-lock .ico { width: 13px; height: 13px; }
 .node-lock .ico { width: 11px; height: 11px; }

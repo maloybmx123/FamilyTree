@@ -95,7 +95,7 @@
     ];
     this.el.innerHTML =
       '<div class="sheet-head">' +
-      '<div class="sheet-ph" id="shPhoto">' + I('person') + '</div>' +
+      '<div class="sheet-ph" id="shPhoto"></div>' +
       '<div style="flex:1 1 auto;min-width:0">' +
       '<div class="sheet-title" id="shName"></div>' +
       '<div class="sheet-sub" id="shSub"></div>' +
@@ -130,13 +130,15 @@
     this.el.querySelector('#shSub').textContent = bits.join(' · ') || 'даты не указаны';
     var ph = this.el.querySelector('#shPhoto');
     ph.style.backgroundImage = '';
-    ph.innerHTML = I('person');
+    var gone = (p.death && p.death.date) || p.living === false;
+    ph.innerHTML = I(p.sex === 'M' ? 'personM' : p.sex === 'F' ? 'personF' : 'person') +
+      (gone ? '<span class="mourn-corner"></span>' : '');
     if (p.photo) {
       S.mediaURL(p.photo).then(function (url) {
         if (!url) return;
         self.urls.push(url);
         ph.style.backgroundImage = 'url(' + url + ')';
-        ph.innerHTML = '';
+        ph.innerHTML = gone ? '<span class="mourn-corner"></span>' : '';
       });
     }
     this.el.querySelectorAll('[data-act="tab"]').forEach(function (b) {

@@ -80,6 +80,15 @@
     });
     out.users = uorder.map(function (id) { return users[id]; });
 
+    /* --- приглашения --- */
+    var invs = {}, iorder = [];
+    (out.invites || []).concat(remote.invites || []).forEach(function (v) {
+      if (!v || !v.id) return;
+      if (!invs[v.id]) { invs[v.id] = v; iorder.push(v.id); }
+      else if (newer(v.updated, invs[v.id].updated)) invs[v.id] = v;
+    });
+    out.invites = iorder.map(function (id) { return invs[id]; });
+
     /* --- вкладки: по id, встроенные не трогаем --- */
     var tabs = {}, order = [];
     (out.tabs || []).concat(remote.tabs || []).forEach(function (t) {

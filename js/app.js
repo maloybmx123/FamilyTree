@@ -258,28 +258,72 @@
     },
     gateInvite: function (token) {
       var self = this;
-      var u = S.users.filter(function (x) { return x.invite === token; })[0];
-      if (!u) { this.gateLogin(); return; }
+      var inv = S.findInvite(token);
+      // записи старого образца, где логин заводил администратор
+      var old = inv ? null : S.users.filter(function (x) { return x.invite === token; })[0];
+      if (!inv && !old) {
+        this.toast('Ссылка-приглашение больше не действует');
+        if (S.users.length) this.gateLogin(); else this.gateFirstRun();
+        return;
+      }
+
+      if (old) {
+        this.gate(
+          '<h1>Приглашение в дерево</h1>' +
+          '<p class="lede">Вам открыт доступ к дереву «' + esc(S.tree.meta.name) +
+          '». Придумайте пароль — логин уже заведён: <b>' + esc(old.login) + '</b>.</p>' +
+          '<label for="gPass">Пароль</label><input id="gPass" type="password" autocomplete="new-password">' +
+          '<label for="gPass2">Пароль ещё раз</label><input id="gPass2" type="password" autocomplete="new-password">' +
+          '<div class="err" id="gErr"></div>' +
+          '<div class="btn-row"><button class="btn btn-primary" id="gGo">Принять приглашение</button></div>');
+        document.getElementById('gGo').addEventListener('click', function () {
+          var p1 = val('gPass'), p2 = val('gPass2');
+          if (p1.length < 6) return err('Пароль короче шести знаков');
+          if (p1 !== p2) return err('Пароли не совпадают');
+          S.setPassword(old, p1).then(function () {
+            old.invite = null;
+            old.updated = new Date().toISOString();
+            S.save();
+            S.setSession({ userId: old.id, login: old.login, role: old.role, displayName: old.displayName });
+            location.hash = '';
+            return S.unlockCrypto(p1);
+          }).then(function () { self.start(); });
+        });
+        return;
+      }
+
+      /* Обычный путь: человек сам пишет, как его зовут, и придумывает вход. */
       this.gate(
         '<h1>Приглашение в дерево</h1>' +
-        '<p class="lede">Администратор открыл вам доступ к дереву «' + esc(S.tree.meta.name) +
-        '». Придумайте пароль — логин уже заведён: <b>' + esc(u.login) + '</b>.</p>' +
+        '<p class="lede">Вас пригласили в семейное дерево «' + esc(S.tree.meta.name) + '»' +
+        (inv.by ? ', пригласил ' + esc(inv.by) : '') + '. Представьтесь и придумайте вход — ' +
+        'логин и пароль вы задаёте себе сами.</p>' +
+        '<label for="gName">Имя и фамилия</label><input id="gName" autocomplete="name">' +
+        '<label for="gLogin">Логин</label><input id="gLogin" autocomplete="username" spellcheck="false">' +
         '<label for="gPass">Пароль</label><input id="gPass" type="password" autocomplete="new-password">' +
         '<label for="gPass2">Пароль ещё раз</label><input id="gPass2" type="password" autocomplete="new-password">' +
+        '<p class="note" style="margin-top:10px">Этот же пароль открывает записи с замком. ' +
+        'Восстановить его нельзя — запишите в надёжном месте.</p>' +
         '<div class="err" id="gErr"></div>' +
-        '<div class="btn-row"><button class="btn btn-primary" id="gGo">Принять приглашение</button></div>');
+        '<div class="btn-row"><button class="btn btn-primary" id="gGo">Войти в дерево</button></div>');
+
       document.getElementById('gGo').addEventListener('click', function () {
-        var p1 = val('gPass'), p2 = val('gPass2');
+        var name = val('gName'), login = val('gLogin'), p1 = val('gPass'), p2 = val('gPass2');
+        if (!name) return err('Напишите, как вас зовут');
+        if (!login) return err('Придумайте логин');
+        if (!/^[A-Za-z0-9_.-]{3,}$/.test(login)) {
+          return err('Логин — латиницей, не короче трёх знаков');
+        }
         if (p1.length < 6) return err('Пароль короче шести знаков');
         if (p1 !== p2) return err('Пароли не совпадают');
-        S.setPassword(u, p1).then(function () {
-          u.invite = null;
-          u.updated = new Date().toISOString();
-          S.save();
-          S.setSession({ userId: u.id, login: u.login, role: u.role, displayName: u.displayName });
+        err('Заводим вас в дерево…');
+        S.acceptInvite(token, login, p1, name).then(function (r) {
+          if (r.error) { err(r.error); return; }
+          S.setSession({ userId: r.user.id, login: r.user.login, role: r.user.role,
+            displayName: r.user.displayName });
           location.hash = '';
-          return S.unlockCrypto(p1);
-        }).then(function () { self.start(); });
+          return S.unlockCrypto(p1).then(function () { self.start(); });
+        });
       });
     },
 
@@ -1150,7 +1194,7 @@
     },
 
     /* ============ настройки ============ */
-    openSettings: function (which) {
+    openSettings: function (which, isRestore) {
       var self = this;
       var p = S.prefs;
       var tabs = [['look', 'Оформление'], ['sync', 'Синхронизация'], ['data', 'Данные'],
@@ -1161,7 +1205,7 @@
         tabs.map(function (t) {
           return '<button data-s="' + t[0] + '" aria-selected="' + (t[0] === which) + '">' + t[1] + '</button>';
         }).join('') + '</div><div id="setBody"></div>';
-      this.modal('Настройки', html, [], { wide: true });
+      this.modal('Настройки', html, [], { wide: true, replace: !!isRestore });
       document.getElementById('setTabs').addEventListener('click', function (e) {
         var b = e.target.closest('[data-s]');
         if (!b) return;
@@ -1432,18 +1476,40 @@
           (isAdmin ?
             '<div class="set-card"><h3>Кто пользуется деревом</h3>' +
             '<div class="list" id="secUsers">' + S.users.map(function (u) {
-              return '<div class="list-item"><div class="li-main"><div>' + esc(u.displayName) + '</div>' +
+              return '<div class="list-item"><span class="mini-ph">' + global.Icon('person') + '</span>' +
+                '<div class="li-main"><div>' + esc(u.displayName) + '</div>' +
                 '<div class="li-sub">' + esc(u.login) + ' · ' +
-                (u.role === 'admin' ? 'администратор' : 'пользователь') +
-                (u.invite ? ' · приглашение не принято' : '') + '</div></div>' +
-                (u.invite ? '<button class="btn btn-sm" data-inv="' + u.invite + '">Ссылка</button>' : '') +
-                (u.id === S.session.userId ? '' : '<button class="btn btn-sm btn-danger" data-rm="' + u.id +
-                  '" title="Убрать пользователя" aria-label="Убрать пользователя">' + global.Icon('close') + '</button>') +
+                (u.role === 'admin' ? 'администратор' : 'пользователь') + '</div></div>' +
+                (u.id === S.session.userId ? '<span class="chip">это вы</span>'
+                  : '<button class="btn btn-sm btn-danger" data-rm="' + u.id +
+                    '" title="Убрать пользователя" aria-label="Убрать пользователя">' +
+                    global.Icon('close') + '</button>') +
                 '</div>';
-            }).join('') + '</div>' +
-            '<div class="btn-row"><button class="btn btn-primary btn-sm" id="secAdd">Пригласить родственника</button></div>' +
-            '<p class="note">Приглашение — это ссылка. Отправьте её человеку любым способом; он откроет её, ' +
-            'придумает пароль и получит доступ к дереву.</p></div>'
+            }).join('') + '</div></div>' +
+
+            '<div class="set-card"><h3>Пригласить родственника</h3>' +
+            '<p class="note">Нажмите кнопку — программа создаст ссылку. Отправьте её человеку любым ' +
+            'способом. Он откроет ссылку, сам напишет своё имя, придумает логин и пароль и попадёт ' +
+            'в дерево. Ничего заполнять за него не нужно.</p>' +
+            '<div class="btn-row">' +
+            '<button class="btn btn-primary btn-sm" id="secAdd">Создать ссылку</button>' +
+            '<button class="btn btn-sm" id="secAddAdmin">Ссылка для второго администратора</button>' +
+            '</div>' +
+            (function () {
+              var open = S.invites().filter(function (i) { return !i.usedBy; });
+              if (!open.length) return '';
+              return '<div class="sect-title">Ссылки, которыми ещё не воспользовались</div>' +
+                '<div class="list">' + open.map(function (i) {
+                  return '<div class="list-item"><div class="li-main">' +
+                    '<div>' + (i.role === 'admin' ? 'Для администратора' : 'Для родственника') + '</div>' +
+                    '<div class="li-sub">создана ' + new Date(i.created).toLocaleString('ru-RU') + '</div></div>' +
+                    '<button class="btn btn-sm" data-inv="' + esc(i.token) + '">Показать ссылку</button>' +
+                    '<button class="btn btn-sm btn-danger" data-droinv="' + esc(i.id) +
+                    '" title="Отозвать" aria-label="Отозвать">' + global.Icon('close') + '</button>' +
+                    '</div>';
+                }).join('') + '</div>';
+            })() +
+            '</div>'
             : '<div class="set-card"><h3>Ваша роль</h3><p class="note">Вы вошли как пользователь. ' +
               'Приглашать других и снимать замки может только администратор дерева.</p></div>');
         var bio = document.getElementById('secBio');
@@ -1455,22 +1521,30 @@
           }, 'password');
         });
         var add = document.getElementById('secAdd');
-        if (add) add.addEventListener('click', function () { self.inviteDialog(); });
+        if (add) add.addEventListener('click', function () {
+          var inv = S.createInvite('user');
+          self.setPane('sec');
+          self.showInvite(inv.token);
+        });
+        var addA = document.getElementById('secAddAdmin');
+        if (addA) addA.addEventListener('click', function () {
+          self.confirm('Ссылка для администратора?',
+            'Тот, кто перейдёт по ней, получит полные права: будет видеть закрытые записи, ' +
+            'приглашать других и очищать дерево.',
+            function () {
+              var inv = S.createInvite('admin');
+              self.setPane('sec');
+              self.showInvite(inv.token);
+            });
+        });
         host.querySelectorAll('[data-inv]').forEach(function (b) {
+          b.addEventListener('click', function () { self.showInvite(b.dataset.inv); });
+        });
+        host.querySelectorAll('[data-droinv]').forEach(function (b) {
           b.addEventListener('click', function () {
-            var link = location.href.split('#')[0] + '#invite-' + b.dataset.inv;
-            self.modal('Ссылка-приглашение',
-              '<p class="note">Передайте её родственнику. Ссылка одноразовая: после того как человек задаст пароль, она перестанет работать.</p>' +
-              '<textarea id="invLink" rows="3" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--paper)">' +
-              esc(link) + '</textarea>',
-              [{ text: 'Скопировать', primary: true, fn: function () {
-                var ta = document.getElementById('invLink');
-                ta.select();
-                if (navigator.clipboard) navigator.clipboard.writeText(link).then(function () {
-                  self.toast('Ссылка скопирована');
-                }, function () { self.toast('Выделено — скопируйте вручную'); });
-                else self.toast('Выделено — скопируйте вручную');
-              } }]);
+            S.dropInvite(b.dataset.droinv);
+            self.setPane('sec');
+            self.toast('Ссылка отозвана');
           });
         });
         host.querySelectorAll('[data-rm]').forEach(function (b) {
@@ -1818,6 +1892,41 @@
       btn.setAttribute('aria-label', title);
     },
 
+    /** показать готовую ссылку-приглашение */
+    showInvite: function (token) {
+      var self = this;
+      var link = location.href.split('#')[0] + '#invite-' + token;
+      this.modal('Ссылка-приглашение',
+        '<p class="note" style="margin:0 0 10px">Отправьте её родственнику — в сообщении, письмом, ' +
+        'как угодно. Он откроет ссылку, сам представится и придумает себе вход.</p>' +
+        '<textarea id="invLink" rows="3" readonly ' +
+        'style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;' +
+        'background:var(--paper);font-family:var(--font-data);font-size:12px">' + esc(link) + '</textarea>' +
+        '<p class="note" style="margin-top:10px">Ссылка одноразовая: как только человек заведёт себе ' +
+        'вход, она перестанет работать. Отозвать её можно в списке ниже.</p>' +
+        (S.sync && S.sync.mode !== 'off'
+          ? '<p class="note">Синхронизация включена — не забудьте дать ей пройти, иначе ' +
+            'на другом устройстве ссылки ещё не будет.</p>'
+          : '<p class="note">Синхронизация выключена, поэтому ссылка сработает только на этом ' +
+            'устройстве. Для других включите её в разделе «Синхронизация».</p>'),
+        [{ text: 'Скопировать ссылку', primary: true, fn: function () {
+          var ta = document.getElementById('invLink');
+          ta.select();
+          ta.setSelectionRange(0, link.length);
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(link).then(
+              function () { self.toast('Ссылка скопирована'); },
+              function () { self.toast('Выделено — скопируйте вручную'); });
+          } else {
+            self.toast('Выделено — скопируйте вручную');
+          }
+        } }]);
+      setTimeout(function () {
+        var ta = document.getElementById('invLink');
+        if (ta) { ta.focus(); ta.select(); }
+      }, 60);
+    },
+
     inviteDialog: function () {
       var self = this;
       this.modal('Пригласить родственника',
@@ -1955,9 +2064,11 @@
       function node(cls, name, years, gone) {
         var h = '<div class="pv-node ' + cls + (gone ? ' is-gone' : '') + '" style="width:' + p.card.w +
           'px;height:' + p.card.h + 'px;border-radius:' + r + 'px">';
-        if (p.showPhotos && p.card.photo > 0) {
+        var withPhoto = p.showPhotos && p.card.photo > 0;
+        if (withPhoto) {
           h += '<div class="pv-ph" style="width:' + p.card.photo + 'px;height:' + p.card.photo +
-            'px;border-radius:' + pr + '">' + I(cls === 'm' ? 'personM' : 'personF') + '</div>';
+            'px;border-radius:' + pr + '">' + I(cls === 'm' ? 'personM' : 'personF') +
+            (gone ? '<span class="mourn-corner"></span>' : '') + '</div>';
         }
         h += '<div class="pv-txt"><div class="pv-name" style="font-size:' + p.card.nameSize + 'px">' +
           esc(name) + '</div>';
@@ -1966,7 +2077,7 @@
             'px;font-weight:' + (p.card.dateWeight || 400) + '">' + esc(years) + '</div>';
         }
         h += '</div>';
-        if (gone) h += '<span class="node-mourn"></span>';
+        if (gone && !withPhoto) h += '<span class="node-mourn"></span>';
         return h + '</div>';
       }
       stage.innerHTML = '<div class="pv-row">' +
@@ -1976,21 +2087,34 @@
     },
 
     /* ============ окна и мелочи ============ */
+    /* Окна складываются стопкой: открыть окно поверх настроек и закрыть его —
+       значит вернуться к настройкам, а не к дереву. */
+    modalStack: [],
+
     modal: function (title, body, buttons, opts) {
       opts = opts || {};
+      var self = this;
       var back = document.getElementById('modalBack');
+
+      // запомнить то, что сейчас открыто, чтобы вернуться к нему
+      if (!back.hidden && !opts.replace) {
+        var rest = opts.restore || this.autoRestore();
+        if (rest) this.modalStack.push({ restore: rest });
+      }
+
       var foot = (buttons || []).map(function (b, i) {
         return '<button class="btn ' + (b.primary ? 'btn-primary' : b.danger ? 'btn-danger' : '') +
           '" data-b="' + i + '">' + esc(b.text) + '</button>';
       }).join('');
+      var backLabel = this.modalStack.length ? 'Назад' : 'Закрыть';
       back.innerHTML = '<div class="modal' + (opts.wide ? ' wide' : '') + '" role="dialog" aria-modal="true">' +
         '<div class="modal-head"><h2>' + esc(title) + '</h2>' +
-        '<button class="icon-btn" data-close="1" aria-label="Закрыть" title="Закрыть">' +
+        '<button class="icon-btn" data-close="1" aria-label="' + backLabel + '" title="' + backLabel + '">' +
         global.Icon('close') + '</button></div>' +
         '<div class="modal-body">' + body + '</div>' +
-        '<div class="modal-foot">' + foot + '<button class="btn" data-close="1">Закрыть</button></div></div>';
+        '<div class="modal-foot">' + foot +
+        '<button class="btn" data-close="1">' + backLabel + '</button></div></div>';
       back.hidden = false;
-      var self = this;
       back.querySelectorAll('[data-close]').forEach(function (b) {
         b.addEventListener('click', function () { self.closeModal(); });
       });
@@ -1998,7 +2122,27 @@
         b.addEventListener('click', function () { buttons[+b.dataset.b].fn(); });
       });
     },
+
+    /** Чем вернуть текущее окно, если поверх него откроют другое.
+        Пока это нужно только настройкам — они открываются на выбранной вкладке. */
+    autoRestore: function () {
+      var back = document.getElementById('modalBack');
+      var tab = back.querySelector('#setTabs [data-s][aria-selected="true"]');
+      if (!tab) return null;
+      var pane = tab.dataset.s, self = this;
+      return function () { self.openSettings(pane, true); };
+    },
+
+    /** закрыть верхнее окно; если под ним было другое — вернуть его */
     closeModal: function () {
+      var prev = this.modalStack.pop();
+      if (prev && typeof prev.restore === 'function') { prev.restore(); return; }
+      this.closeAllModals();
+    },
+
+    /** закрыть всю стопку разом */
+    closeAllModals: function () {
+      this.modalStack = [];
       var back = document.getElementById('modalBack');
       back.hidden = true;
       back.innerHTML = '';

@@ -208,6 +208,9 @@
          логин, заведённый на компьютере, не существовал бы на телефоне.
          Пароли хранятся только как PBKDF2-свёртка с личной солью. */
       users: [],
+      /* Приглашения: администратор создаёт ссылку, родственник открывает её
+         и сам заводит себе имя, логин и пароль. */
+      invites: [],
       /* следы удалённых записей: id -> когда удалили.
          Без них удаление, сделанное на одном устройстве, вернулось бы
          обратно при первой же синхронизации с другого. */
@@ -291,6 +294,7 @@
         this.sync = JSON.parse(localStorage.getItem(LS_SYNC) || 'null') || defaultSync();
       } catch (e) { this.deviceId = uid('dev'); this.sync = defaultSync(); }
       if (!Array.isArray(this.tree.users)) this.tree.users = [];
+      if (!Array.isArray(this.tree.invites)) this.tree.invites = [];
       // перенос со старых версий, где список лежал отдельно на устройстве
       try {
         var old = localStorage.getItem(LS_USERS);
@@ -710,6 +714,49 @@
         return u;
       });
     },
+    /* --- приглашения --- */
+    invites: function () {
+      if (!Array.isArray(this.tree.invites)) this.tree.invites = [];
+      return this.tree.invites;
+    },
+    createInvite: function (role, note) {
+      var inv = {
+        id: uid('inv'), token: uid('t') + uid('k'),
+        role: role === 'admin' ? 'admin' : 'user',
+        note: note || '', created: nowISO(), updated: nowISO(),
+        by: this.session ? this.session.displayName : '',
+        usedBy: null, usedAt: null
+      };
+      this.invites().push(inv);
+      this.log('user', 'Создано приглашение' + (inv.role === 'admin' ? ' (администратор)' : ''));
+      this.save();
+      return inv;
+    },
+    findInvite: function (token) {
+      return this.invites().filter(function (i) { return i.token === token && !i.usedBy; })[0] || null;
+    },
+    dropInvite: function (id) {
+      this.tree.invites = this.invites().filter(function (i) { return i.id !== id; });
+      this.save();
+    },
+    /** родственник перешёл по ссылке и заводит себе запись */
+    acceptInvite: function (token, login, password, displayName) {
+      var self = this;
+      var inv = this.findInvite(token);
+      if (!inv) return Promise.resolve({ error: 'Ссылка уже использована или больше не действует' });
+      login = String(login || '').toLowerCase().trim();
+      if (this.users.some(function (u) { return u.login === login; })) {
+        return Promise.resolve({ error: 'Такой логин уже занят — придумайте другой' });
+      }
+      return this.createUser(login, password, inv.role, displayName).then(function (u) {
+        inv.usedBy = u.id;
+        inv.usedAt = nowISO();
+        inv.updated = nowISO();
+        self.save();
+        return { user: u };
+      });
+    },
+
     /** задать новый пароль (приглашение, смена) */
     setPassword: function (user, password) {
       var self = this;
@@ -869,6 +916,7 @@
   Object.defineProperty(Store, 'users', {
     get: function () {
       if (!Array.isArray(this.tree.users)) this.tree.users = [];
+      if (!Array.isArray(this.tree.invites)) this.tree.invites = [];
       return this.tree.users;
     },
     set: function (v) { this.tree.users = Array.isArray(v) ? v : []; }
