@@ -293,9 +293,10 @@
     var W = res.w, H = res.h;
     var css = [
       '.n{stroke-width:1}',
-      '.m{fill:#d9ecf8;stroke:#7fb6da}',
-      '.f{fill:#fbdfe9;stroke:#e0a0bb}',
-      '.u{fill:#ece7dc;stroke:#bdb3a1}',
+      '.m{fill:url(#gm);stroke:#6aa9d4}',
+      '.f{fill:url(#gf);stroke:#dd8fae}',
+      '.u{fill:url(#gu);stroke:#bdb3a1}',
+      '.mourn{fill:#15120f}',
       '.nm{font:700 12px "PT Sans",Arial,sans-serif;fill:#241f1a}',
       '.yr{font:11px "PT Mono",monospace;fill:#5d554a}',
       '.ln{fill:none;stroke:#bdb3a1;stroke-width:1.5}',
@@ -306,6 +307,11 @@
     var out = ['<?xml version="1.0" encoding="UTF-8"?>',
       '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + (H + 60) + '" viewBox="0 0 ' + W + ' ' + (H + 60) + '">',
       '<style>' + css + '</style>',
+      '<defs>' +
+      grad('gm', '#eaf5fd', '#cde6f7', '#afd4ee') +
+      grad('gf', '#fdeef4', '#fbd3e2', '#f4b8ce') +
+      grad('gu', '#f7f4ec', '#ece7dc', '#ded7c8') +
+      '</defs>',
       '<rect width="100%" height="100%" fill="#f6f1e6"/>',
       '<text class="ttl" x="30" y="34">' + xml(S.tree.meta.name) + '</text>',
       '<text class="sub" x="30" y="52">Выгружено ' + new Date().toLocaleDateString('ru-RU') +
@@ -345,6 +351,12 @@
       var cls = c.person.sex === 'M' ? 'm' : c.person.sex === 'F' ? 'f' : 'u';
       out.push('<rect class="n ' + cls + '" x="' + c.x + '" y="' + c.y + '" width="' + c.w + '" height="' + c.h +
         '" rx="' + r + '" ry="' + r + '"/>');
+      var pr = c.person;
+      if ((pr.death && pr.death.date) || pr.living === false) {
+        out.push('<path class="mourn" d="M' + c.x + ',' + (c.y + 13) + ' L' + c.x + ',' + (c.y + r) +
+          ' Q' + c.x + ',' + c.y + ' ' + (c.x + r) + ',' + c.y +
+          ' L' + (c.x + 13) + ',' + c.y + ' Z"/>');
+      }
       var tx = c.x + 10, ty = c.y + 20;
       var name = S.shortName(c.person);
       wrap(name, Math.floor((c.w - 18) / 6.6)).forEach(function (ln, i) {
@@ -365,6 +377,12 @@
       if (cur) lines.push(cur);
       return lines.slice(0, 3);
     }
+  }
+  function grad(id, a, b, c) {
+    return '<linearGradient id="' + id + '" x1="0" y1="0" x2="0.18" y2="1">' +
+      '<stop offset="0" stop-color="' + a + '"/>' +
+      '<stop offset="0.58" stop-color="' + b + '"/>' +
+      '<stop offset="1" stop-color="' + c + '"/></linearGradient>';
   }
   function xml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {

@@ -43,6 +43,7 @@
         el: document.getElementById('sheet'),
         onChange: function () { self.tree.render(); self.renderTabs(); },
         onFocus: function (id) { self.tree.setFocus(id); },
+        onOpen: function (id) { self.tree.setOpen(id); },
         toast: function (m) { self.toast(m); }
       });
 
@@ -433,15 +434,38 @@
         host.innerHTML = '<div class="empty">Фотографий пока нет.<br>Откройте карточку человека и добавьте снимки — они соберутся здесь.</div>';
         return;
       }
+      var order = this._photoSort || 'added';
+      var sorters = {
+        added: function (a, b) { return (b.added || '').localeCompare(a.added || ''); },
+        person: function (a, b) {
+          return S.fullName(S.person(a.personId)).localeCompare(S.fullName(S.person(b.personId)), 'ru');
+        },
+        name: function (a, b) { return (a.caption || a.name || '').localeCompare(b.caption || b.name || '', 'ru'); },
+        size: function (a, b) { return (b.size || 0) - (a.size || 0); }
+      };
+      all = all.slice().sort(sorters[order] || sorters.added);
+      var labels = [['added', 'по дате добавления'], ['person', 'по человеку'],
+        ['name', 'по подписи'], ['size', 'по размеру']];
       host.innerHTML = '<h2 style="margin-bottom:4px">Фотографии</h2>' +
-        '<p class="note" style="margin:0 0 12px">' + all.length + ' снимков' +
+        '<p class="note" style="margin:0 0 10px">' + all.length + ' снимков' +
         (all.some(function (m) { return !S.canSee(m.acl); }) ? ' · часть скрыта правами доступа' : '') + '</p>' +
+        '<div class="sort-bar"><span class="note">Порядок:</span>' +
+        labels.map(function (l) {
+          return '<button class="btn btn-sm" data-sort="' + l[0] + '" aria-pressed="' +
+            (order === l[0]) + '">' + l[1] + '</button>';
+        }).join('') + '</div>' +
         '<div class="photo-wall">' + all.map(function (m) {
           var who = S.person(m.personId);
           return '<button class="media-tile" data-id="' + m.id + '" title="' + esc(m.name) + '">' +
             global.Icon(S.canSee(m.acl) ? 'photo' : 'lock') +
             '<span class="m-name">' + esc(who ? S.fullName(who) : m.name) + '</span></button>';
         }).join('') + '</div>';
+      host.querySelectorAll('[data-sort]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          self._photoSort = b.dataset.sort;
+          self.renderPhotos();
+        });
+      });
       host.querySelectorAll('.media-tile').forEach(function (t) {
         var m = S.tree.media[t.dataset.id];
         t.addEventListener('click', function () { self.viewMedia(m.id); });
@@ -466,65 +490,156 @@
           '<div class="empty">Журнал пуст</div>';
         return;
       }
-      host.innerHTML = '<h2 style="margin-bottom:4px">Изменения</h2>' +
-        '<p class="note" style="margin:0 0 12px">Кто и когда что поправил в дереве. Записей: ' + ch.length +
-        (canEdit ? '. Лишние строки можно убрать — на сами данные это не влияет.' : '') + '</p>' +
-        (canEdit ? '<div class="btn-row" style="margin:0 0 12px">' +
-          '<button class="btn btn-sm btn-danger" id="chClear">Очистить журнал целиком</button></div>' : '') +
-        '<div style="border:1px solid var(--line);border-radius:12px;background:var(--paper-2);overflow:hidden">' +
-        ch.slice(0, 400).map(function (c) {
-          return '<div class="change ' + esc(c.action) + '"><span class="c-dot"></span>' +
-            '<div style="min-width:0;flex:1 1 auto">' +
-            '<div>' + esc(c.summary) + '</div>' +
-            '<div class="c-meta">' + esc(c.user) + ' · ' + new Date(c.ts).toLocaleString('ru-RU') + '</div>' +
-            '</div>' +
-            (canEdit ? '<button class="c-del" data-del="' + esc(c.id) +
-              '" type="button" title="Убрать эту строку" aria-label="Убрать эту строку">' +
-              global.Icon('trash') + '</button>' : '') +
-            '</div>';
-        }).join('') + '</div>' +
-        (ch.length > 400 ? '<p class="note" style="margin-top:10px">Показаны последние 400 записей из ' +
-          ch.length + '.</p>' : '');
+      var kinds = { add: 'добавление', edit: 'правка', delete: 'удаление', media: 'файл',
+        user: 'доступ', tab: 'вкладка', import: 'загрузка' };
+      var cols = [
+        { key: 'ts', title: 'Когда', num: true,
+          get: function (c) { return Date.parse(c.ts || '') || 0; },
+          cell: function (c) { return new Date(c.ts).toLocaleString('ru-RU'); } },
+        { key: 'user', title: 'Кто', get: function (c) { return c.user || ''; },
+          cell: function (c) { return esc(c.user || '—'); } },
+        { key: 'action', title: 'Что', get: function (c) { return kinds[c.action] || c.action || ''; },
+          cell: function (c) {
+            return '<span class="chip ' + esc(c.action) + '">' + esc(kinds[c.action] || c.action) + '</span>';
+          } },
+        { key: 'summary', title: 'Подробности', get: function (c) { return c.summary || ''; },
+          cell: function (c) { return esc(c.summary || ''); } }
+      ];
+      if (canEdit) {
+        cols.push({ key: 'del', title: '', sortable: false, get: function () { return 0; },
+          cell: function (c) {
+            return '<button class="c-del" data-del="' + esc(c.id) + '" type="button" ' +
+              'title="Убрать эту строку" aria-label="Убрать эту строку">' + global.Icon('trash') + '</button>';
+          } });
+      }
 
-      host.querySelectorAll('[data-del]').forEach(function (b) {
-        b.addEventListener('click', function () {
-          S.tree.changes = (S.tree.changes || []).filter(function (c) { return c.id !== b.dataset.del; });
-          S.save(true);
-          self.renderChanges();
-        });
-      });
-      var clr = document.getElementById('chClear');
-      if (clr) clr.addEventListener('click', function () {
-        self.confirm('Очистить журнал изменений?',
-          'Пропадёт только история правок — люди, фотографии и связи останутся на месте. ' +
-          'У других родственников журнал восстановится при следующей синхронизации с их устройств.',
-          function () {
-            S.tree.changes = [];
+      function draw() {
+        var list = (S.tree.changes || []).slice(0, 500);
+        var t = self.buildTable('tblChanges', cols, list, { key: 'ts', dir: -1 });
+        host.innerHTML = '<h2 style="margin-bottom:4px">Изменения</h2>' +
+          '<p class="note" style="margin:0 0 12px">Кто и когда что поправил. Записей: ' +
+          (S.tree.changes || []).length +
+          '. Заголовки столбцов сортируют список' +
+          (canEdit ? '; лишние строки можно убрать — на сами данные это не влияет.' : '.') + '</p>' +
+          (canEdit ? '<div class="btn-row" style="margin:0 0 12px">' +
+            '<button class="btn btn-sm btn-danger" id="chClear">Очистить журнал целиком</button></div>' : '') +
+          t.html +
+          ((S.tree.changes || []).length > 500
+            ? '<p class="note" style="margin-top:10px">Показаны последние 500 записей.</p>' : '');
+        self.bindTable('tblChanges', draw);
+        host.querySelectorAll('[data-del]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            S.tree.changes = (S.tree.changes || []).filter(function (c) { return c.id !== b.dataset.del; });
             S.save(true);
-            self.renderChanges();
-            self.toast('Журнал очищен');
+            draw();
+            bindClear();
           });
+        });
+        bindClear();
+      }
+      draw();
+      return;
+
+      function bindClear() {
+        var clr = document.getElementById('chClear');
+        if (clr) clr.addEventListener('click', function () {
+          self.confirm('Очистить журнал изменений?',
+            'Пропадёт только история правок — люди, фотографии и связи останутся на месте. ' +
+            'У других родственников журнал восстановится при следующей синхронизации с их устройств.',
+            function () {
+              S.tree.changes = [];
+              S.save(true);
+              self.renderChanges();
+              self.toast('Журнал очищен');
+            });
+        });
+      }
+    },
+
+    /* ============ сортируемая таблица ============
+       cols: [{ key, title, get(row), cell(row), num }]
+       Запоминает выбранный столбец отдельно для каждой таблицы. */
+    sortState: {},
+    buildTable: function (tableId, cols, rows, opts) {
+      opts = opts || {};
+      var st = this.sortState[tableId] || (this.sortState[tableId] = {
+        key: opts.key || cols[0].key, dir: opts.dir || 1
+      });
+      var col = cols.filter(function (c) { return c.key === st.key; })[0] || cols[0];
+      var sorted = rows.slice().sort(function (a, b) {
+        var x = col.get(a), y = col.get(b);
+        if (x == null) x = col.num ? -Infinity : '';
+        if (y == null) y = col.num ? -Infinity : '';
+        var r = col.num ? (x - y) : String(x).localeCompare(String(y), 'ru');
+        return r * st.dir;
+      });
+      var head = cols.map(function (c) {
+        var on = c.key === st.key;
+        return '<th' + (c.sortable === false ? '' : ' class="sortable" data-sort="' + c.key + '"') +
+          (on ? ' aria-sort="' + (st.dir > 0 ? 'ascending' : 'descending') + '"' : '') + '>' +
+          esc(c.title) +
+          (c.sortable === false ? '' : '<span class="sort-mark">' + (on ? (st.dir > 0 ? '▲' : '▼') : '⇅') + '</span>') +
+          '</th>';
+      }).join('');
+      var body = sorted.map(function (r) {
+        return '<tr>' + cols.map(function (c) {
+          return '<td' + (c.num ? ' style="font-variant-numeric:tabular-nums"' : '') + '>' + c.cell(r) + '</td>';
+        }).join('') + '</tr>';
+      }).join('');
+      return { html: '<div class="table-wrap"><table class="data" id="' + tableId + '"><thead><tr>' +
+        head + '</tr></thead><tbody>' + body + '</tbody></table></div>', rows: sorted };
+    },
+    bindTable: function (tableId, redraw) {
+      var self = this, t = document.getElementById(tableId);
+      if (!t) return;
+      t.querySelectorAll('[data-sort]').forEach(function (th) {
+        th.addEventListener('click', function () {
+          var st = self.sortState[tableId];
+          if (st.key === th.dataset.sort) st.dir = -st.dir;
+          else { st.key = th.dataset.sort; st.dir = 1; }
+          redraw();
+        });
       });
     },
 
     /* ============ список людей ============ */
     renderPeople: function () {
       var host = document.querySelector('#pane-people .pane-scroll'), self = this;
-      var ps = S.persons().sort(function (a, b) {
-        return S.fullName(a).localeCompare(S.fullName(b), 'ru');
-      });
-      host.innerHTML = '<h2 style="margin-bottom:10px">Люди в дереве — ' + ps.length + '</h2>' +
-        '<table class="data"><thead><tr><th>Имя</th><th>Годы</th><th>Место рождения</th><th></th></tr></thead><tbody>' +
-        ps.map(function (p) {
-          return '<tr><td>' + esc(S.fullName(p)) + '</td><td style="font-variant-numeric:tabular-nums">' +
-            esc(S.years(p) || '—') + '</td><td>' + esc((p.birth && p.birth.place) || '—') + '</td>' +
-            '<td><button class="btn btn-sm" data-id="' + p.id + '">Открыть</button></td></tr>';
-        }).join('') + '</tbody></table>';
-      host.querySelectorAll('[data-id]').forEach(function (b) {
-        b.addEventListener('click', function () {
-          self.showTab('tree'); self.tree.setFocus(b.dataset.id); self.sheet.open(b.dataset.id);
+      var ps = S.persons();
+      var cols = [
+        { key: 'name', title: 'Имя', get: function (p) { return S.fullName(p); },
+          cell: function (p) { return esc(S.fullName(p)); } },
+        { key: 'sex', title: 'Пол', get: function (p) { return p.sex === 'M' ? 'Мужской' : p.sex === 'F' ? 'Женский' : 'Не указан'; },
+          cell: function (p) { return p.sex === 'M' ? 'М' : p.sex === 'F' ? 'Ж' : '—'; } },
+        { key: 'birth', title: 'Рождение', num: true,
+          get: function (p) { return +(U.yr(p.birth && p.birth.date) || 0); },
+          cell: function (p) { return esc(U.formatDate(p.birth && p.birth.date) || '—'); } },
+        { key: 'death', title: 'Смерть', num: true,
+          get: function (p) { return +(U.yr(p.death && p.death.date) || 0); },
+          cell: function (p) { return esc(U.formatDate(p.death && p.death.date) || '—'); } },
+        { key: 'place', title: 'Место рождения', get: function (p) { return (p.birth && p.birth.place) || ''; },
+          cell: function (p) { return esc((p.birth && p.birth.place) || '—'); } },
+        { key: 'media', title: 'Файлов', num: true, get: function (p) { return (p.media || []).length; },
+          cell: function (p) { return (p.media || []).length || '—'; } },
+        { key: 'updated', title: 'Изменено', num: true,
+          get: function (p) { return Date.parse(p.updated || '') || 0; },
+          cell: function (p) { return p.updated ? new Date(p.updated).toLocaleString('ru-RU') : '—'; } },
+        { key: 'open', title: '', sortable: false, get: function () { return 0; },
+          cell: function (p) { return '<button class="btn btn-sm" data-id="' + p.id + '">Открыть</button>'; } }
+      ];
+      function draw() {
+        var t = self.buildTable('tblPeople', cols, ps, { key: 'name' });
+        host.innerHTML = '<h2 style="margin-bottom:4px">Люди в дереве — ' + ps.length + '</h2>' +
+          '<p class="note" style="margin:0 0 12px">Нажмите на заголовок столбца, чтобы отсортировать. ' +
+          'Повторное нажатие переворачивает порядок.</p>' + t.html;
+        self.bindTable('tblPeople', draw);
+        host.querySelectorAll('[data-id]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            self.showTab('tree'); self.tree.setFocus(b.dataset.id); self.sheet.open(b.dataset.id);
+          });
         });
-      });
+      }
+      draw();
     },
 
     /* ============ заметки на своей вкладке ============ */
@@ -641,12 +756,12 @@
       var relBlock = '';
       if (near) {
         relBlock =
-          '<div class="row"><label for="npRel">Кем приходится</label><select id="npRel">' +
+          '<div class="row"><label for="npRel">Это</label><select id="npRel">' +
           '<option value="">Сам по себе, без связи</option>' +
-          '<option value="child">Ребёнок ' + esc(S.shortName(near)) + '</option>' +
-          '<option value="spouse">Супруг(а) ' + esc(S.shortName(near)) + '</option>' +
-          '<option value="parent">Родитель ' + esc(S.shortName(near)) + '</option>' +
-          '<option value="sibling">Брат или сестра ' + esc(S.shortName(near)) + '</option>' +
+          '<option value="child">Сын или дочь ' + esc(S.callName(near)) + '</option>' +
+          '<option value="spouse">Муж или жена ' + esc(S.callName(near)) + '</option>' +
+          '<option value="parent">Отец или мать ' + esc(S.callName(near)) + '</option>' +
+          '<option value="sibling">Брат или сестра ' + esc(S.callName(near)) + '</option>' +
           '</select></div>';
       }
       this.modal('Новый человек',
@@ -698,17 +813,24 @@
     /* ============ родственники ============ */
     addRelative: function (id) {
       var p = S.person(id), self = this;
-      this.modal('Кем приходится ' + S.fullName(p) + '?',
-        '<div class="row"><label for="arRel">Связь</label><select id="arRel">' +
-        '<option value="child">Ребёнок</option><option value="spouse">Супруг(а)</option>' +
-        '<option value="parent">Родитель</option><option value="sibling">Брат или сестра</option>' +
+      var who = S.callName(p);
+      // Формулировка от лица НОВОГО человека: «Ребёнок Петра», а не просто «Ребёнок».
+      // Иначе читается наоборот — и связь получается зеркальной.
+      this.modal('Родственник для ' + who,
+        '<p class="note" style="margin:0 0 12px">Новый человек — кто он для ' + esc(who) + '?</p>' +
+        '<div class="row"><label for="arRel">Это</label><select id="arRel">' +
+        '<option value="child">Сын или дочь ' + esc(who) + '</option>' +
+        '<option value="spouse">Муж или жена ' + esc(who) + '</option>' +
+        '<option value="parent">Отец или мать ' + esc(who) + '</option>' +
+        '<option value="sibling">Брат или сестра ' + esc(who) + '</option>' +
         '</select></div>' +
         '<div class="row"><label for="arSur">Фамилия</label><input id="arSur" value="' + esc(p.surname) + '"></div>' +
         '<div class="row"><label for="arGiv">Имя</label><input id="arGiv"></div>' +
         '<div class="row"><label for="arPat">Отчество</label><input id="arPat"></div>' +
         '<div class="row"><label for="arSex">Пол</label><select id="arSex">' +
         '<option value="M">Мужской</option><option value="F">Женский</option><option value="U">Не указан</option></select></div>' +
-        '<div class="row"><label for="arBirth">Дата рождения</label><input id="arBirth" type="date"></div>',
+        '<div class="row"><label for="arBirth">Дата рождения</label><input id="arBirth" type="date"></div>' +
+        '<p class="note" id="arHint"></p>',
         [{ text: 'Добавить', primary: true, fn: function () {
           var rel = document.getElementById('arRel').value;
           var np = S.addPerson({
@@ -732,11 +854,29 @@
           self.sheet.open(np.id);
         } }]);
       var relSel = document.getElementById('arRel');
+      var hint = document.getElementById('arHint');
+      function sayHint() {
+        var giv = (document.getElementById('arGiv').value || '').trim() || 'новый человек';
+        var map = {
+          child: giv + ' станет ребёнком, а ' + who + ' — родителем.',
+          spouse: giv + ' и ' + who + ' станут супругами.',
+          parent: giv + ' станет родителем, а ' + who + ' — ребёнком.',
+          sibling: giv + ' и ' + who + ' станут братом и сестрой — у них будут общие родители.'
+        };
+        hint.textContent = map[relSel.value] || '';
+      }
       relSel.addEventListener('change', function () {
         var sur = document.getElementById('arSur');
         if (relSel.value === 'spouse') sur.value = '';
         else sur.value = p.surname || '';
+        sayHint();
       });
+      document.getElementById('arGiv').addEventListener('input', sayHint);
+      sayHint();
+      setTimeout(function () {
+        var el = document.getElementById('arGiv');
+        if (el) el.focus();
+      }, 50);
     },
 
     /* ============ медиа ============ */
@@ -822,11 +962,11 @@
         ['sec', 'Доступ и защита'], ['about', 'О программе']];
       which = which || 'look';
       var html =
-        '<div class="sheet-tabs" id="setTabs" style="padding:0;margin-bottom:14px">' +
+        '<div class="sheet-tabs" id="setTabs">' +
         tabs.map(function (t) {
           return '<button data-s="' + t[0] + '" aria-selected="' + (t[0] === which) + '">' + t[1] + '</button>';
         }).join('') + '</div><div id="setBody"></div>';
-      this.modal('Настройки', html, []);
+      this.modal('Настройки', html, [], { wide: true });
       document.getElementById('setTabs').addEventListener('click', function (e) {
         var b = e.target.closest('[data-s]');
         if (!b) return;
@@ -842,10 +982,12 @@
       if (which === 'look') {
         var bgList = ['auto', '#f6f1e6', '#ffffff', '#eef3f7', '#eef5ee', '#f6eef2', '#2a2622', '#1a1714'];
         host.innerHTML =
-          '<div class="set-card"><h3>Как это выглядит</h3>' +
+          '<div class="set-sticky"><div class="set-card"><h3>Как это выглядит</h3>' +
           '<div class="preview-stage" id="stStage"></div>' +
-          '<p class="preview-hint">Образец меняется сразу — двигайте ползунки и смотрите.</p></div>' +
+          '<p class="preview-hint">Образец меняется сразу — двигайте ползунки и смотрите.</p>' +
+          '</div></div>' +
 
+          '<div class="set-grid-2">' +
           '<div class="set-card"><h3>Тема</h3>' +
           '<div class="set-row"><span>Оформление</span><select id="stTheme">' +
           ['auto:Как в системе', 'light:Светлая', 'dark:Тёмная'].map(function (x) {
@@ -878,7 +1020,7 @@
 
           '<div class="set-card"><h3>Окошки людей в дереве</h3>' +
           '<div class="set-row"><span>Форма</span><select id="stShape">' +
-          ['rounded:Скруглённый прямоугольник', 'square:Прямые углы', 'circle:Капсула'].map(function (x) {
+          ['rounded:Скруглённый прямоугольник', 'circle:Капсула'].map(function (x) {
             var v = x.split(':');
             return '<option value="' + v[0] + '"' + (p.card.shape === v[0] ? ' selected' : '') + '>' + v[1] + '</option>';
           }).join('') + '</select></div>' +
@@ -888,10 +1030,17 @@
           rng('Размер фотокарточки', 'stPhoto', 0, 90, p.card.photo, 'px') +
           rng('Размер имени', 'stName', 9, 20, p.card.nameSize, 'px') +
           rng('Размер дат', 'stDate', 8, 18, p.card.dateSize, 'px') +
+          '<div class="set-row"><span>Жирность дат</span><select id="stDateW">' +
+          ['400:Обычная', '600:Полужирная', '700:Жирная'].map(function (x) {
+            var v = x.split(':');
+            return '<option value="' + v[0] + '"' +
+              (String(p.card.dateWeight || 400) === v[0] ? ' selected' : '') + '>' + v[1] + '</option>';
+          }).join('') + '</select></div>' +
           '<div class="set-row"><span>Показывать фото</span><input type="checkbox" id="stShowPh"' + (p.showPhotos ? ' checked' : '') + '></div>' +
           '<div class="set-row"><span>Показывать годы</span><input type="checkbox" id="stShowDt"' + (p.showDates ? ' checked' : '') + '></div>' +
           '<p class="note">Настройки оформления сохраняются отдельно для каждого пользователя — ' +
-          'у остальных членов семьи дерево останется таким, каким они его настроили.</p></div>';
+          'у остальных членов семьи дерево останется таким, каким они его настроили.</p></div>' +
+          '</div>';
 
         bindRange('stUi', function (v) { p.ui.fontSize = v; });
         bindRange('stTab', function (v) { p.ui.tabSize = v; });
@@ -903,6 +1052,7 @@
         bindRange('stName', function (v) { p.card.nameSize = v; });
         bindRange('stDate', function (v) { p.card.dateSize = v; });
         document.getElementById('stShape').addEventListener('change', function () { p.card.shape = this.value; apply(); });
+        document.getElementById('stDateW').addEventListener('change', function () { p.card.dateWeight = +this.value; apply(); });
         document.getElementById('stTheme').addEventListener('change', function () { p.theme = this.value; apply(); });
         document.getElementById('stGrid').addEventListener('change', function () { p.treeGrid = this.checked; apply(); });
         document.getElementById('stShowPh').addEventListener('change', function () { p.showPhotos = this.checked; apply(); });
@@ -1531,33 +1681,38 @@
 
       var r = p.card.shape === 'circle' ? Math.round(p.card.h / 2) : p.card.radius;
       var pr = p.card.shape === 'circle' ? '50%' : Math.max(2, p.card.radius - 4) + 'px';
-      function node(cls, name, years) {
-        var h = '<div class="pv-node ' + cls + '" style="width:' + p.card.w + 'px;height:' + p.card.h +
-          'px;border-radius:' + r + 'px">';
+      function node(cls, name, years, gone) {
+        var h = '<div class="pv-node ' + cls + (gone ? ' is-gone' : '') + '" style="width:' + p.card.w +
+          'px;height:' + p.card.h + 'px;border-radius:' + r + 'px">';
         if (p.showPhotos && p.card.photo > 0) {
           h += '<div class="pv-ph" style="width:' + p.card.photo + 'px;height:' + p.card.photo +
-            'px;border-radius:' + pr + '">' + I('person') + '</div>';
+            'px;border-radius:' + pr + '">' + I(cls === 'm' ? 'personM' : 'personF') + '</div>';
         }
         h += '<div class="pv-txt"><div class="pv-name" style="font-size:' + p.card.nameSize + 'px">' +
           esc(name) + '</div>';
         if (p.showDates) {
-          h += '<div class="pv-years" style="font-size:' + p.card.dateSize + 'px">' + esc(years) + '</div>';
+          h += '<div class="pv-years" style="font-size:' + p.card.dateSize +
+            'px;font-weight:' + (p.card.dateWeight || 400) + '">' + esc(years) + '</div>';
         }
-        return h + '</div></div>';
+        h += '</div>';
+        if (gone) h += '<span class="node-mourn" style="border-top-left-radius:' + r + 'px"></span>';
+        return h + '</div>';
       }
       stage.innerHTML = '<div class="pv-row">' +
-        node('f', 'Анна Петровна Смирнова', '1932 – 2011') +
-        node('m', 'Пётр Смирнов', '1928 – 1994') + '</div>';
+        node('f', 'Анна Петровна Смирнова', '1932', false) +
+        node('m', 'Пётр Смирнов', '1928 – 1994', true) + '</div>' +
+        '<div class="preview-hint">Слева — живой человек, справа — с траурной полосой на углу.</div>';
     },
 
     /* ============ окна и мелочи ============ */
-    modal: function (title, body, buttons) {
+    modal: function (title, body, buttons, opts) {
+      opts = opts || {};
       var back = document.getElementById('modalBack');
       var foot = (buttons || []).map(function (b, i) {
         return '<button class="btn ' + (b.primary ? 'btn-primary' : b.danger ? 'btn-danger' : '') +
           '" data-b="' + i + '">' + esc(b.text) + '</button>';
       }).join('');
-      back.innerHTML = '<div class="modal" role="dialog" aria-modal="true">' +
+      back.innerHTML = '<div class="modal' + (opts.wide ? ' wide' : '') + '" role="dialog" aria-modal="true">' +
         '<div class="modal-head"><h2>' + esc(title) + '</h2>' +
         '<button class="icon-btn" data-close="1" aria-label="Закрыть" title="Закрыть">' +
         global.Icon('close') + '</button></div>' +

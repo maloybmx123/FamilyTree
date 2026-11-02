@@ -20,12 +20,22 @@
     this.onSelect = opts.onSelect || function () {};
     this.onAdd = opts.onAdd || function () {};
     this.onRender = opts.onRender || function () {};
+    this.openId = null;        // чья карточка сейчас раскрыта сбоку
     this.cards = [];
     this.links = [];
     this._bindPanZoom();
   }
 
   Tree.prototype.setFocus = function (id) { this.focusId = id; this.render(true); };
+  /** пометить эскиз, карточка которого открыта; null — снять пометку */
+  Tree.prototype.setOpen = function (id) {
+    if (this.openId === id) return;
+    this.openId = id;
+    var self = this;
+    this.canvas.querySelectorAll('.node').forEach(function (n) {
+      n.classList.toggle('is-open', n.dataset.id === self.openId);
+    });
+  };
   Tree.prototype.setMode = function (m) { this.mode = m; this.render(true); };
 
   /* ---------------- раскладка ---------------- */
@@ -131,16 +141,22 @@
       par.forEach(function (p, i) {
         var c = x + widths[i] / 2;
         x += widths[i];
-        if (placed[p.id]) { links.push({ kind: 'parent', from: [p.id], to: pid }); return; }
+        if (placed[p.id]) return;
         var w2 = wing;
         if (w2 === 0) w2 = (p.sex === 'F' ? 1 : -1);
         var bias = (mode === 'butterfly') ? w2 * SLOT * 0.9 * (self.up - depth + 1) : 0;
         addCard(p.id, gen, c - SLOT / 2 + bias, 'blood');
-        links.push({ kind: 'parent', from: [p.id], to: pid });
         ascend(p.id, c + bias, gen - 1, depth - 1, w2);
       });
-      if (par.length === 2 && placed[par[0].id] && placed[par[1].id]) {
+      var both = par.length === 2 && placed[par[0].id] && placed[par[1].id];
+      if (both) {
+        // от пары к ребёнку идёт одна линия — из середины связки супругов
         links.push({ kind: 'couple', a: par[0].id, b: par[1].id });
+        links.push({ kind: 'parent', from: [par[0].id, par[1].id], to: pid });
+      } else {
+        par.forEach(function (p) {
+          if (placed[p.id]) links.push({ kind: 'parent', from: [p.id], to: pid });
+        });
       }
     }
 
@@ -219,47 +235,59 @@
     this.svg.setAttribute('height', res.h);
     this.svg.setAttribute('viewBox', '0 0 ' + res.w + ' ' + res.h);
 
-    // линии
+    /* Линии. Главное правило: каждый конец упирается в край эскиза, а не
+       повисает в воздухе. Линия от пары детей выходит из середины связки
+       супругов — то есть с отрезка, который уже нарисован между ними. */
     var paths = [], map = res.map;
-    function anchor(c, side) {
-      var horiz = self.mode === 'horizontal';
-      if (horiz) {
-        if (side === 'out') return { x: c.x + c.w, y: c.y + c.h / 2 };
-        if (side === 'in') return { x: c.x, y: c.y + c.h / 2 };
-        return { x: c.x + c.w / 2, y: c.y + c.h };
-      }
-      if (side === 'out') return { x: c.x + c.w / 2, y: c.y + c.h };
-      if (side === 'in') return { x: c.x + c.w / 2, y: c.y };
-      return { x: c.x + c.w, y: c.y + c.h / 2 };
+    var horiz = this.mode === 'horizontal';
+    var OVER = 1;                      // заход под рамку, чтобы не было волоска зазора
+
+    function coupleLine(a, b) {
+      return horiz
+        ? { x1: a.x + a.w / 2, y1: a.y + a.h, x2: b.x + b.w / 2, y2: b.y }
+        : { x1: a.x + a.w, y1: a.y + a.h / 2, x2: b.x, y2: b.y + b.h / 2 };
     }
+
     res.links.forEach(function (L) {
       if (L.kind === 'couple') {
         var a = map[L.a], b = map[L.b];
         if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return;
-        var horiz = self.mode === 'horizontal';
-        var p1 = horiz ? { x: a.x + a.w / 2, y: a.y + a.h } : { x: a.x + a.w, y: a.y + a.h / 2 };
-        var p2 = horiz ? { x: b.x + b.w / 2, y: b.y } : { x: b.x, y: b.y + b.h / 2 };
-        paths.push({ d: 'M' + p1.x + ',' + p1.y + ' L' + p2.x + ',' + p2.y, cls: 'lnk-couple' });
-      } else if (L.kind === 'parent') {
-        var kid = map[L.to];
-        if (!kid || typeof kid !== 'object') return;
-        var ps = L.from.map(function (id) { return map[id]; }).filter(function (c) { return c && typeof c === 'object'; });
-        if (!ps.length) return;
-        var horiz = self.mode === 'horizontal';
-        var cx, cy;
-        if (ps.length === 2) {
-          cx = (ps[0].x + ps[0].w / 2 + ps[1].x + ps[1].w / 2) / 2;
-          cy = (ps[0].y + ps[0].h / 2 + ps[1].y + ps[1].h / 2) / 2;
-        } else { cx = ps[0].x + ps[0].w / 2; cy = ps[0].y + ps[0].h / 2; }
-        if (horiz) {
-          var sx = Math.max.apply(null, ps.map(function (p) { return p.x + p.w; }));
-          var mx = (sx + kid.x) / 2;
-          paths.push({ d: 'M' + sx + ',' + cy + ' H' + mx + ' V' + (kid.y + kid.h / 2) + ' H' + kid.x, cls: 'lnk-parent' });
-        } else {
-          var sy = Math.max.apply(null, ps.map(function (p) { return p.y + p.h; }));
-          var my = (sy + kid.y) / 2;
-          paths.push({ d: 'M' + cx + ',' + sy + ' V' + my + ' H' + (kid.x + kid.w / 2) + ' V' + kid.y, cls: 'lnk-parent' });
-        }
+        var ln = coupleLine(a, b);
+        paths.push({
+          d: 'M' + (ln.x1 - OVER * (horiz ? 0 : 1)) + ',' + (ln.y1 - OVER * (horiz ? 1 : 0)) +
+            ' L' + (ln.x2 + OVER * (horiz ? 0 : 1)) + ',' + (ln.y2 + OVER * (horiz ? 1 : 0)),
+          cls: 'lnk-couple'
+        });
+        return;
+      }
+      if (L.kind !== 'parent') return;
+
+      var kid = map[L.to];
+      if (!kid || typeof kid !== 'object') return;
+      var ps = L.from.map(function (id) { return map[id]; })
+        .filter(function (c) { return c && typeof c === 'object'; });
+      if (!ps.length) return;
+
+      // точка выхода: середина связки супругов либо край одиночного эскиза
+      var ox, oy;
+      if (ps.length === 2) {
+        var ln2 = coupleLine(ps[0], ps[1]);
+        ox = (ln2.x1 + ln2.x2) / 2;
+        oy = (ln2.y1 + ln2.y2) / 2;
+      } else if (horiz) {
+        ox = ps[0].x + ps[0].w - OVER; oy = ps[0].y + ps[0].h / 2;
+      } else {
+        ox = ps[0].x + ps[0].w / 2; oy = ps[0].y + ps[0].h - OVER;
+      }
+
+      if (horiz) {
+        var tx = kid.x + OVER, ty = kid.y + kid.h / 2;
+        var mx = Math.max(ox + 12, (ox + tx) / 2);
+        paths.push({ d: 'M' + ox + ',' + oy + ' H' + mx + ' V' + ty + ' H' + tx, cls: 'lnk-parent' });
+      } else {
+        var tx2 = kid.x + kid.w / 2, ty2 = kid.y + OVER;
+        var my = Math.max(oy + 12, (oy + ty2) / 2);
+        paths.push({ d: 'M' + ox + ',' + oy + ' V' + my + ' H' + tx2 + ' V' + ty2, cls: 'lnk-parent' });
       }
     });
     this.svg.innerHTML = paths.map(function (p) {
@@ -277,29 +305,43 @@
     this.onRender(this);
   };
 
+  /** человека нет в живых: есть дата смерти или снята отметка «жив» */
+  function isGone(p) {
+    return !!(p && ((p.death && p.death.date) || p.living === false));
+  }
+
   Tree.prototype.cardEl = function (c) {
     var self = this, p = c.person, prefs = S.prefs;
     var el = document.createElement('div');
-    el.className = 'node sex-' + (p.sex || 'U').toLowerCase() + (p.id === this.focusId ? ' is-focus' : '');
+    var radius = prefs.card.shape === 'circle' ? Math.round(c.h / 2) : prefs.card.radius;
+    el.className = 'node sex-' + (p.sex || 'U').toLowerCase() +
+      (p.id === this.openId ? ' is-open' : '') +
+      (isGone(p) ? ' is-gone' : '');
     el.style.left = c.x + 'px';
     el.style.top = c.y + 'px';
     el.style.width = c.w + 'px';
     el.style.height = c.h + 'px';
-    el.style.borderRadius = (prefs.card.shape === 'circle' ? Math.round(c.h / 2) : prefs.card.radius) + 'px';
+    el.style.borderRadius = radius + 'px';
     el.dataset.id = p.id;
 
     var html = '';
-    if (prefs.showPhotos) {
+    if (prefs.showPhotos && prefs.card.photo > 0) {
+      var silhouette = p.sex === 'M' ? 'personM' : p.sex === 'F' ? 'personF' : 'person';
       html += '<div class="node-ph" style="width:' + prefs.card.photo + 'px;height:' + prefs.card.photo +
         'px;border-radius:' + (prefs.card.shape === 'circle' ? '50%' : Math.max(2, prefs.card.radius - 4) + 'px') +
-        '">' + global.Icon('person') + '</div>';
+        '">' + global.Icon(silhouette) + '</div>';
     }
     html += '<div class="node-txt"><div class="node-name" style="font-size:' + prefs.card.nameSize + 'px">' +
       esc(S.shortName(p)) + '</div>';
     if (prefs.showDates) {
-      html += '<div class="node-years" style="font-size:' + prefs.card.dateSize + 'px">' + esc(S.years(p)) + '</div>';
+      html += '<div class="node-years" style="font-size:' + prefs.card.dateSize +
+        'px;font-weight:' + (prefs.card.dateWeight || 400) + '">' + esc(S.years(p)) + '</div>';
     }
     html += '</div>';
+    if (isGone(p)) {
+      // траурная полоса на верхнем левом углу
+      html += '<span class="node-mourn" aria-hidden="true" style="border-top-left-radius:' + radius + 'px"></span>';
+    }
     if (p.acl && (p.acl.locked || p.acl.level !== 'public')) {
       html += '<span class="node-lock" title="Ограниченный доступ">' + global.Icon('lock') + '</span>';
     }
@@ -309,8 +351,9 @@
     var plus = document.createElement('button');
     plus.className = 'node-plus';
     plus.type = 'button';
-    plus.textContent = '+';
-    plus.title = 'Добавить родственника';
+    plus.innerHTML = global.Icon('plus');
+    plus.title = 'Добавить родственника к ' + S.callName(p);
+    plus.setAttribute('aria-label', plus.title);
     plus.addEventListener('click', function (e) { e.stopPropagation(); self.onAdd(p.id, plus); });
     el.appendChild(plus);
 

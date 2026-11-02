@@ -284,7 +284,8 @@
         theme: 'auto',
         accent: '#2f7fb8',
         layout: 'vertical',
-        card: { w: 168, h: 76, radius: 10, photo: 44, nameSize: 12, dateSize: 11, shape: 'rounded' },
+        card: { w: 168, h: 76, radius: 10, photo: 44, nameSize: 12, dateSize: 11,
+                shape: 'rounded', dateWeight: 400 },
         ui: { fontSize: 14, tabSize: 14, iconSize: 17 },
         treeBg: 'auto',      // 'auto' — как у страницы, иначе цвет
         treeGrid: false,     // точечная сетка на полотне
@@ -385,6 +386,11 @@
       if (!p) return '';
       var n = [p.given, p.patronymic].filter(Boolean).join(' ');
       return (n + ' ' + (p.surname || '')).trim() || 'Без имени';
+    },
+    /** имя для обращения в окнах: имя и фамилия, без отчества */
+    callName: function (p) {
+      if (!p) return '';
+      return [p.given, p.surname].filter(Boolean).join(' ') || this.fullName(p);
     },
     years: function (p) {
       if (!p) return '';

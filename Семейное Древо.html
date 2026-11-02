@@ -21,11 +21,18 @@
   --accent:       #2f7fb8;
   --accent-ink:   #ffffff;
   --male:         #cde6f7;
+  --male-top:     #eaf5fd;
+  --male-bot:     #afd4ee;
   --male-edge:    #6aa9d4;
   --female:       #fbd3e2;
+  --female-top:   #fdeef4;
+  --female-bot:   #f4b8ce;
   --female-edge:  #dd8fae;
   --neutral:      #ece7dc;
+  --neutral-top:  #f7f4ec;
+  --neutral-bot:  #ded7c8;
   --neutral-edge: #bdb3a1;
+  --mourn:        #15120f;
   --good:         #3f7d5a;
   --warn:         #a9741f;
   --bad:          #a4402f;
@@ -53,11 +60,18 @@
     --accent:       #5fa8dc;
     --accent-ink:   #10212c;
     --male:         #1d3444;
+    --male-top:     #27465c;
+    --male-bot:     #16262f;
     --male-edge:    #3f6f93;
     --female:       #3c2230;
+    --female-top:   #4e2d3f;
+    --female-bot:   #2d1924;
     --female-edge:  #8d5570;
     --neutral:      #2a251f;
+    --neutral-top:  #38322a;
+    --neutral-bot:  #1f1b16;
     --neutral-edge: #4d463c;
+    --mourn:        #000000;
     --good:         #6fae89;
     --warn:         #d3a55c;
     --bad:          #d47a68;
@@ -75,11 +89,18 @@
   --accent:       #5fa8dc;
   --accent-ink:   #10212c;
   --male:         #1d3444;
+  --male-top:     #27465c;
+  --male-bot:     #16262f;
   --male-edge:    #3f6f93;
   --female:       #3c2230;
+  --female-top:   #4e2d3f;
+  --female-bot:   #2d1924;
   --female-edge:  #8d5570;
   --neutral:      #2a251f;
+  --neutral-top:  #38322a;
+  --neutral-bot:  #1f1b16;
   --neutral-edge: #4d463c;
+  --mourn:        #000000;
   --good:         #6fae89;
   --warn:         #d3a55c;
   --bad:          #d47a68;
@@ -229,31 +250,51 @@ a { color: var(--accent); }
 
 .node {
   position: absolute; display: flex; align-items: center; gap: 8px;
-  padding: 6px 8px; background: var(--neutral); border: 1px solid var(--neutral-edge);
-  box-shadow: var(--shadow); overflow: hidden; transition: box-shadow .12s, transform .12s;
+  padding: 6px 8px;
+  background: linear-gradient(170deg, var(--neutral-top) 0%, var(--neutral) 58%, var(--neutral-bot) 100%);
+  border: 1px solid var(--neutral-edge);
+  box-shadow: var(--shadow);
+  transition: box-shadow .12s, transform .12s;
 }
 .node:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(40,32,20,.2), 0 10px 24px rgba(40,32,20,.14); }
-.node.sex-m { background: var(--male); border-color: var(--male-edge); }
-.node.sex-f { background: var(--female); border-color: var(--female-edge); }
-.node.is-focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.node.sex-m {
+  background: linear-gradient(170deg, var(--male-top) 0%, var(--male) 58%, var(--male-bot) 100%);
+  border-color: var(--male-edge);
+}
+.node.sex-f {
+  background: linear-gradient(170deg, var(--female-top) 0%, var(--female) 58%, var(--female-bot) 100%);
+  border-color: var(--female-edge);
+}
+/* раскрыта карточка этого человека — пометка снимается при закрытии */
+.node.is-open { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* траурная полоса на углу: человека нет в живых */
+.node-mourn {
+  position: absolute; left: 0; top: 0; width: 26px; height: 26px; pointer-events: none;
+  background: linear-gradient(135deg, var(--mourn) 0 11px, transparent 11px);
+}
+
 .node-ph {
   flex: 0 0 auto; background: var(--paper-2) center/cover no-repeat;
-  border: 1px solid rgba(0,0,0,.08); position: relative;
+  border: 1px solid rgba(0,0,0,.08); position: relative; overflow: hidden;
 }
-.node-ph .ico { width: 58%; height: 58%; margin: 21%; color: var(--ink-faint); opacity: .5; }
+.node-ph .ico { width: 72%; height: 72%; margin: 14%; color: var(--ink-faint); opacity: .45; }
 .node-ph.has-img .ico { display: none; }
-.node-txt { min-width: 0; flex: 1 1 auto; }
+.node-txt { min-width: 0; flex: 1 1 auto; overflow: hidden; }
 .node-name { font-weight: 700; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .node-years { color: var(--ink-soft); font-family: var(--font-data); margin-top: 2px; }
-.node-lock { position: absolute; top: 2px; right: 3px; font-size: 10px; opacity: .65; }
+.node-lock { position: absolute; top: 2px; right: 3px; line-height: 0; opacity: .65; }
 .node-plus {
-  position: absolute; left: -9px; top: 50%; transform: translateY(-50%);
-  width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--good);
-  background: var(--paper-2); color: var(--good); font-size: 13px; line-height: 1;
-  display: grid; place-items: center; padding: 0; opacity: 0; transition: opacity .12s;
+  position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--good);
+  background: var(--paper-2); color: var(--good); line-height: 0;
+  display: grid; place-items: center; padding: 0; z-index: 3;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2); opacity: 0; transition: opacity .12s;
 }
+.node-plus .ico { width: 13px; height: 13px; }
+.node-plus:hover { background: var(--good); color: var(--paper-2); }
 .node:hover .node-plus, .node-plus:focus-visible { opacity: 1; }
-@media (pointer: coarse) { .node-plus { opacity: .9; } }
+@media (pointer: coarse) { .node-plus { opacity: .92; } }
 
 /* плавающие кнопки вида дерева — справа внизу */
 .viewdock {
@@ -388,8 +429,22 @@ a { color: var(--accent); }
 .modal-back[hidden] { display: none !important; }
 .modal {
   background: var(--paper-2); border: 1px solid var(--line); border-radius: 14px;
-  box-shadow: var(--shadow); width: min(520px, 100%); max-height: 88vh;
+  box-shadow: var(--shadow); width: min(560px, 100%); max-height: 88vh;
   display: flex; flex-direction: column; overflow: hidden;
+}
+/* настройки шире: иначе ползунки и образец тесно жмутся друг к другу */
+.modal.wide { width: min(880px, 100%); max-height: 92vh; }
+/* вкладки настроек закреплены, прокручивается только содержимое */
+.modal.wide .modal-body {
+  padding: 0; display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+}
+.modal.wide #setTabs {
+  flex: 0 0 auto; margin: 0; padding: 0 15px;
+  border-bottom: 1px solid var(--line); background: var(--paper-2);
+}
+.modal.wide #setBody {
+  flex: 1 1 auto; overflow: auto; min-height: 0;
+  padding: 0 15px 15px;
 }
 .modal-head { padding: 13px 15px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
 .modal-head h2 { font-size: 16px; flex: 1 1 auto; }
@@ -552,17 +607,26 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
 }
 .preview-stage .pv-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center; }
 .pv-node {
-  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
-  border: 1px solid var(--neutral-edge); background: var(--neutral);
-  box-shadow: var(--shadow); overflow: hidden; flex: 0 0 auto;
+  position: relative; display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border: 1px solid var(--neutral-edge);
+  background: linear-gradient(170deg, var(--neutral-top) 0%, var(--neutral) 58%, var(--neutral-bot) 100%);
+  box-shadow: var(--shadow); flex: 0 0 auto;
 }
-.pv-node.m { background: var(--male); border-color: var(--male-edge); }
-.pv-node.f { background: var(--female); border-color: var(--female-edge); }
+.pv-node.m {
+  background: linear-gradient(170deg, var(--male-top) 0%, var(--male) 58%, var(--male-bot) 100%);
+  border-color: var(--male-edge);
+}
+.pv-node.f {
+  background: linear-gradient(170deg, var(--female-top) 0%, var(--female) 58%, var(--female-bot) 100%);
+  border-color: var(--female-edge);
+}
+.pv-node .node-mourn { width: 24px; height: 24px; }
+.pv-txt { overflow: hidden; }
 .pv-ph {
   flex: 0 0 auto; background: var(--paper-2); border: 1px solid rgba(0,0,0,.08);
-  display: grid; place-items: center; color: var(--ink-faint);
+  display: grid; place-items: center; color: var(--ink-faint); overflow: hidden;
 }
-.pv-ph .ico { width: 62%; height: 62%; }
+.pv-ph .ico { width: 72%; height: 72%; opacity: .45; }
 .pv-txt { min-width: 0; }
 .pv-name { font-weight: 700; line-height: 1.2; }
 .pv-years { color: var(--ink-soft); font-family: var(--font-data); margin-top: 2px; }
@@ -601,6 +665,61 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
   .set-row select { max-width: 100%; }
   .color-pick { width: 100%; }
 }
+
+/* ---------- полоса сохранения в карточке ---------- */
+.sheet-bar {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--warn) 12%, var(--paper-2));
+}
+.sheet-bar .bar-count { flex: 1 1 auto; font-size: 12px; color: var(--ink-soft); min-width: 0; }
+
+/* ---------- строка «на карте» ---------- */
+.map-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.map-link {
+  display: inline-flex; align-items: center; gap: 5px; text-decoration: none;
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px;
+  font-size: 13px; background: var(--paper);
+}
+.map-link:hover { background: var(--neutral); }
+.map-link .ico { width: 14px; height: 14px; }
+.map-coord { font-family: var(--font-data); font-size: 11px; color: var(--ink-faint); }
+
+/* ---------- настройки: образец остаётся на виду ---------- */
+.set-sticky {
+  position: sticky; top: 0; z-index: 4;
+  background: var(--paper-2);
+  padding-top: 14px; margin: 0 0 14px;
+}
+.set-sticky .set-card { margin: 0; }
+.set-sticky::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -14px; height: 14px;
+  background: linear-gradient(var(--paper-2), transparent);
+  pointer-events: none;
+}
+@media (min-width: 900px) {
+  .modal.wide .set-grid-2 {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start;
+  }
+}
+
+/* ---------- сортируемые таблицы ---------- */
+table.data th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+table.data th.sortable:hover { color: var(--ink); }
+table.data th .sort-mark { opacity: .45; margin-left: 4px; font-size: 10px; }
+table.data th[aria-sort] { color: var(--ink); font-weight: 700; }
+table.data th[aria-sort] .sort-mark { opacity: 1; color: var(--accent); }
+table.data tbody tr:hover { background: var(--neutral); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--paper-2); }
+.table-wrap table.data { min-width: 560px; }
+.sort-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; }
+
+.sort-bar .btn[aria-pressed="true"] {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700;
+}
+.chip.add { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.chip.delete { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
+.chip.media { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
 </style>
 </head>
 <body>
@@ -720,6 +839,16 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       '<line x1="18.5" y1="6" x2="18.5" y2="13"/><line x1="15" y1="9.5" x2="22" y2="9.5"/>',
 
     person: '<circle cx="12" cy="8" r="3.8"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+
+    /* мужской силуэт: плечи шире, стрижка короче */
+    personM: '<path d="M8.2 7.6a3.8 3.8 0 0 1 7.6 0v1a3.8 3.8 0 0 1-7.6 0z"/>' +
+      '<path d="M8.3 4.9a7 7 0 0 1 7.4 0"/>' +
+      '<path d="M4 20.5v-1.2c0-2.5 2.2-3.9 4.6-4.5l3.4 2 3.4-2c2.4.6 4.6 2 4.6 4.5v1.2"/>',
+
+    /* женский силуэт: волосы до плеч, силуэт уже */
+    personF: '<path d="M8.4 8.2a3.6 3.6 0 0 1 7.2 0v.6a3.6 3.6 0 0 1-7.2 0z"/>' +
+      '<path d="M7.6 11.4C6.6 9.8 6.6 5 12 5s5.4 4.8 4.4 6.4"/>' +
+      '<path d="M5.4 20.5v-.9c0-2.4 2.1-3.8 4.3-4.4l2.3 1.7 2.3-1.7c2.2.6 4.3 2 4.3 4.4v.9"/>',
 
     sync: '<path d="M20.5 11a8.5 8.5 0 0 0-14.8-5"/><polyline points="4 3 4 7 8 7"/>' +
       '<path d="M3.5 13a8.5 8.5 0 0 0 14.8 5"/><polyline points="20 21 20 17 16 17"/>',
@@ -1055,7 +1184,8 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         theme: 'auto',
         accent: '#2f7fb8',
         layout: 'vertical',
-        card: { w: 168, h: 76, radius: 10, photo: 44, nameSize: 12, dateSize: 11, shape: 'rounded' },
+        card: { w: 168, h: 76, radius: 10, photo: 44, nameSize: 12, dateSize: 11,
+                shape: 'rounded', dateWeight: 400 },
         ui: { fontSize: 14, tabSize: 14, iconSize: 17 },
         treeBg: 'auto',      // 'auto' — как у страницы, иначе цвет
         treeGrid: false,     // точечная сетка на полотне
@@ -1156,6 +1286,11 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       if (!p) return '';
       var n = [p.given, p.patronymic].filter(Boolean).join(' ');
       return (n + ' ' + (p.surname || '')).trim() || 'Без имени';
+    },
+    /** имя для обращения в окнах: имя и фамилия, без отчества */
+    callName: function (p) {
+      if (!p) return '';
+      return [p.given, p.surname].filter(Boolean).join(' ') || this.fullName(p);
     },
     years: function (p) {
       if (!p) return '';
@@ -1569,12 +1704,22 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     this.onSelect = opts.onSelect || function () {};
     this.onAdd = opts.onAdd || function () {};
     this.onRender = opts.onRender || function () {};
+    this.openId = null;        // чья карточка сейчас раскрыта сбоку
     this.cards = [];
     this.links = [];
     this._bindPanZoom();
   }
 
   Tree.prototype.setFocus = function (id) { this.focusId = id; this.render(true); };
+  /** пометить эскиз, карточка которого открыта; null — снять пометку */
+  Tree.prototype.setOpen = function (id) {
+    if (this.openId === id) return;
+    this.openId = id;
+    var self = this;
+    this.canvas.querySelectorAll('.node').forEach(function (n) {
+      n.classList.toggle('is-open', n.dataset.id === self.openId);
+    });
+  };
   Tree.prototype.setMode = function (m) { this.mode = m; this.render(true); };
 
   /* ---------------- раскладка ---------------- */
@@ -1680,16 +1825,22 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       par.forEach(function (p, i) {
         var c = x + widths[i] / 2;
         x += widths[i];
-        if (placed[p.id]) { links.push({ kind: 'parent', from: [p.id], to: pid }); return; }
+        if (placed[p.id]) return;
         var w2 = wing;
         if (w2 === 0) w2 = (p.sex === 'F' ? 1 : -1);
         var bias = (mode === 'butterfly') ? w2 * SLOT * 0.9 * (self.up - depth + 1) : 0;
         addCard(p.id, gen, c - SLOT / 2 + bias, 'blood');
-        links.push({ kind: 'parent', from: [p.id], to: pid });
         ascend(p.id, c + bias, gen - 1, depth - 1, w2);
       });
-      if (par.length === 2 && placed[par[0].id] && placed[par[1].id]) {
+      var both = par.length === 2 && placed[par[0].id] && placed[par[1].id];
+      if (both) {
+        // от пары к ребёнку идёт одна линия — из середины связки супругов
         links.push({ kind: 'couple', a: par[0].id, b: par[1].id });
+        links.push({ kind: 'parent', from: [par[0].id, par[1].id], to: pid });
+      } else {
+        par.forEach(function (p) {
+          if (placed[p.id]) links.push({ kind: 'parent', from: [p.id], to: pid });
+        });
       }
     }
 
@@ -1768,47 +1919,59 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     this.svg.setAttribute('height', res.h);
     this.svg.setAttribute('viewBox', '0 0 ' + res.w + ' ' + res.h);
 
-    // линии
+    /* Линии. Главное правило: каждый конец упирается в край эскиза, а не
+       повисает в воздухе. Линия от пары детей выходит из середины связки
+       супругов — то есть с отрезка, который уже нарисован между ними. */
     var paths = [], map = res.map;
-    function anchor(c, side) {
-      var horiz = self.mode === 'horizontal';
-      if (horiz) {
-        if (side === 'out') return { x: c.x + c.w, y: c.y + c.h / 2 };
-        if (side === 'in') return { x: c.x, y: c.y + c.h / 2 };
-        return { x: c.x + c.w / 2, y: c.y + c.h };
-      }
-      if (side === 'out') return { x: c.x + c.w / 2, y: c.y + c.h };
-      if (side === 'in') return { x: c.x + c.w / 2, y: c.y };
-      return { x: c.x + c.w, y: c.y + c.h / 2 };
+    var horiz = this.mode === 'horizontal';
+    var OVER = 1;                      // заход под рамку, чтобы не было волоска зазора
+
+    function coupleLine(a, b) {
+      return horiz
+        ? { x1: a.x + a.w / 2, y1: a.y + a.h, x2: b.x + b.w / 2, y2: b.y }
+        : { x1: a.x + a.w, y1: a.y + a.h / 2, x2: b.x, y2: b.y + b.h / 2 };
     }
+
     res.links.forEach(function (L) {
       if (L.kind === 'couple') {
         var a = map[L.a], b = map[L.b];
         if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return;
-        var horiz = self.mode === 'horizontal';
-        var p1 = horiz ? { x: a.x + a.w / 2, y: a.y + a.h } : { x: a.x + a.w, y: a.y + a.h / 2 };
-        var p2 = horiz ? { x: b.x + b.w / 2, y: b.y } : { x: b.x, y: b.y + b.h / 2 };
-        paths.push({ d: 'M' + p1.x + ',' + p1.y + ' L' + p2.x + ',' + p2.y, cls: 'lnk-couple' });
-      } else if (L.kind === 'parent') {
-        var kid = map[L.to];
-        if (!kid || typeof kid !== 'object') return;
-        var ps = L.from.map(function (id) { return map[id]; }).filter(function (c) { return c && typeof c === 'object'; });
-        if (!ps.length) return;
-        var horiz = self.mode === 'horizontal';
-        var cx, cy;
-        if (ps.length === 2) {
-          cx = (ps[0].x + ps[0].w / 2 + ps[1].x + ps[1].w / 2) / 2;
-          cy = (ps[0].y + ps[0].h / 2 + ps[1].y + ps[1].h / 2) / 2;
-        } else { cx = ps[0].x + ps[0].w / 2; cy = ps[0].y + ps[0].h / 2; }
-        if (horiz) {
-          var sx = Math.max.apply(null, ps.map(function (p) { return p.x + p.w; }));
-          var mx = (sx + kid.x) / 2;
-          paths.push({ d: 'M' + sx + ',' + cy + ' H' + mx + ' V' + (kid.y + kid.h / 2) + ' H' + kid.x, cls: 'lnk-parent' });
-        } else {
-          var sy = Math.max.apply(null, ps.map(function (p) { return p.y + p.h; }));
-          var my = (sy + kid.y) / 2;
-          paths.push({ d: 'M' + cx + ',' + sy + ' V' + my + ' H' + (kid.x + kid.w / 2) + ' V' + kid.y, cls: 'lnk-parent' });
-        }
+        var ln = coupleLine(a, b);
+        paths.push({
+          d: 'M' + (ln.x1 - OVER * (horiz ? 0 : 1)) + ',' + (ln.y1 - OVER * (horiz ? 1 : 0)) +
+            ' L' + (ln.x2 + OVER * (horiz ? 0 : 1)) + ',' + (ln.y2 + OVER * (horiz ? 1 : 0)),
+          cls: 'lnk-couple'
+        });
+        return;
+      }
+      if (L.kind !== 'parent') return;
+
+      var kid = map[L.to];
+      if (!kid || typeof kid !== 'object') return;
+      var ps = L.from.map(function (id) { return map[id]; })
+        .filter(function (c) { return c && typeof c === 'object'; });
+      if (!ps.length) return;
+
+      // точка выхода: середина связки супругов либо край одиночного эскиза
+      var ox, oy;
+      if (ps.length === 2) {
+        var ln2 = coupleLine(ps[0], ps[1]);
+        ox = (ln2.x1 + ln2.x2) / 2;
+        oy = (ln2.y1 + ln2.y2) / 2;
+      } else if (horiz) {
+        ox = ps[0].x + ps[0].w - OVER; oy = ps[0].y + ps[0].h / 2;
+      } else {
+        ox = ps[0].x + ps[0].w / 2; oy = ps[0].y + ps[0].h - OVER;
+      }
+
+      if (horiz) {
+        var tx = kid.x + OVER, ty = kid.y + kid.h / 2;
+        var mx = Math.max(ox + 12, (ox + tx) / 2);
+        paths.push({ d: 'M' + ox + ',' + oy + ' H' + mx + ' V' + ty + ' H' + tx, cls: 'lnk-parent' });
+      } else {
+        var tx2 = kid.x + kid.w / 2, ty2 = kid.y + OVER;
+        var my = Math.max(oy + 12, (oy + ty2) / 2);
+        paths.push({ d: 'M' + ox + ',' + oy + ' V' + my + ' H' + tx2 + ' V' + ty2, cls: 'lnk-parent' });
       }
     });
     this.svg.innerHTML = paths.map(function (p) {
@@ -1826,29 +1989,43 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     this.onRender(this);
   };
 
+  /** человека нет в живых: есть дата смерти или снята отметка «жив» */
+  function isGone(p) {
+    return !!(p && ((p.death && p.death.date) || p.living === false));
+  }
+
   Tree.prototype.cardEl = function (c) {
     var self = this, p = c.person, prefs = S.prefs;
     var el = document.createElement('div');
-    el.className = 'node sex-' + (p.sex || 'U').toLowerCase() + (p.id === this.focusId ? ' is-focus' : '');
+    var radius = prefs.card.shape === 'circle' ? Math.round(c.h / 2) : prefs.card.radius;
+    el.className = 'node sex-' + (p.sex || 'U').toLowerCase() +
+      (p.id === this.openId ? ' is-open' : '') +
+      (isGone(p) ? ' is-gone' : '');
     el.style.left = c.x + 'px';
     el.style.top = c.y + 'px';
     el.style.width = c.w + 'px';
     el.style.height = c.h + 'px';
-    el.style.borderRadius = (prefs.card.shape === 'circle' ? Math.round(c.h / 2) : prefs.card.radius) + 'px';
+    el.style.borderRadius = radius + 'px';
     el.dataset.id = p.id;
 
     var html = '';
-    if (prefs.showPhotos) {
+    if (prefs.showPhotos && prefs.card.photo > 0) {
+      var silhouette = p.sex === 'M' ? 'personM' : p.sex === 'F' ? 'personF' : 'person';
       html += '<div class="node-ph" style="width:' + prefs.card.photo + 'px;height:' + prefs.card.photo +
         'px;border-radius:' + (prefs.card.shape === 'circle' ? '50%' : Math.max(2, prefs.card.radius - 4) + 'px') +
-        '">' + global.Icon('person') + '</div>';
+        '">' + global.Icon(silhouette) + '</div>';
     }
     html += '<div class="node-txt"><div class="node-name" style="font-size:' + prefs.card.nameSize + 'px">' +
       esc(S.shortName(p)) + '</div>';
     if (prefs.showDates) {
-      html += '<div class="node-years" style="font-size:' + prefs.card.dateSize + 'px">' + esc(S.years(p)) + '</div>';
+      html += '<div class="node-years" style="font-size:' + prefs.card.dateSize +
+        'px;font-weight:' + (prefs.card.dateWeight || 400) + '">' + esc(S.years(p)) + '</div>';
     }
     html += '</div>';
+    if (isGone(p)) {
+      // траурная полоса на верхнем левом углу
+      html += '<span class="node-mourn" aria-hidden="true" style="border-top-left-radius:' + radius + 'px"></span>';
+    }
     if (p.acl && (p.acl.locked || p.acl.level !== 'public')) {
       html += '<span class="node-lock" title="Ограниченный доступ">' + global.Icon('lock') + '</span>';
     }
@@ -1858,8 +2035,9 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     var plus = document.createElement('button');
     plus.className = 'node-plus';
     plus.type = 'button';
-    plus.textContent = '+';
-    plus.title = 'Добавить родственника';
+    plus.innerHTML = global.Icon('plus');
+    plus.title = 'Добавить родственника к ' + S.callName(p);
+    plus.setAttribute('aria-label', plus.title);
     plus.addEventListener('click', function (e) { e.stopPropagation(); self.onAdd(p.id, plus); });
     el.appendChild(plus);
 
@@ -2296,9 +2474,10 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     var W = res.w, H = res.h;
     var css = [
       '.n{stroke-width:1}',
-      '.m{fill:#d9ecf8;stroke:#7fb6da}',
-      '.f{fill:#fbdfe9;stroke:#e0a0bb}',
-      '.u{fill:#ece7dc;stroke:#bdb3a1}',
+      '.m{fill:url(#gm);stroke:#6aa9d4}',
+      '.f{fill:url(#gf);stroke:#dd8fae}',
+      '.u{fill:url(#gu);stroke:#bdb3a1}',
+      '.mourn{fill:#15120f}',
       '.nm{font:700 12px "PT Sans",Arial,sans-serif;fill:#241f1a}',
       '.yr{font:11px "PT Mono",monospace;fill:#5d554a}',
       '.ln{fill:none;stroke:#bdb3a1;stroke-width:1.5}',
@@ -2309,6 +2488,11 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     var out = ['<?xml version="1.0" encoding="UTF-8"?>',
       '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + (H + 60) + '" viewBox="0 0 ' + W + ' ' + (H + 60) + '">',
       '<style>' + css + '</style>',
+      '<defs>' +
+      grad('gm', '#eaf5fd', '#cde6f7', '#afd4ee') +
+      grad('gf', '#fdeef4', '#fbd3e2', '#f4b8ce') +
+      grad('gu', '#f7f4ec', '#ece7dc', '#ded7c8') +
+      '</defs>',
       '<rect width="100%" height="100%" fill="#f6f1e6"/>',
       '<text class="ttl" x="30" y="34">' + xml(S.tree.meta.name) + '</text>',
       '<text class="sub" x="30" y="52">Выгружено ' + new Date().toLocaleDateString('ru-RU') +
@@ -2348,6 +2532,12 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       var cls = c.person.sex === 'M' ? 'm' : c.person.sex === 'F' ? 'f' : 'u';
       out.push('<rect class="n ' + cls + '" x="' + c.x + '" y="' + c.y + '" width="' + c.w + '" height="' + c.h +
         '" rx="' + r + '" ry="' + r + '"/>');
+      var pr = c.person;
+      if ((pr.death && pr.death.date) || pr.living === false) {
+        out.push('<path class="mourn" d="M' + c.x + ',' + (c.y + 13) + ' L' + c.x + ',' + (c.y + r) +
+          ' Q' + c.x + ',' + c.y + ' ' + (c.x + r) + ',' + c.y +
+          ' L' + (c.x + 13) + ',' + c.y + ' Z"/>');
+      }
       var tx = c.x + 10, ty = c.y + 20;
       var name = S.shortName(c.person);
       wrap(name, Math.floor((c.w - 18) / 6.6)).forEach(function (ln, i) {
@@ -2368,6 +2558,12 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       if (cur) lines.push(cur);
       return lines.slice(0, 3);
     }
+  }
+  function grad(id, a, b, c) {
+    return '<linearGradient id="' + id + '" x1="0" y1="0" x2="0.18" y2="1">' +
+      '<stop offset="0" stop-color="' + a + '"/>' +
+      '<stop offset="0.58" stop-color="' + b + '"/>' +
+      '<stop offset="1" stop-color="' + c + '"/></linearGradient>';
   }
   function xml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -3191,20 +3387,29 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     this.layer.style.cssText = 'position:absolute;inset:0';
     this.host.insertBefore(this.layer, this.host.firstChild);
 
+    this.onClick = null;      // выбор точки: fn(lat, lng)
     this.host.addEventListener('click', function (e) {
       var b = e.target.closest('[data-z]');
-      if (b) { self.z = Math.max(2, Math.min(17, self.z + (+b.dataset.z))); self.draw(); }
-      if (e.target.closest('[data-fit]')) self.fit();
+      if (b) { self.z = Math.max(2, Math.min(17, self.z + (+b.dataset.z))); self.draw(); return; }
+      if (e.target.closest('[data-fit]')) { self.fit(); return; }
+      if (e.target.closest('.map-ctl') || e.target.closest('.map-pin')) return;
+      if (!self.onClick || self._moved) return;
+      var r = self.host.getBoundingClientRect();
+      var W = r.width, H = r.height, z = self.z;
+      var left = lon2x(self.cy, z) - W / 2, top = lat2y(self.cx, z) - H / 2;
+      self.onClick(y2lat(top + (e.clientY - r.top), z), x2lon(left + (e.clientX - r.left), z));
     });
     var drag = null;
     this.host.addEventListener('pointerdown', function (e) {
       if (e.target.closest('.map-ctl') || e.target.closest('.map-pin')) return;
       drag = { x: e.clientX, y: e.clientY, cx: self.cx, cy: self.cy };
+      self._moved = false;
       self.host.setPointerCapture(e.pointerId);
       self.host.classList.add('grabbing');
     });
     this.host.addEventListener('pointermove', function (e) {
       if (!drag) return;
+      if (Math.abs(e.clientX - drag.x) > 3 || Math.abs(e.clientY - drag.y) > 3) self._moved = true;
       var z = self.z;
       var px = lon2x(drag.cy, z) - (e.clientX - drag.x);
       var py = lat2y(drag.cx, z) - (e.clientY - drag.y);
@@ -3299,6 +3504,8 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     this.el = opts.el;
     this.onChange = opts.onChange || function () {};
     this.onFocus = opts.onFocus || function () {};
+    this.onOpen = opts.onOpen || function () {};
+    this.pending = [];
     this.toast = opts.toast || function () {};
     this.personId = null;
     this.tab = 'info';
@@ -3307,14 +3514,29 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
   }
 
   Sheet.prototype.open = function (id) {
+    var self = this;
+    if (this.personId && this.personId !== id && this.hasPending()) {
+      this.guard(function () { self.openNow(id); });
+      return;
+    }
+    this.openNow(id);
+  };
+  Sheet.prototype.openNow = function (id) {
+    this.pending = [];
     this.personId = id;
     this.el.hidden = false;
     this.render();
+    if (this.onOpen) this.onOpen(id);
   };
   Sheet.prototype.close = function () {
-    this.el.hidden = true;
-    this.revoke();
-    this.personId = null;
+    var self = this;
+    this.guard(function () {
+      self.el.hidden = true;
+      self.revoke();
+      self.personId = null;
+      self.pending = [];
+      if (self.onOpen) self.onOpen(null);
+    });
   };
   Sheet.prototype.revoke = function () {
     this.urls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} });
@@ -3328,10 +3550,12 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       var act = t.dataset.act;
       if (self.actions[act]) { e.preventDefault(); self.actions[act].call(self, t); }
     });
-    this.el.addEventListener('change', function (e) {
+    function onEdit(e) {
       var f = e.target.closest('[data-bind]');
       if (f) self.applyField(f);
-    });
+    }
+    this.el.addEventListener('change', onEdit);
+    this.el.addEventListener('input', onEdit);
   };
 
   /* --------- чтение и запись полей --------- */
@@ -3340,12 +3564,11 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     if (!p) return;
     var path = input.dataset.bind.split('.');
     var val = input.type === 'checkbox' ? input.checked : input.value;
-    var o = p;
-    for (var i = 0; i < path.length - 1; i++) { o[path[i]] = o[path[i]] || {}; o = o[path[i]]; }
-    o[path[path.length - 1]] = val;
-    S.updatePerson(p.id, {}, false);
-    this.onChange();
-    if (path[0] === 'surname' || path[0] === 'given' || path[0] === 'patronymic' || path[0] === 'sex') this.renderHead();
+    this.stage('bind:' + input.dataset.bind, function () {
+      var o = p;
+      for (var i = 0; i < path.length - 1; i++) { o[path[i]] = o[path[i]] || {}; o = o[path[i]]; }
+      o[path[path.length - 1]] = val;
+    });
   };
 
   /* --------- отрисовка --------- */
@@ -3373,9 +3596,15 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       tabs.map(function (t) {
         return '<button role="tab" data-act="tab" data-tab="' + t[0] + '">' + t[1] + '</button>';
       }).join('') + '</div>' +
-      '<div class="sheet-body" id="shBody"></div>';
+      '<div class="sheet-body" id="shBody"></div>' +
+      '<div class="sheet-bar" id="shBar" hidden>' +
+      '<span class="bar-count"></span>' +
+      '<button class="btn btn-sm" data-act="discard">Отменить</button>' +
+      '<button class="btn btn-sm btn-primary" data-act="commit">Сохранить</button>' +
+      '</div>';
     this.renderHead();
     this.renderBody();
+    this.paintBar();
   };
 
   Sheet.prototype.renderHead = function () {
@@ -3436,14 +3665,13 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           opt('M', 'Мужской', p.sex) + opt('F', 'Женский', p.sex) + opt('U', 'Не указан', p.sex) + '</select>') +
         '<div class="sect-title">Рождение</div>' +
         row('Дата', '<input type="date" data-bind="birth.date" value="' + esc(dateVal(p.birth.date)) + '">') +
-        row('Место', '<div class="inline"><input data-bind="birth.place" value="' + esc(p.birth.place) + '">' +
-          micBtn('birth.place') + '</div>') +
-        row('Координаты', coordInput('birth', p.birth)) +
+        row('Место', '<input data-bind="birth.place" value="' + esc(p.birth.place) + '">') +
+        row('На карте', mapRow('birth', p.birth)) +
         '<div class="sect-title">Смерть</div>' +
         row('Жив(а)', '<input type="checkbox" data-bind="living"' + (p.living !== false ? ' checked' : '') + '>') +
         row('Дата', '<input type="date" data-bind="death.date" value="' + esc(dateVal(p.death.date)) + '">') +
         row('Место', '<input data-bind="death.place" value="' + esc(p.death.place) + '">') +
-        row('Координаты', coordInput('death', p.death)) +
+        row('На карте', mapRow('death', p.death)) +
         '<div class="btn-row"><button class="btn btn-danger btn-sm" data-act="delPerson">Удалить персону</button></div>';
     },
 
@@ -3510,9 +3738,8 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           '<div class="li-main" style="flex:1 1 100%">' +
           '<div class="inline"><input data-ev="' + e.id + '.type" value="' + esc(e.type) + '" placeholder="Что произошло">' +
           '<input type="date" data-ev="' + e.id + '.date" value="' + esc(dateVal(e.date)) + '" style="max-width:150px"></div>' +
-          '<div class="inline" style="margin-top:5px"><input data-ev="' + e.id + '.place" value="' + esc(e.place) + '" placeholder="Место">' +
-          '<input data-ev="' + e.id + '.lat" value="' + (e.lat == null ? '' : e.lat) + '" placeholder="широта" style="max-width:88px">' +
-          '<input data-ev="' + e.id + '.lng" value="' + (e.lng == null ? '' : e.lng) + '" placeholder="долгота" style="max-width:88px"></div>' +
+          '<div class="inline" style="margin-top:5px"><input data-ev="' + e.id + '.place" value="' + esc(e.place) + '" placeholder="Место"></div>' +
+          '<div class="inline" style="margin-top:5px">' + mapRow('ev:' + e.id, e) + '</div>' +
           '<div class="inline" style="margin-top:5px"><input data-ev="' + e.id + '.note" value="' + esc(e.note) + '" placeholder="Подробности">' +
           micBtn('ev:' + e.id + '.note') + '</div>' +
           '<div class="inline" style="margin-top:5px">' + aclSelect('ev:' + e.id, e.acl) +
@@ -3590,89 +3817,163 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     contacts: function (p, body) { this.bindFields(body); },
     events: function (p, body) { this.bindEvents(body); },
     access: function (p, body) { this.bindAcl(body); },
-    info: function (p, body) { this.bindCoords(body); }
+    info: function () {}
+  };
+
+  /* --------- отложенные правки ---------
+     Поля не записываются в дерево сразу: правка попадает в очередь,
+     внизу карточки появляется полоса «Сохранить / Отменить». Так случайное
+     нажатие не уходит к родственникам при следующей синхронизации. */
+
+  Sheet.prototype.stage = function (key, apply, label) {
+    this.pending = this.pending || [];
+    var found = false;
+    for (var i = 0; i < this.pending.length; i++) {
+      if (this.pending[i].key === key) { this.pending[i].apply = apply; found = true; break; }
+    }
+    if (!found) this.pending.push({ key: key, apply: apply, label: label || '' });
+    this.paintBar();
+  };
+  Sheet.prototype.hasPending = function () { return !!(this.pending && this.pending.length); };
+
+  Sheet.prototype.paintBar = function () {
+    var bar = this.el.querySelector('#shBar');
+    if (!bar) return;
+    var n = this.pending ? this.pending.length : 0;
+    bar.hidden = !n;
+    if (!n) return;
+    bar.querySelector('.bar-count').textContent =
+      'Не сохранено: ' + n + ' ' + plural(n, 'правка', 'правки', 'правок');
+  };
+
+  Sheet.prototype.commit = function () {
+    var p = S.person(this.personId);
+    if (!p || !this.hasPending()) { this.pending = []; this.paintBar(); return; }
+    this.pending.forEach(function (x) { try { x.apply(); } catch (e) { console.error(e); } });
+    this.pending = [];
+    S.updatePerson(p.id, {});
+    this.paintBar();
+    this.renderHead();
+    this.renderBody();
+    this.onChange();
+    this.toast('Сохранено');
+  };
+
+  Sheet.prototype.discard = function () {
+    this.pending = [];
+    this.paintBar();
+    this.renderBody();
+  };
+
+  /** спросить, если есть несохранённые правки; then() вызывается, когда можно идти дальше */
+  Sheet.prototype.guard = function (then) {
+    var self = this;
+    if (!this.hasPending()) { then(); return; }
+    global.App.modal('Сохранить изменения?',
+      '<p class="note">В карточке ' + esc(S.fullName(S.person(this.personId))) +
+      ' есть несохранённые правки: ' + this.pending.length + '. Что с ними сделать?</p>',
+      [
+        { text: 'Сохранить', primary: true, fn: function () {
+          global.App.closeModal(); self.commit(); then();
+        } },
+        { text: 'Не сохранять', danger: true, fn: function () {
+          global.App.closeModal(); self.pending = []; self.paintBar(); then();
+        } }
+      ]);
   };
 
   Sheet.prototype.bindFields = function (body) {
     var self = this, p = S.person(this.personId);
     body.querySelectorAll('[data-f]').forEach(function (inp) {
-      inp.addEventListener('change', function () {
+      inp.addEventListener('input', function () {
         var parts = inp.dataset.f.split('.');
-        var f = (p.fields || []).filter(function (x) { return x.id === parts[0]; })[0];
-        if (!f) return;
-        f[parts[1]] = inp.value;
-        S.updatePerson(p.id, {});
-        self.onChange();
-      });
-    });
-    body.querySelectorAll('[data-acl]').forEach(function (sel) {
-      sel.addEventListener('change', function () {
-        var key = sel.dataset.acl;
-        if (key.indexOf('f:') === 0) {
-          var f = (p.fields || []).filter(function (x) { return x.id === key.slice(2); })[0];
-          if (f) { f.acl = f.acl || {}; f.acl.level = sel.value; }
-        }
-        S.updatePerson(p.id, {});
-        self.onChange();
-      });
-    });
-  };
-  Sheet.prototype.bindEvents = function (body) {
-    var self = this, p = S.person(this.personId);
-    body.querySelectorAll('[data-ev]').forEach(function (inp) {
-      inp.addEventListener('change', function () {
-        var parts = inp.dataset.ev.split('.');
-        var e = (p.events || []).filter(function (x) { return x.id === parts[0]; })[0];
-        if (!e) return;
         var v = inp.value;
-        if (parts[1] === 'lat' || parts[1] === 'lng') v = v === '' ? null : parseFloat(v.replace(',', '.'));
-        e[parts[1]] = v;
-        S.updatePerson(p.id, {});
-        self.onChange();
+        self.stage('f:' + inp.dataset.f, function () {
+          var f = (p.fields || []).filter(function (x) { return x.id === parts[0]; })[0];
+          if (f) f[parts[1]] = v;
+        });
       });
     });
     body.querySelectorAll('[data-acl]').forEach(function (sel) {
       sel.addEventListener('change', function () {
-        var id = sel.dataset.acl.replace('ev:', '');
-        var e = (p.events || []).filter(function (x) { return x.id === id; })[0];
-        if (e) { e.acl = e.acl || {}; e.acl.level = sel.value; }
-        S.updatePerson(p.id, {});
-        self.onChange();
-      });
-    });
-  };
-  Sheet.prototype.bindAcl = function (body) {
-    var self = this, p = S.person(this.personId);
-    var sel = body.querySelector('[data-acl="person"]');
-    if (sel) sel.addEventListener('change', function () {
-      p.acl = p.acl || {}; p.acl.level = sel.value;
-      S.updatePerson(p.id, {}); self.onChange();
-    });
-    var lock = body.querySelector('[data-lock="person"]');
-    if (lock) lock.addEventListener('change', function () {
-      p.acl = p.acl || {}; p.acl.locked = lock.checked;
-      S.updatePerson(p.id, {}); self.onChange();
-    });
-  };
-  Sheet.prototype.bindCoords = function (body) {
-    var self = this, p = S.person(this.personId);
-    body.querySelectorAll('[data-coord]').forEach(function (inp) {
-      inp.addEventListener('change', function () {
-        var parts = inp.dataset.coord.split('.');
-        var v = inp.value === '' ? null : parseFloat(inp.value.replace(',', '.'));
-        p[parts[0]][parts[1]] = v;
-        S.updatePerson(p.id, {});
-        self.onChange();
+        var key = sel.dataset.acl, v = sel.value;
+        self.stage('acl:' + key, function () {
+          if (key.indexOf('f:') === 0) {
+            var f = (p.fields || []).filter(function (x) { return x.id === key.slice(2); })[0];
+            if (f) { f.acl = f.acl || {}; f.acl.level = v; }
+          }
+        });
       });
     });
   };
 
+  Sheet.prototype.bindEvents = function (body) {
+    var self = this, p = S.person(this.personId);
+    body.querySelectorAll('[data-ev]').forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        var parts = inp.dataset.ev.split('.');
+        var v = inp.value;
+        self.stage('ev:' + inp.dataset.ev, function () {
+          var e = (p.events || []).filter(function (x) { return x.id === parts[0]; })[0];
+          if (e) e[parts[1]] = v;
+        });
+      });
+    });
+    body.querySelectorAll('[data-acl]').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        var id = sel.dataset.acl.replace('ev:', ''), v = sel.value;
+        self.stage('evacl:' + id, function () {
+          var e = (p.events || []).filter(function (x) { return x.id === id; })[0];
+          if (e) { e.acl = e.acl || {}; e.acl.level = v; }
+        });
+      });
+    });
+  };
+
+  Sheet.prototype.bindAcl = function (body) {
+    var self = this, p = S.person(this.personId);
+    var sel = body.querySelector('[data-acl="person"]');
+    if (sel) sel.addEventListener('change', function () {
+      var v = sel.value;
+      self.stage('person.acl', function () { p.acl = p.acl || {}; p.acl.level = v; });
+    });
+    var lock = body.querySelector('[data-lock="person"]');
+    if (lock) lock.addEventListener('change', function () {
+      var v = lock.checked;
+      self.stage('person.lock', function () { p.acl = p.acl || {}; p.acl.locked = v; });
+    });
+  };
+
+  function plural(n, one, few, many) {
+    var a = Math.abs(n) % 100, b = a % 10;
+    if (a > 10 && a < 20) return many;
+    if (b > 1 && b < 5) return few;
+    if (b === 1) return one;
+    return many;
+  }
+
   /* --------- действия --------- */
   Sheet.prototype.actions = {
     close: function () { this.close(); },
-    tab: function (btn) { this.tab = btn.dataset.tab; this.renderBody(); this.renderHead(); },
+    commit: function () { this.commit(); },
+    discard: function () { this.discard(); },
+    tab: function (btn) {
+      var self = this, t = btn.dataset.tab;
+      this.guard(function () { self.tab = t; self.renderBody(); self.renderHead(); });
+    },
     focus: function () { this.onFocus(this.personId); },
     goto: function (btn) { this.open(btn.dataset.id); },
+    pickPlace: function (btn) { this.pickPlace(btn.dataset.key); },
+    dropPlace: function (btn) {
+      var self = this, key = btn.dataset.key;
+      global.App.confirm('Убрать точку с карты?',
+        'Место словами останется в карточке — пропадёт только метка на карте.',
+        function () {
+          self.setPlace(key, null, null);
+          self.renderBody();
+          self.toast('Точка убрана');
+        });
+    },
     delPerson: function () {
       var p = S.person(this.personId);
       var self = this;
@@ -3689,6 +3990,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       this.onChange();
     },
     addField: function (btn) {
+      this.commit();
       var p = S.person(this.personId);
       var type = btn.dataset.type;
       var labels = { phone: 'Телефон', email: 'Почта', addr: 'Адрес', link: 'Ссылка', text: 'Новая строка' };
@@ -3709,6 +4011,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       this.onChange();
     },
     addEvent: function () {
+      this.commit();
       var p = S.person(this.personId);
       p.events = p.events || [];
       p.events.push({
@@ -3744,6 +4047,62 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     openMedia: function (btn) { global.App.viewMedia(btn.dataset.id, this); },
     recVoice: function (btn) { this.recordVoice(btn); },
     dictate: function (btn) { this.dictate(btn.dataset.target, btn); }
+  };
+
+  /* --------- точка на карте --------- */
+  /* Точку записываем сразу: в окне карты человек уже нажал «Сохранить точку»,
+     второе подтверждение внизу карточки было бы лишним. */
+  Sheet.prototype.setPlace = function (key, lat, lng) {
+    var p = S.person(this.personId);
+    if (!p) return;
+    if (key.indexOf('ev:') === 0) {
+      var e = (p.events || []).filter(function (x) { return x.id === key.slice(3); })[0];
+      if (e) { e.lat = lat; e.lng = lng; }
+    } else {
+      p[key] = p[key] || {};
+      p[key].lat = lat;
+      p[key].lng = lng;
+    }
+    S.updatePerson(p.id, {});
+    this.onChange();
+  };
+
+  Sheet.prototype.pickPlace = function (key) {
+    var self = this, p = S.person(this.personId);
+    var cur = key.indexOf('ev:') === 0
+      ? (p.events || []).filter(function (x) { return x.id === key.slice(3); })[0]
+      : p[key];
+    var placeName = (cur && cur.place) || '';
+    var chosen = { lat: cur && cur.lat, lng: cur && cur.lng };
+
+    global.App.modal('Где это было?',
+      '<p class="note" style="margin:0 0 10px">Нажмите на карту в нужном месте. ' +
+      'Перетаскивание двигает карту, колесо и кнопки слева меняют масштаб.</p>' +
+      (placeName ? '<p class="note">Записано место: <b>' + esc(placeName) + '</b></p>' : '') +
+      '<div id="pkMap" style="height:52vh;min-height:280px;position:relative;border-radius:10px;' +
+      'overflow:hidden;border:1px solid var(--line)"></div>' +
+      '<p class="note" id="pkInfo" style="margin-top:8px">' +
+      (chosen.lat != null ? 'Выбрано: ' + (+chosen.lat).toFixed(4) + ', ' + (+chosen.lng).toFixed(4)
+        : 'Точка пока не выбрана') + '</p>',
+      [{ text: 'Сохранить точку', primary: true, fn: function () {
+        if (chosen.lat == null) { self.toast('Сначала отметьте место на карте'); return; }
+        global.App.closeModal();
+        self.setPlace(key, +(+chosen.lat).toFixed(6), +(+chosen.lng).toFixed(6));
+        self.renderBody();
+      } }]);
+
+    var m = new global.MiniMap(document.getElementById('pkMap'));
+    var pins = [];
+    if (chosen.lat != null) pins.push({ lat: +chosen.lat, lng: +chosen.lng, kind: 'event', label: placeName });
+    m.setPins(pins);
+    if (pins.length) { m.z = 11; m.cx = +chosen.lat; m.cy = +chosen.lng; m.draw(); }
+    else m.draw();
+    m.onClick = function (lat, lng) {
+      chosen.lat = lat; chosen.lng = lng;
+      m.setPins([{ lat: lat, lng: lng, kind: 'event', label: placeName }]);
+      var info = document.getElementById('pkInfo');
+      if (info) info.textContent = 'Выбрано: ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
+    };
   };
 
   /* --------- голос --------- */
@@ -3838,11 +4197,26 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     return d.y + '-' + pad(d.m) + '-' + pad(d.d);
   }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
-  function coordInput(key, o) {
+  /** Вместо двух полей с цифрами — ссылка на карту и кнопка выбора точки.
+      Координаты по-прежнему хранятся: по ним строится вкладка «Карта». */
+  function mapRow(key, o) {
     o = o || {};
-    return '<div class="inline">' +
-      '<input data-coord="' + key + '.lat" value="' + (o.lat == null ? '' : o.lat) + '" placeholder="широта">' +
-      '<input data-coord="' + key + '.lng" value="' + (o.lng == null ? '' : o.lng) + '" placeholder="долгота"></div>';
+    var has = o.lat != null && o.lng != null;
+    var h = '<div class="map-row">';
+    if (has) {
+      var url = 'https://www.openstreetmap.org/?mlat=' + o.lat + '&mlon=' + o.lng + '#map=13/' +
+        o.lat + '/' + o.lng;
+      h += '<a class="map-link" href="' + url + '" target="_blank" rel="noopener">' +
+        I('pin') + ' Открыть на карте</a>' +
+        '<span class="map-coord">' + (+o.lat).toFixed(4) + ', ' + (+o.lng).toFixed(4) + '</span>' +
+        '<button class="btn btn-sm" data-act="pickPlace" data-key="' + key + '">Изменить точку</button>' +
+        '<button class="btn btn-sm btn-danger" data-act="dropPlace" data-key="' + key + '">Убрать</button>';
+    } else {
+      h += '<button class="btn btn-sm" data-act="pickPlace" data-key="' + key + '">' +
+        I('pin') + ' Указать на карте</button>' +
+        '<span class="note">точка не отмечена</span>';
+    }
+    return h + '</div>';
   }
   function fieldRow(f) {
     var isNote = f.type === 'text' || f.type === 'note';
@@ -3905,6 +4279,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         el: document.getElementById('sheet'),
         onChange: function () { self.tree.render(); self.renderTabs(); },
         onFocus: function (id) { self.tree.setFocus(id); },
+        onOpen: function (id) { self.tree.setOpen(id); },
         toast: function (m) { self.toast(m); }
       });
 
@@ -4295,15 +4670,38 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         host.innerHTML = '<div class="empty">Фотографий пока нет.<br>Откройте карточку человека и добавьте снимки — они соберутся здесь.</div>';
         return;
       }
+      var order = this._photoSort || 'added';
+      var sorters = {
+        added: function (a, b) { return (b.added || '').localeCompare(a.added || ''); },
+        person: function (a, b) {
+          return S.fullName(S.person(a.personId)).localeCompare(S.fullName(S.person(b.personId)), 'ru');
+        },
+        name: function (a, b) { return (a.caption || a.name || '').localeCompare(b.caption || b.name || '', 'ru'); },
+        size: function (a, b) { return (b.size || 0) - (a.size || 0); }
+      };
+      all = all.slice().sort(sorters[order] || sorters.added);
+      var labels = [['added', 'по дате добавления'], ['person', 'по человеку'],
+        ['name', 'по подписи'], ['size', 'по размеру']];
       host.innerHTML = '<h2 style="margin-bottom:4px">Фотографии</h2>' +
-        '<p class="note" style="margin:0 0 12px">' + all.length + ' снимков' +
+        '<p class="note" style="margin:0 0 10px">' + all.length + ' снимков' +
         (all.some(function (m) { return !S.canSee(m.acl); }) ? ' · часть скрыта правами доступа' : '') + '</p>' +
+        '<div class="sort-bar"><span class="note">Порядок:</span>' +
+        labels.map(function (l) {
+          return '<button class="btn btn-sm" data-sort="' + l[0] + '" aria-pressed="' +
+            (order === l[0]) + '">' + l[1] + '</button>';
+        }).join('') + '</div>' +
         '<div class="photo-wall">' + all.map(function (m) {
           var who = S.person(m.personId);
           return '<button class="media-tile" data-id="' + m.id + '" title="' + esc(m.name) + '">' +
             global.Icon(S.canSee(m.acl) ? 'photo' : 'lock') +
             '<span class="m-name">' + esc(who ? S.fullName(who) : m.name) + '</span></button>';
         }).join('') + '</div>';
+      host.querySelectorAll('[data-sort]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          self._photoSort = b.dataset.sort;
+          self.renderPhotos();
+        });
+      });
       host.querySelectorAll('.media-tile').forEach(function (t) {
         var m = S.tree.media[t.dataset.id];
         t.addEventListener('click', function () { self.viewMedia(m.id); });
@@ -4328,65 +4726,156 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           '<div class="empty">Журнал пуст</div>';
         return;
       }
-      host.innerHTML = '<h2 style="margin-bottom:4px">Изменения</h2>' +
-        '<p class="note" style="margin:0 0 12px">Кто и когда что поправил в дереве. Записей: ' + ch.length +
-        (canEdit ? '. Лишние строки можно убрать — на сами данные это не влияет.' : '') + '</p>' +
-        (canEdit ? '<div class="btn-row" style="margin:0 0 12px">' +
-          '<button class="btn btn-sm btn-danger" id="chClear">Очистить журнал целиком</button></div>' : '') +
-        '<div style="border:1px solid var(--line);border-radius:12px;background:var(--paper-2);overflow:hidden">' +
-        ch.slice(0, 400).map(function (c) {
-          return '<div class="change ' + esc(c.action) + '"><span class="c-dot"></span>' +
-            '<div style="min-width:0;flex:1 1 auto">' +
-            '<div>' + esc(c.summary) + '</div>' +
-            '<div class="c-meta">' + esc(c.user) + ' · ' + new Date(c.ts).toLocaleString('ru-RU') + '</div>' +
-            '</div>' +
-            (canEdit ? '<button class="c-del" data-del="' + esc(c.id) +
-              '" type="button" title="Убрать эту строку" aria-label="Убрать эту строку">' +
-              global.Icon('trash') + '</button>' : '') +
-            '</div>';
-        }).join('') + '</div>' +
-        (ch.length > 400 ? '<p class="note" style="margin-top:10px">Показаны последние 400 записей из ' +
-          ch.length + '.</p>' : '');
+      var kinds = { add: 'добавление', edit: 'правка', delete: 'удаление', media: 'файл',
+        user: 'доступ', tab: 'вкладка', import: 'загрузка' };
+      var cols = [
+        { key: 'ts', title: 'Когда', num: true,
+          get: function (c) { return Date.parse(c.ts || '') || 0; },
+          cell: function (c) { return new Date(c.ts).toLocaleString('ru-RU'); } },
+        { key: 'user', title: 'Кто', get: function (c) { return c.user || ''; },
+          cell: function (c) { return esc(c.user || '—'); } },
+        { key: 'action', title: 'Что', get: function (c) { return kinds[c.action] || c.action || ''; },
+          cell: function (c) {
+            return '<span class="chip ' + esc(c.action) + '">' + esc(kinds[c.action] || c.action) + '</span>';
+          } },
+        { key: 'summary', title: 'Подробности', get: function (c) { return c.summary || ''; },
+          cell: function (c) { return esc(c.summary || ''); } }
+      ];
+      if (canEdit) {
+        cols.push({ key: 'del', title: '', sortable: false, get: function () { return 0; },
+          cell: function (c) {
+            return '<button class="c-del" data-del="' + esc(c.id) + '" type="button" ' +
+              'title="Убрать эту строку" aria-label="Убрать эту строку">' + global.Icon('trash') + '</button>';
+          } });
+      }
 
-      host.querySelectorAll('[data-del]').forEach(function (b) {
-        b.addEventListener('click', function () {
-          S.tree.changes = (S.tree.changes || []).filter(function (c) { return c.id !== b.dataset.del; });
-          S.save(true);
-          self.renderChanges();
-        });
-      });
-      var clr = document.getElementById('chClear');
-      if (clr) clr.addEventListener('click', function () {
-        self.confirm('Очистить журнал изменений?',
-          'Пропадёт только история правок — люди, фотографии и связи останутся на месте. ' +
-          'У других родственников журнал восстановится при следующей синхронизации с их устройств.',
-          function () {
-            S.tree.changes = [];
+      function draw() {
+        var list = (S.tree.changes || []).slice(0, 500);
+        var t = self.buildTable('tblChanges', cols, list, { key: 'ts', dir: -1 });
+        host.innerHTML = '<h2 style="margin-bottom:4px">Изменения</h2>' +
+          '<p class="note" style="margin:0 0 12px">Кто и когда что поправил. Записей: ' +
+          (S.tree.changes || []).length +
+          '. Заголовки столбцов сортируют список' +
+          (canEdit ? '; лишние строки можно убрать — на сами данные это не влияет.' : '.') + '</p>' +
+          (canEdit ? '<div class="btn-row" style="margin:0 0 12px">' +
+            '<button class="btn btn-sm btn-danger" id="chClear">Очистить журнал целиком</button></div>' : '') +
+          t.html +
+          ((S.tree.changes || []).length > 500
+            ? '<p class="note" style="margin-top:10px">Показаны последние 500 записей.</p>' : '');
+        self.bindTable('tblChanges', draw);
+        host.querySelectorAll('[data-del]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            S.tree.changes = (S.tree.changes || []).filter(function (c) { return c.id !== b.dataset.del; });
             S.save(true);
-            self.renderChanges();
-            self.toast('Журнал очищен');
+            draw();
+            bindClear();
           });
+        });
+        bindClear();
+      }
+      draw();
+      return;
+
+      function bindClear() {
+        var clr = document.getElementById('chClear');
+        if (clr) clr.addEventListener('click', function () {
+          self.confirm('Очистить журнал изменений?',
+            'Пропадёт только история правок — люди, фотографии и связи останутся на месте. ' +
+            'У других родственников журнал восстановится при следующей синхронизации с их устройств.',
+            function () {
+              S.tree.changes = [];
+              S.save(true);
+              self.renderChanges();
+              self.toast('Журнал очищен');
+            });
+        });
+      }
+    },
+
+    /* ============ сортируемая таблица ============
+       cols: [{ key, title, get(row), cell(row), num }]
+       Запоминает выбранный столбец отдельно для каждой таблицы. */
+    sortState: {},
+    buildTable: function (tableId, cols, rows, opts) {
+      opts = opts || {};
+      var st = this.sortState[tableId] || (this.sortState[tableId] = {
+        key: opts.key || cols[0].key, dir: opts.dir || 1
+      });
+      var col = cols.filter(function (c) { return c.key === st.key; })[0] || cols[0];
+      var sorted = rows.slice().sort(function (a, b) {
+        var x = col.get(a), y = col.get(b);
+        if (x == null) x = col.num ? -Infinity : '';
+        if (y == null) y = col.num ? -Infinity : '';
+        var r = col.num ? (x - y) : String(x).localeCompare(String(y), 'ru');
+        return r * st.dir;
+      });
+      var head = cols.map(function (c) {
+        var on = c.key === st.key;
+        return '<th' + (c.sortable === false ? '' : ' class="sortable" data-sort="' + c.key + '"') +
+          (on ? ' aria-sort="' + (st.dir > 0 ? 'ascending' : 'descending') + '"' : '') + '>' +
+          esc(c.title) +
+          (c.sortable === false ? '' : '<span class="sort-mark">' + (on ? (st.dir > 0 ? '▲' : '▼') : '⇅') + '</span>') +
+          '</th>';
+      }).join('');
+      var body = sorted.map(function (r) {
+        return '<tr>' + cols.map(function (c) {
+          return '<td' + (c.num ? ' style="font-variant-numeric:tabular-nums"' : '') + '>' + c.cell(r) + '</td>';
+        }).join('') + '</tr>';
+      }).join('');
+      return { html: '<div class="table-wrap"><table class="data" id="' + tableId + '"><thead><tr>' +
+        head + '</tr></thead><tbody>' + body + '</tbody></table></div>', rows: sorted };
+    },
+    bindTable: function (tableId, redraw) {
+      var self = this, t = document.getElementById(tableId);
+      if (!t) return;
+      t.querySelectorAll('[data-sort]').forEach(function (th) {
+        th.addEventListener('click', function () {
+          var st = self.sortState[tableId];
+          if (st.key === th.dataset.sort) st.dir = -st.dir;
+          else { st.key = th.dataset.sort; st.dir = 1; }
+          redraw();
+        });
       });
     },
 
     /* ============ список людей ============ */
     renderPeople: function () {
       var host = document.querySelector('#pane-people .pane-scroll'), self = this;
-      var ps = S.persons().sort(function (a, b) {
-        return S.fullName(a).localeCompare(S.fullName(b), 'ru');
-      });
-      host.innerHTML = '<h2 style="margin-bottom:10px">Люди в дереве — ' + ps.length + '</h2>' +
-        '<table class="data"><thead><tr><th>Имя</th><th>Годы</th><th>Место рождения</th><th></th></tr></thead><tbody>' +
-        ps.map(function (p) {
-          return '<tr><td>' + esc(S.fullName(p)) + '</td><td style="font-variant-numeric:tabular-nums">' +
-            esc(S.years(p) || '—') + '</td><td>' + esc((p.birth && p.birth.place) || '—') + '</td>' +
-            '<td><button class="btn btn-sm" data-id="' + p.id + '">Открыть</button></td></tr>';
-        }).join('') + '</tbody></table>';
-      host.querySelectorAll('[data-id]').forEach(function (b) {
-        b.addEventListener('click', function () {
-          self.showTab('tree'); self.tree.setFocus(b.dataset.id); self.sheet.open(b.dataset.id);
+      var ps = S.persons();
+      var cols = [
+        { key: 'name', title: 'Имя', get: function (p) { return S.fullName(p); },
+          cell: function (p) { return esc(S.fullName(p)); } },
+        { key: 'sex', title: 'Пол', get: function (p) { return p.sex === 'M' ? 'Мужской' : p.sex === 'F' ? 'Женский' : 'Не указан'; },
+          cell: function (p) { return p.sex === 'M' ? 'М' : p.sex === 'F' ? 'Ж' : '—'; } },
+        { key: 'birth', title: 'Рождение', num: true,
+          get: function (p) { return +(U.yr(p.birth && p.birth.date) || 0); },
+          cell: function (p) { return esc(U.formatDate(p.birth && p.birth.date) || '—'); } },
+        { key: 'death', title: 'Смерть', num: true,
+          get: function (p) { return +(U.yr(p.death && p.death.date) || 0); },
+          cell: function (p) { return esc(U.formatDate(p.death && p.death.date) || '—'); } },
+        { key: 'place', title: 'Место рождения', get: function (p) { return (p.birth && p.birth.place) || ''; },
+          cell: function (p) { return esc((p.birth && p.birth.place) || '—'); } },
+        { key: 'media', title: 'Файлов', num: true, get: function (p) { return (p.media || []).length; },
+          cell: function (p) { return (p.media || []).length || '—'; } },
+        { key: 'updated', title: 'Изменено', num: true,
+          get: function (p) { return Date.parse(p.updated || '') || 0; },
+          cell: function (p) { return p.updated ? new Date(p.updated).toLocaleString('ru-RU') : '—'; } },
+        { key: 'open', title: '', sortable: false, get: function () { return 0; },
+          cell: function (p) { return '<button class="btn btn-sm" data-id="' + p.id + '">Открыть</button>'; } }
+      ];
+      function draw() {
+        var t = self.buildTable('tblPeople', cols, ps, { key: 'name' });
+        host.innerHTML = '<h2 style="margin-bottom:4px">Люди в дереве — ' + ps.length + '</h2>' +
+          '<p class="note" style="margin:0 0 12px">Нажмите на заголовок столбца, чтобы отсортировать. ' +
+          'Повторное нажатие переворачивает порядок.</p>' + t.html;
+        self.bindTable('tblPeople', draw);
+        host.querySelectorAll('[data-id]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            self.showTab('tree'); self.tree.setFocus(b.dataset.id); self.sheet.open(b.dataset.id);
+          });
         });
-      });
+      }
+      draw();
     },
 
     /* ============ заметки на своей вкладке ============ */
@@ -4503,12 +4992,12 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       var relBlock = '';
       if (near) {
         relBlock =
-          '<div class="row"><label for="npRel">Кем приходится</label><select id="npRel">' +
+          '<div class="row"><label for="npRel">Это</label><select id="npRel">' +
           '<option value="">Сам по себе, без связи</option>' +
-          '<option value="child">Ребёнок ' + esc(S.shortName(near)) + '</option>' +
-          '<option value="spouse">Супруг(а) ' + esc(S.shortName(near)) + '</option>' +
-          '<option value="parent">Родитель ' + esc(S.shortName(near)) + '</option>' +
-          '<option value="sibling">Брат или сестра ' + esc(S.shortName(near)) + '</option>' +
+          '<option value="child">Сын или дочь ' + esc(S.callName(near)) + '</option>' +
+          '<option value="spouse">Муж или жена ' + esc(S.callName(near)) + '</option>' +
+          '<option value="parent">Отец или мать ' + esc(S.callName(near)) + '</option>' +
+          '<option value="sibling">Брат или сестра ' + esc(S.callName(near)) + '</option>' +
           '</select></div>';
       }
       this.modal('Новый человек',
@@ -4560,17 +5049,24 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
     /* ============ родственники ============ */
     addRelative: function (id) {
       var p = S.person(id), self = this;
-      this.modal('Кем приходится ' + S.fullName(p) + '?',
-        '<div class="row"><label for="arRel">Связь</label><select id="arRel">' +
-        '<option value="child">Ребёнок</option><option value="spouse">Супруг(а)</option>' +
-        '<option value="parent">Родитель</option><option value="sibling">Брат или сестра</option>' +
+      var who = S.callName(p);
+      // Формулировка от лица НОВОГО человека: «Ребёнок Петра», а не просто «Ребёнок».
+      // Иначе читается наоборот — и связь получается зеркальной.
+      this.modal('Родственник для ' + who,
+        '<p class="note" style="margin:0 0 12px">Новый человек — кто он для ' + esc(who) + '?</p>' +
+        '<div class="row"><label for="arRel">Это</label><select id="arRel">' +
+        '<option value="child">Сын или дочь ' + esc(who) + '</option>' +
+        '<option value="spouse">Муж или жена ' + esc(who) + '</option>' +
+        '<option value="parent">Отец или мать ' + esc(who) + '</option>' +
+        '<option value="sibling">Брат или сестра ' + esc(who) + '</option>' +
         '</select></div>' +
         '<div class="row"><label for="arSur">Фамилия</label><input id="arSur" value="' + esc(p.surname) + '"></div>' +
         '<div class="row"><label for="arGiv">Имя</label><input id="arGiv"></div>' +
         '<div class="row"><label for="arPat">Отчество</label><input id="arPat"></div>' +
         '<div class="row"><label for="arSex">Пол</label><select id="arSex">' +
         '<option value="M">Мужской</option><option value="F">Женский</option><option value="U">Не указан</option></select></div>' +
-        '<div class="row"><label for="arBirth">Дата рождения</label><input id="arBirth" type="date"></div>',
+        '<div class="row"><label for="arBirth">Дата рождения</label><input id="arBirth" type="date"></div>' +
+        '<p class="note" id="arHint"></p>',
         [{ text: 'Добавить', primary: true, fn: function () {
           var rel = document.getElementById('arRel').value;
           var np = S.addPerson({
@@ -4594,11 +5090,29 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           self.sheet.open(np.id);
         } }]);
       var relSel = document.getElementById('arRel');
+      var hint = document.getElementById('arHint');
+      function sayHint() {
+        var giv = (document.getElementById('arGiv').value || '').trim() || 'новый человек';
+        var map = {
+          child: giv + ' станет ребёнком, а ' + who + ' — родителем.',
+          spouse: giv + ' и ' + who + ' станут супругами.',
+          parent: giv + ' станет родителем, а ' + who + ' — ребёнком.',
+          sibling: giv + ' и ' + who + ' станут братом и сестрой — у них будут общие родители.'
+        };
+        hint.textContent = map[relSel.value] || '';
+      }
       relSel.addEventListener('change', function () {
         var sur = document.getElementById('arSur');
         if (relSel.value === 'spouse') sur.value = '';
         else sur.value = p.surname || '';
+        sayHint();
       });
+      document.getElementById('arGiv').addEventListener('input', sayHint);
+      sayHint();
+      setTimeout(function () {
+        var el = document.getElementById('arGiv');
+        if (el) el.focus();
+      }, 50);
     },
 
     /* ============ медиа ============ */
@@ -4684,11 +5198,11 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         ['sec', 'Доступ и защита'], ['about', 'О программе']];
       which = which || 'look';
       var html =
-        '<div class="sheet-tabs" id="setTabs" style="padding:0;margin-bottom:14px">' +
+        '<div class="sheet-tabs" id="setTabs">' +
         tabs.map(function (t) {
           return '<button data-s="' + t[0] + '" aria-selected="' + (t[0] === which) + '">' + t[1] + '</button>';
         }).join('') + '</div><div id="setBody"></div>';
-      this.modal('Настройки', html, []);
+      this.modal('Настройки', html, [], { wide: true });
       document.getElementById('setTabs').addEventListener('click', function (e) {
         var b = e.target.closest('[data-s]');
         if (!b) return;
@@ -4704,10 +5218,12 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
       if (which === 'look') {
         var bgList = ['auto', '#f6f1e6', '#ffffff', '#eef3f7', '#eef5ee', '#f6eef2', '#2a2622', '#1a1714'];
         host.innerHTML =
-          '<div class="set-card"><h3>Как это выглядит</h3>' +
+          '<div class="set-sticky"><div class="set-card"><h3>Как это выглядит</h3>' +
           '<div class="preview-stage" id="stStage"></div>' +
-          '<p class="preview-hint">Образец меняется сразу — двигайте ползунки и смотрите.</p></div>' +
+          '<p class="preview-hint">Образец меняется сразу — двигайте ползунки и смотрите.</p>' +
+          '</div></div>' +
 
+          '<div class="set-grid-2">' +
           '<div class="set-card"><h3>Тема</h3>' +
           '<div class="set-row"><span>Оформление</span><select id="stTheme">' +
           ['auto:Как в системе', 'light:Светлая', 'dark:Тёмная'].map(function (x) {
@@ -4740,7 +5256,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
 
           '<div class="set-card"><h3>Окошки людей в дереве</h3>' +
           '<div class="set-row"><span>Форма</span><select id="stShape">' +
-          ['rounded:Скруглённый прямоугольник', 'square:Прямые углы', 'circle:Капсула'].map(function (x) {
+          ['rounded:Скруглённый прямоугольник', 'circle:Капсула'].map(function (x) {
             var v = x.split(':');
             return '<option value="' + v[0] + '"' + (p.card.shape === v[0] ? ' selected' : '') + '>' + v[1] + '</option>';
           }).join('') + '</select></div>' +
@@ -4750,10 +5266,17 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
           rng('Размер фотокарточки', 'stPhoto', 0, 90, p.card.photo, 'px') +
           rng('Размер имени', 'stName', 9, 20, p.card.nameSize, 'px') +
           rng('Размер дат', 'stDate', 8, 18, p.card.dateSize, 'px') +
+          '<div class="set-row"><span>Жирность дат</span><select id="stDateW">' +
+          ['400:Обычная', '600:Полужирная', '700:Жирная'].map(function (x) {
+            var v = x.split(':');
+            return '<option value="' + v[0] + '"' +
+              (String(p.card.dateWeight || 400) === v[0] ? ' selected' : '') + '>' + v[1] + '</option>';
+          }).join('') + '</select></div>' +
           '<div class="set-row"><span>Показывать фото</span><input type="checkbox" id="stShowPh"' + (p.showPhotos ? ' checked' : '') + '></div>' +
           '<div class="set-row"><span>Показывать годы</span><input type="checkbox" id="stShowDt"' + (p.showDates ? ' checked' : '') + '></div>' +
           '<p class="note">Настройки оформления сохраняются отдельно для каждого пользователя — ' +
-          'у остальных членов семьи дерево останется таким, каким они его настроили.</p></div>';
+          'у остальных членов семьи дерево останется таким, каким они его настроили.</p></div>' +
+          '</div>';
 
         bindRange('stUi', function (v) { p.ui.fontSize = v; });
         bindRange('stTab', function (v) { p.ui.tabSize = v; });
@@ -4765,6 +5288,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
         bindRange('stName', function (v) { p.card.nameSize = v; });
         bindRange('stDate', function (v) { p.card.dateSize = v; });
         document.getElementById('stShape').addEventListener('change', function () { p.card.shape = this.value; apply(); });
+        document.getElementById('stDateW').addEventListener('change', function () { p.card.dateWeight = +this.value; apply(); });
         document.getElementById('stTheme').addEventListener('change', function () { p.theme = this.value; apply(); });
         document.getElementById('stGrid').addEventListener('change', function () { p.treeGrid = this.checked; apply(); });
         document.getElementById('stShowPh').addEventListener('change', function () { p.showPhotos = this.checked; apply(); });
@@ -5393,33 +5917,38 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
 
       var r = p.card.shape === 'circle' ? Math.round(p.card.h / 2) : p.card.radius;
       var pr = p.card.shape === 'circle' ? '50%' : Math.max(2, p.card.radius - 4) + 'px';
-      function node(cls, name, years) {
-        var h = '<div class="pv-node ' + cls + '" style="width:' + p.card.w + 'px;height:' + p.card.h +
-          'px;border-radius:' + r + 'px">';
+      function node(cls, name, years, gone) {
+        var h = '<div class="pv-node ' + cls + (gone ? ' is-gone' : '') + '" style="width:' + p.card.w +
+          'px;height:' + p.card.h + 'px;border-radius:' + r + 'px">';
         if (p.showPhotos && p.card.photo > 0) {
           h += '<div class="pv-ph" style="width:' + p.card.photo + 'px;height:' + p.card.photo +
-            'px;border-radius:' + pr + '">' + I('person') + '</div>';
+            'px;border-radius:' + pr + '">' + I(cls === 'm' ? 'personM' : 'personF') + '</div>';
         }
         h += '<div class="pv-txt"><div class="pv-name" style="font-size:' + p.card.nameSize + 'px">' +
           esc(name) + '</div>';
         if (p.showDates) {
-          h += '<div class="pv-years" style="font-size:' + p.card.dateSize + 'px">' + esc(years) + '</div>';
+          h += '<div class="pv-years" style="font-size:' + p.card.dateSize +
+            'px;font-weight:' + (p.card.dateWeight || 400) + '">' + esc(years) + '</div>';
         }
-        return h + '</div></div>';
+        h += '</div>';
+        if (gone) h += '<span class="node-mourn" style="border-top-left-radius:' + r + 'px"></span>';
+        return h + '</div>';
       }
       stage.innerHTML = '<div class="pv-row">' +
-        node('f', 'Анна Петровна Смирнова', '1932 – 2011') +
-        node('m', 'Пётр Смирнов', '1928 – 1994') + '</div>';
+        node('f', 'Анна Петровна Смирнова', '1932', false) +
+        node('m', 'Пётр Смирнов', '1928 – 1994', true) + '</div>' +
+        '<div class="preview-hint">Слева — живой человек, справа — с траурной полосой на углу.</div>';
     },
 
     /* ============ окна и мелочи ============ */
-    modal: function (title, body, buttons) {
+    modal: function (title, body, buttons, opts) {
+      opts = opts || {};
       var back = document.getElementById('modalBack');
       var foot = (buttons || []).map(function (b, i) {
         return '<button class="btn ' + (b.primary ? 'btn-primary' : b.danger ? 'btn-danger' : '') +
           '" data-b="' + i + '">' + esc(b.text) + '</button>';
       }).join('');
-      back.innerHTML = '<div class="modal" role="dialog" aria-modal="true">' +
+      back.innerHTML = '<div class="modal' + (opts.wide ? ' wide' : '') + '" role="dialog" aria-modal="true">' +
         '<div class="modal-head"><h2>' + esc(title) + '</h2>' +
         '<button class="icon-btn" data-close="1" aria-label="Закрыть" title="Закрыть">' +
         global.Icon('close') + '</button></div>' +

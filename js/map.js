@@ -39,20 +39,29 @@
     this.layer.style.cssText = 'position:absolute;inset:0';
     this.host.insertBefore(this.layer, this.host.firstChild);
 
+    this.onClick = null;      // выбор точки: fn(lat, lng)
     this.host.addEventListener('click', function (e) {
       var b = e.target.closest('[data-z]');
-      if (b) { self.z = Math.max(2, Math.min(17, self.z + (+b.dataset.z))); self.draw(); }
-      if (e.target.closest('[data-fit]')) self.fit();
+      if (b) { self.z = Math.max(2, Math.min(17, self.z + (+b.dataset.z))); self.draw(); return; }
+      if (e.target.closest('[data-fit]')) { self.fit(); return; }
+      if (e.target.closest('.map-ctl') || e.target.closest('.map-pin')) return;
+      if (!self.onClick || self._moved) return;
+      var r = self.host.getBoundingClientRect();
+      var W = r.width, H = r.height, z = self.z;
+      var left = lon2x(self.cy, z) - W / 2, top = lat2y(self.cx, z) - H / 2;
+      self.onClick(y2lat(top + (e.clientY - r.top), z), x2lon(left + (e.clientX - r.left), z));
     });
     var drag = null;
     this.host.addEventListener('pointerdown', function (e) {
       if (e.target.closest('.map-ctl') || e.target.closest('.map-pin')) return;
       drag = { x: e.clientX, y: e.clientY, cx: self.cx, cy: self.cy };
+      self._moved = false;
       self.host.setPointerCapture(e.pointerId);
       self.host.classList.add('grabbing');
     });
     this.host.addEventListener('pointermove', function (e) {
       if (!drag) return;
+      if (Math.abs(e.clientX - drag.x) > 3 || Math.abs(e.clientY - drag.y) > 3) self._moved = true;
       var z = self.z;
       var px = lon2x(drag.cy, z) - (e.clientX - drag.x);
       var py = lat2y(drag.cx, z) - (e.clientY - drag.y);

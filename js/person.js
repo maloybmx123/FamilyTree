@@ -16,6 +16,8 @@
     this.el = opts.el;
     this.onChange = opts.onChange || function () {};
     this.onFocus = opts.onFocus || function () {};
+    this.onOpen = opts.onOpen || function () {};
+    this.pending = [];
     this.toast = opts.toast || function () {};
     this.personId = null;
     this.tab = 'info';
@@ -24,14 +26,29 @@
   }
 
   Sheet.prototype.open = function (id) {
+    var self = this;
+    if (this.personId && this.personId !== id && this.hasPending()) {
+      this.guard(function () { self.openNow(id); });
+      return;
+    }
+    this.openNow(id);
+  };
+  Sheet.prototype.openNow = function (id) {
+    this.pending = [];
     this.personId = id;
     this.el.hidden = false;
     this.render();
+    if (this.onOpen) this.onOpen(id);
   };
   Sheet.prototype.close = function () {
-    this.el.hidden = true;
-    this.revoke();
-    this.personId = null;
+    var self = this;
+    this.guard(function () {
+      self.el.hidden = true;
+      self.revoke();
+      self.personId = null;
+      self.pending = [];
+      if (self.onOpen) self.onOpen(null);
+    });
   };
   Sheet.prototype.revoke = function () {
     this.urls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} });
@@ -45,10 +62,12 @@
       var act = t.dataset.act;
       if (self.actions[act]) { e.preventDefault(); self.actions[act].call(self, t); }
     });
-    this.el.addEventListener('change', function (e) {
+    function onEdit(e) {
       var f = e.target.closest('[data-bind]');
       if (f) self.applyField(f);
-    });
+    }
+    this.el.addEventListener('change', onEdit);
+    this.el.addEventListener('input', onEdit);
   };
 
   /* --------- чтение и запись полей --------- */
@@ -57,12 +76,11 @@
     if (!p) return;
     var path = input.dataset.bind.split('.');
     var val = input.type === 'checkbox' ? input.checked : input.value;
-    var o = p;
-    for (var i = 0; i < path.length - 1; i++) { o[path[i]] = o[path[i]] || {}; o = o[path[i]]; }
-    o[path[path.length - 1]] = val;
-    S.updatePerson(p.id, {}, false);
-    this.onChange();
-    if (path[0] === 'surname' || path[0] === 'given' || path[0] === 'patronymic' || path[0] === 'sex') this.renderHead();
+    this.stage('bind:' + input.dataset.bind, function () {
+      var o = p;
+      for (var i = 0; i < path.length - 1; i++) { o[path[i]] = o[path[i]] || {}; o = o[path[i]]; }
+      o[path[path.length - 1]] = val;
+    });
   };
 
   /* --------- отрисовка --------- */
@@ -90,9 +108,15 @@
       tabs.map(function (t) {
         return '<button role="tab" data-act="tab" data-tab="' + t[0] + '">' + t[1] + '</button>';
       }).join('') + '</div>' +
-      '<div class="sheet-body" id="shBody"></div>';
+      '<div class="sheet-body" id="shBody"></div>' +
+      '<div class="sheet-bar" id="shBar" hidden>' +
+      '<span class="bar-count"></span>' +
+      '<button class="btn btn-sm" data-act="discard">Отменить</button>' +
+      '<button class="btn btn-sm btn-primary" data-act="commit">Сохранить</button>' +
+      '</div>';
     this.renderHead();
     this.renderBody();
+    this.paintBar();
   };
 
   Sheet.prototype.renderHead = function () {
@@ -153,14 +177,13 @@
           opt('M', 'Мужской', p.sex) + opt('F', 'Женский', p.sex) + opt('U', 'Не указан', p.sex) + '</select>') +
         '<div class="sect-title">Рождение</div>' +
         row('Дата', '<input type="date" data-bind="birth.date" value="' + esc(dateVal(p.birth.date)) + '">') +
-        row('Место', '<div class="inline"><input data-bind="birth.place" value="' + esc(p.birth.place) + '">' +
-          micBtn('birth.place') + '</div>') +
-        row('Координаты', coordInput('birth', p.birth)) +
+        row('Место', '<input data-bind="birth.place" value="' + esc(p.birth.place) + '">') +
+        row('На карте', mapRow('birth', p.birth)) +
         '<div class="sect-title">Смерть</div>' +
         row('Жив(а)', '<input type="checkbox" data-bind="living"' + (p.living !== false ? ' checked' : '') + '>') +
         row('Дата', '<input type="date" data-bind="death.date" value="' + esc(dateVal(p.death.date)) + '">') +
         row('Место', '<input data-bind="death.place" value="' + esc(p.death.place) + '">') +
-        row('Координаты', coordInput('death', p.death)) +
+        row('На карте', mapRow('death', p.death)) +
         '<div class="btn-row"><button class="btn btn-danger btn-sm" data-act="delPerson">Удалить персону</button></div>';
     },
 
@@ -227,9 +250,8 @@
           '<div class="li-main" style="flex:1 1 100%">' +
           '<div class="inline"><input data-ev="' + e.id + '.type" value="' + esc(e.type) + '" placeholder="Что произошло">' +
           '<input type="date" data-ev="' + e.id + '.date" value="' + esc(dateVal(e.date)) + '" style="max-width:150px"></div>' +
-          '<div class="inline" style="margin-top:5px"><input data-ev="' + e.id + '.place" value="' + esc(e.place) + '" placeholder="Место">' +
-          '<input data-ev="' + e.id + '.lat" value="' + (e.lat == null ? '' : e.lat) + '" placeholder="широта" style="max-width:88px">' +
-          '<input data-ev="' + e.id + '.lng" value="' + (e.lng == null ? '' : e.lng) + '" placeholder="долгота" style="max-width:88px"></div>' +
+          '<div class="inline" style="margin-top:5px"><input data-ev="' + e.id + '.place" value="' + esc(e.place) + '" placeholder="Место"></div>' +
+          '<div class="inline" style="margin-top:5px">' + mapRow('ev:' + e.id, e) + '</div>' +
           '<div class="inline" style="margin-top:5px"><input data-ev="' + e.id + '.note" value="' + esc(e.note) + '" placeholder="Подробности">' +
           micBtn('ev:' + e.id + '.note') + '</div>' +
           '<div class="inline" style="margin-top:5px">' + aclSelect('ev:' + e.id, e.acl) +
@@ -307,89 +329,163 @@
     contacts: function (p, body) { this.bindFields(body); },
     events: function (p, body) { this.bindEvents(body); },
     access: function (p, body) { this.bindAcl(body); },
-    info: function (p, body) { this.bindCoords(body); }
+    info: function () {}
+  };
+
+  /* --------- отложенные правки ---------
+     Поля не записываются в дерево сразу: правка попадает в очередь,
+     внизу карточки появляется полоса «Сохранить / Отменить». Так случайное
+     нажатие не уходит к родственникам при следующей синхронизации. */
+
+  Sheet.prototype.stage = function (key, apply, label) {
+    this.pending = this.pending || [];
+    var found = false;
+    for (var i = 0; i < this.pending.length; i++) {
+      if (this.pending[i].key === key) { this.pending[i].apply = apply; found = true; break; }
+    }
+    if (!found) this.pending.push({ key: key, apply: apply, label: label || '' });
+    this.paintBar();
+  };
+  Sheet.prototype.hasPending = function () { return !!(this.pending && this.pending.length); };
+
+  Sheet.prototype.paintBar = function () {
+    var bar = this.el.querySelector('#shBar');
+    if (!bar) return;
+    var n = this.pending ? this.pending.length : 0;
+    bar.hidden = !n;
+    if (!n) return;
+    bar.querySelector('.bar-count').textContent =
+      'Не сохранено: ' + n + ' ' + plural(n, 'правка', 'правки', 'правок');
+  };
+
+  Sheet.prototype.commit = function () {
+    var p = S.person(this.personId);
+    if (!p || !this.hasPending()) { this.pending = []; this.paintBar(); return; }
+    this.pending.forEach(function (x) { try { x.apply(); } catch (e) { console.error(e); } });
+    this.pending = [];
+    S.updatePerson(p.id, {});
+    this.paintBar();
+    this.renderHead();
+    this.renderBody();
+    this.onChange();
+    this.toast('Сохранено');
+  };
+
+  Sheet.prototype.discard = function () {
+    this.pending = [];
+    this.paintBar();
+    this.renderBody();
+  };
+
+  /** спросить, если есть несохранённые правки; then() вызывается, когда можно идти дальше */
+  Sheet.prototype.guard = function (then) {
+    var self = this;
+    if (!this.hasPending()) { then(); return; }
+    global.App.modal('Сохранить изменения?',
+      '<p class="note">В карточке ' + esc(S.fullName(S.person(this.personId))) +
+      ' есть несохранённые правки: ' + this.pending.length + '. Что с ними сделать?</p>',
+      [
+        { text: 'Сохранить', primary: true, fn: function () {
+          global.App.closeModal(); self.commit(); then();
+        } },
+        { text: 'Не сохранять', danger: true, fn: function () {
+          global.App.closeModal(); self.pending = []; self.paintBar(); then();
+        } }
+      ]);
   };
 
   Sheet.prototype.bindFields = function (body) {
     var self = this, p = S.person(this.personId);
     body.querySelectorAll('[data-f]').forEach(function (inp) {
-      inp.addEventListener('change', function () {
+      inp.addEventListener('input', function () {
         var parts = inp.dataset.f.split('.');
-        var f = (p.fields || []).filter(function (x) { return x.id === parts[0]; })[0];
-        if (!f) return;
-        f[parts[1]] = inp.value;
-        S.updatePerson(p.id, {});
-        self.onChange();
-      });
-    });
-    body.querySelectorAll('[data-acl]').forEach(function (sel) {
-      sel.addEventListener('change', function () {
-        var key = sel.dataset.acl;
-        if (key.indexOf('f:') === 0) {
-          var f = (p.fields || []).filter(function (x) { return x.id === key.slice(2); })[0];
-          if (f) { f.acl = f.acl || {}; f.acl.level = sel.value; }
-        }
-        S.updatePerson(p.id, {});
-        self.onChange();
-      });
-    });
-  };
-  Sheet.prototype.bindEvents = function (body) {
-    var self = this, p = S.person(this.personId);
-    body.querySelectorAll('[data-ev]').forEach(function (inp) {
-      inp.addEventListener('change', function () {
-        var parts = inp.dataset.ev.split('.');
-        var e = (p.events || []).filter(function (x) { return x.id === parts[0]; })[0];
-        if (!e) return;
         var v = inp.value;
-        if (parts[1] === 'lat' || parts[1] === 'lng') v = v === '' ? null : parseFloat(v.replace(',', '.'));
-        e[parts[1]] = v;
-        S.updatePerson(p.id, {});
-        self.onChange();
+        self.stage('f:' + inp.dataset.f, function () {
+          var f = (p.fields || []).filter(function (x) { return x.id === parts[0]; })[0];
+          if (f) f[parts[1]] = v;
+        });
       });
     });
     body.querySelectorAll('[data-acl]').forEach(function (sel) {
       sel.addEventListener('change', function () {
-        var id = sel.dataset.acl.replace('ev:', '');
-        var e = (p.events || []).filter(function (x) { return x.id === id; })[0];
-        if (e) { e.acl = e.acl || {}; e.acl.level = sel.value; }
-        S.updatePerson(p.id, {});
-        self.onChange();
-      });
-    });
-  };
-  Sheet.prototype.bindAcl = function (body) {
-    var self = this, p = S.person(this.personId);
-    var sel = body.querySelector('[data-acl="person"]');
-    if (sel) sel.addEventListener('change', function () {
-      p.acl = p.acl || {}; p.acl.level = sel.value;
-      S.updatePerson(p.id, {}); self.onChange();
-    });
-    var lock = body.querySelector('[data-lock="person"]');
-    if (lock) lock.addEventListener('change', function () {
-      p.acl = p.acl || {}; p.acl.locked = lock.checked;
-      S.updatePerson(p.id, {}); self.onChange();
-    });
-  };
-  Sheet.prototype.bindCoords = function (body) {
-    var self = this, p = S.person(this.personId);
-    body.querySelectorAll('[data-coord]').forEach(function (inp) {
-      inp.addEventListener('change', function () {
-        var parts = inp.dataset.coord.split('.');
-        var v = inp.value === '' ? null : parseFloat(inp.value.replace(',', '.'));
-        p[parts[0]][parts[1]] = v;
-        S.updatePerson(p.id, {});
-        self.onChange();
+        var key = sel.dataset.acl, v = sel.value;
+        self.stage('acl:' + key, function () {
+          if (key.indexOf('f:') === 0) {
+            var f = (p.fields || []).filter(function (x) { return x.id === key.slice(2); })[0];
+            if (f) { f.acl = f.acl || {}; f.acl.level = v; }
+          }
+        });
       });
     });
   };
 
+  Sheet.prototype.bindEvents = function (body) {
+    var self = this, p = S.person(this.personId);
+    body.querySelectorAll('[data-ev]').forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        var parts = inp.dataset.ev.split('.');
+        var v = inp.value;
+        self.stage('ev:' + inp.dataset.ev, function () {
+          var e = (p.events || []).filter(function (x) { return x.id === parts[0]; })[0];
+          if (e) e[parts[1]] = v;
+        });
+      });
+    });
+    body.querySelectorAll('[data-acl]').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        var id = sel.dataset.acl.replace('ev:', ''), v = sel.value;
+        self.stage('evacl:' + id, function () {
+          var e = (p.events || []).filter(function (x) { return x.id === id; })[0];
+          if (e) { e.acl = e.acl || {}; e.acl.level = v; }
+        });
+      });
+    });
+  };
+
+  Sheet.prototype.bindAcl = function (body) {
+    var self = this, p = S.person(this.personId);
+    var sel = body.querySelector('[data-acl="person"]');
+    if (sel) sel.addEventListener('change', function () {
+      var v = sel.value;
+      self.stage('person.acl', function () { p.acl = p.acl || {}; p.acl.level = v; });
+    });
+    var lock = body.querySelector('[data-lock="person"]');
+    if (lock) lock.addEventListener('change', function () {
+      var v = lock.checked;
+      self.stage('person.lock', function () { p.acl = p.acl || {}; p.acl.locked = v; });
+    });
+  };
+
+  function plural(n, one, few, many) {
+    var a = Math.abs(n) % 100, b = a % 10;
+    if (a > 10 && a < 20) return many;
+    if (b > 1 && b < 5) return few;
+    if (b === 1) return one;
+    return many;
+  }
+
   /* --------- действия --------- */
   Sheet.prototype.actions = {
     close: function () { this.close(); },
-    tab: function (btn) { this.tab = btn.dataset.tab; this.renderBody(); this.renderHead(); },
+    commit: function () { this.commit(); },
+    discard: function () { this.discard(); },
+    tab: function (btn) {
+      var self = this, t = btn.dataset.tab;
+      this.guard(function () { self.tab = t; self.renderBody(); self.renderHead(); });
+    },
     focus: function () { this.onFocus(this.personId); },
     goto: function (btn) { this.open(btn.dataset.id); },
+    pickPlace: function (btn) { this.pickPlace(btn.dataset.key); },
+    dropPlace: function (btn) {
+      var self = this, key = btn.dataset.key;
+      global.App.confirm('Убрать точку с карты?',
+        'Место словами останется в карточке — пропадёт только метка на карте.',
+        function () {
+          self.setPlace(key, null, null);
+          self.renderBody();
+          self.toast('Точка убрана');
+        });
+    },
     delPerson: function () {
       var p = S.person(this.personId);
       var self = this;
@@ -406,6 +502,7 @@
       this.onChange();
     },
     addField: function (btn) {
+      this.commit();
       var p = S.person(this.personId);
       var type = btn.dataset.type;
       var labels = { phone: 'Телефон', email: 'Почта', addr: 'Адрес', link: 'Ссылка', text: 'Новая строка' };
@@ -426,6 +523,7 @@
       this.onChange();
     },
     addEvent: function () {
+      this.commit();
       var p = S.person(this.personId);
       p.events = p.events || [];
       p.events.push({
@@ -461,6 +559,62 @@
     openMedia: function (btn) { global.App.viewMedia(btn.dataset.id, this); },
     recVoice: function (btn) { this.recordVoice(btn); },
     dictate: function (btn) { this.dictate(btn.dataset.target, btn); }
+  };
+
+  /* --------- точка на карте --------- */
+  /* Точку записываем сразу: в окне карты человек уже нажал «Сохранить точку»,
+     второе подтверждение внизу карточки было бы лишним. */
+  Sheet.prototype.setPlace = function (key, lat, lng) {
+    var p = S.person(this.personId);
+    if (!p) return;
+    if (key.indexOf('ev:') === 0) {
+      var e = (p.events || []).filter(function (x) { return x.id === key.slice(3); })[0];
+      if (e) { e.lat = lat; e.lng = lng; }
+    } else {
+      p[key] = p[key] || {};
+      p[key].lat = lat;
+      p[key].lng = lng;
+    }
+    S.updatePerson(p.id, {});
+    this.onChange();
+  };
+
+  Sheet.prototype.pickPlace = function (key) {
+    var self = this, p = S.person(this.personId);
+    var cur = key.indexOf('ev:') === 0
+      ? (p.events || []).filter(function (x) { return x.id === key.slice(3); })[0]
+      : p[key];
+    var placeName = (cur && cur.place) || '';
+    var chosen = { lat: cur && cur.lat, lng: cur && cur.lng };
+
+    global.App.modal('Где это было?',
+      '<p class="note" style="margin:0 0 10px">Нажмите на карту в нужном месте. ' +
+      'Перетаскивание двигает карту, колесо и кнопки слева меняют масштаб.</p>' +
+      (placeName ? '<p class="note">Записано место: <b>' + esc(placeName) + '</b></p>' : '') +
+      '<div id="pkMap" style="height:52vh;min-height:280px;position:relative;border-radius:10px;' +
+      'overflow:hidden;border:1px solid var(--line)"></div>' +
+      '<p class="note" id="pkInfo" style="margin-top:8px">' +
+      (chosen.lat != null ? 'Выбрано: ' + (+chosen.lat).toFixed(4) + ', ' + (+chosen.lng).toFixed(4)
+        : 'Точка пока не выбрана') + '</p>',
+      [{ text: 'Сохранить точку', primary: true, fn: function () {
+        if (chosen.lat == null) { self.toast('Сначала отметьте место на карте'); return; }
+        global.App.closeModal();
+        self.setPlace(key, +(+chosen.lat).toFixed(6), +(+chosen.lng).toFixed(6));
+        self.renderBody();
+      } }]);
+
+    var m = new global.MiniMap(document.getElementById('pkMap'));
+    var pins = [];
+    if (chosen.lat != null) pins.push({ lat: +chosen.lat, lng: +chosen.lng, kind: 'event', label: placeName });
+    m.setPins(pins);
+    if (pins.length) { m.z = 11; m.cx = +chosen.lat; m.cy = +chosen.lng; m.draw(); }
+    else m.draw();
+    m.onClick = function (lat, lng) {
+      chosen.lat = lat; chosen.lng = lng;
+      m.setPins([{ lat: lat, lng: lng, kind: 'event', label: placeName }]);
+      var info = document.getElementById('pkInfo');
+      if (info) info.textContent = 'Выбрано: ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
+    };
   };
 
   /* --------- голос --------- */
@@ -555,11 +709,26 @@
     return d.y + '-' + pad(d.m) + '-' + pad(d.d);
   }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
-  function coordInput(key, o) {
+  /** Вместо двух полей с цифрами — ссылка на карту и кнопка выбора точки.
+      Координаты по-прежнему хранятся: по ним строится вкладка «Карта». */
+  function mapRow(key, o) {
     o = o || {};
-    return '<div class="inline">' +
-      '<input data-coord="' + key + '.lat" value="' + (o.lat == null ? '' : o.lat) + '" placeholder="широта">' +
-      '<input data-coord="' + key + '.lng" value="' + (o.lng == null ? '' : o.lng) + '" placeholder="долгота"></div>';
+    var has = o.lat != null && o.lng != null;
+    var h = '<div class="map-row">';
+    if (has) {
+      var url = 'https://www.openstreetmap.org/?mlat=' + o.lat + '&mlon=' + o.lng + '#map=13/' +
+        o.lat + '/' + o.lng;
+      h += '<a class="map-link" href="' + url + '" target="_blank" rel="noopener">' +
+        I('pin') + ' Открыть на карте</a>' +
+        '<span class="map-coord">' + (+o.lat).toFixed(4) + ', ' + (+o.lng).toFixed(4) + '</span>' +
+        '<button class="btn btn-sm" data-act="pickPlace" data-key="' + key + '">Изменить точку</button>' +
+        '<button class="btn btn-sm btn-danger" data-act="dropPlace" data-key="' + key + '">Убрать</button>';
+    } else {
+      h += '<button class="btn btn-sm" data-act="pickPlace" data-key="' + key + '">' +
+        I('pin') + ' Указать на карте</button>' +
+        '<span class="note">точка не отмечена</span>';
+    }
+    return h + '</div>';
   }
   function fieldRow(f) {
     var isNote = f.type === 'text' || f.type === 'note';
