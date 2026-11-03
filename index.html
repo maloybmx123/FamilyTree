@@ -206,6 +206,16 @@ a { color: var(--accent); }
 .icon-btn.accent { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
 .icon-btn.accent:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 @media (max-width: 1180px) { .icon-btn .lbl { display: none; } }
+/* корзина в верхней панели: цифра показывает, что там что-то лежит */
+#btnTrash { position: relative; }
+#btnTrash.has-items { color: var(--warn); }
+.trash-count {
+  position: absolute; top: 1px; right: 1px; min-width: 15px; height: 15px;
+  padding: 0 3px; border-radius: 999px; background: var(--warn); color: #fff;
+  font-size: 10px; line-height: 15px; text-align: center; font-family: var(--font-body);
+}
+.trash-count[hidden] { display: none !important; }
+
 .who { font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
 .who b { color: var(--ink); font-weight: 700; }
 
@@ -525,9 +535,20 @@ label.inline { cursor: pointer; }
 }
 .gate[hidden] { display: none !important; }
 .gate-card {
+  position: relative;
   width: min(400px, 100%); background: var(--paper-2); border: 1px solid var(--line);
   border-radius: 16px; padding: 22px; box-shadow: var(--shadow);
 }
+/* крестик вместо второй кнопки: уйти с экрана, ничего не меняя */
+.gate-close {
+  position: absolute; right: 10px; top: 10px;
+  width: 32px; height: 32px; border: 0; border-radius: 9px;
+  background: transparent; color: var(--ink-faint); line-height: 0;
+  display: grid; place-items: center; cursor: pointer;
+}
+.gate-close .ico { width: 18px; height: 18px; }
+.gate-close:hover { background: var(--neutral); color: var(--ink); }
+.gate-card h1 { padding-right: 36px; }
 .gate h1 { font-size: 24px; margin-bottom: 4px; }
 .gate .lede { color: var(--ink-soft); font-size: 13px; margin: 0 0 18px; line-height: 1.5; }
 .gate label { display: block; font-size: 12px; color: var(--ink-faint); margin: 10px 0 4px; }
@@ -863,6 +884,156 @@ table.data tbody tr:hover { background: var(--neutral); }
 }
 .pw-eye .ico { width: 18px; height: 18px; }
 .pw-eye:hover { color: var(--ink); background: var(--neutral); }
+
+/* ---------- раздел «Фото и файлы» ---------- */
+.files-top {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.files-path { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.files-here { font-family: var(--font-display); font-size: 17px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 6px; }
+.files-tools { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.files-views { display: inline-flex; gap: 2px; }
+.files-views .btn[aria-pressed="true"],
+.files-tools .btn[aria-pressed="true"] {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+}
+@media (max-width: 760px) { .files-tools .lbl { display: none; } }
+
+.files-bar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 8px 10px; margin: 0 0 12px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--paper-2));
+  font-size: 13px;
+}
+.files-bar .spacer { flex: 1 1 auto; }
+.files-bar .btn[disabled] { opacity: .45; pointer-events: none; }
+
+.folder-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.folder-tile {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 12px; border: 1px solid var(--line); border-radius: 11px;
+  background: var(--paper-2); color: var(--ink); font-size: 13px;
+}
+.folder-tile:hover { background: var(--neutral); }
+.folder-tile .ico { width: 18px; height: 18px; color: var(--warn); }
+.folder-tile .f-count { color: var(--ink-faint); font-family: var(--font-data); font-size: 11px; }
+
+.photo-wall.small { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+.media-tile.is-sel { outline: 3px solid var(--accent); outline-offset: -3px; }
+.media-tile .tile-pick { position: absolute; left: 6px; top: 6px; z-index: 3; }
+.media-tile .tile-ico { display: grid; place-items: center; width: 100%; height: 100%; }
+.media-tile.has-img .tile-ico { display: none; }
+.media-tile .tile-play {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  width: 34px; height: 34px; border-radius: 50%; background: rgba(0,0,0,.5); color: #fff;
+  display: grid; place-items: center; pointer-events: none;
+}
+.media-tile .tile-play .ico { width: 16px; height: 16px; }
+tr.file-row { cursor: pointer; }
+tr.file-row.is-sel { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+/* ---------- просмотрщик ---------- */
+.viewer {
+  position: fixed; inset: 0; z-index: 400; background: #0d0c0b; color: #f2ece1;
+  display: grid; grid-template-rows: auto 1fr auto;
+  user-select: none;
+}
+.vw-top {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  background: rgba(0,0,0,.5); position: relative; z-index: 3;
+}
+.vw-top .spacer { flex: 1 1 auto; }
+.vw-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
+.vw-count { color: #b5ac9d; font-size: 12px; font-family: var(--font-data); }
+.vw-btn {
+  border: 0; background: transparent; color: #e8e1d5; padding: 7px; border-radius: 9px;
+  line-height: 0; cursor: pointer;
+}
+.vw-btn:hover { background: rgba(255,255,255,.14); }
+.vw-btn .ico { width: 19px; height: 19px; }
+.vw-btn[hidden] { display: none !important; }
+
+.vw-stage {
+  position: relative; overflow: hidden; display: grid; place-items: center;
+  touch-action: none;
+}
+.vw-stage img { max-width: 100%; max-height: 100%; transform-origin: center; will-change: transform; }
+.vw-stage video { max-width: 100%; max-height: 100%; background: #000; }
+.vw-wait { color: #b5ac9d; font-size: 14px; text-align: center; line-height: 1.6; }
+.vw-doc {
+  text-align: center; max-width: 440px; padding: 20px; display: grid; gap: 10px; justify-items: center;
+}
+.vw-doc .ico { width: 46px; height: 46px; color: #8d8577; }
+.vw-doc .note { color: #b5ac9d; }
+.vw-doc audio { width: 100%; }
+
+.vw-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 46px; height: 68px; border: 0; border-radius: 10px;
+  background: rgba(0,0,0,.35); color: #fff; display: grid; place-items: center; cursor: pointer;
+}
+.vw-nav:hover { background: rgba(0,0,0,.6); }
+.vw-nav.prev { left: 10px; }
+.vw-nav.next { right: 10px; }
+.vw-nav .ico { width: 24px; height: 24px; }
+
+.vw-zoom {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  background: rgba(0,0,0,.5); font-size: 12px; font-family: var(--font-data);
+}
+.vw-info {
+  position: absolute; right: 0; top: 52px; bottom: 44px; width: min(340px, 86vw); z-index: 4;
+  background: rgba(20,18,16,.96); border-left: 1px solid rgba(255,255,255,.12);
+  padding: 14px; overflow: auto;
+}
+.vw-info[hidden] { display: none !important; }
+.vw-info h3 { font-size: 15px; margin-bottom: 8px; }
+.vw-info table.data th { color: #9a9084; font-weight: 400; width: 44%; vertical-align: top; }
+.vw-info table.data th, .vw-info table.data td {
+  border-bottom: 1px solid rgba(255,255,255,.08); font-size: 12px;
+}
+
+.vw-edit {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: 56px; z-index: 5;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  background: rgba(20,18,16,.96); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 12px; padding: 8px; max-width: 94vw;
+}
+.vw-edit[hidden] { display: none !important; }
+.vw-edit .spacer { width: 10px; }
+.vw-edit .btn { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); color: #f2ece1; }
+.vw-edit .btn:hover { background: rgba(255,255,255,.18); }
+.vw-edit .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.vw-crop {
+  position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.45);
+  cursor: move; z-index: 3;
+}
+.vw-crop::after {
+  content: ""; position: absolute; right: -6px; bottom: -6px; width: 16px; height: 16px;
+  background: #fff; border-radius: 3px; cursor: nwse-resize;
+}
+@media (max-width: 560px) {
+  .vw-title { max-width: 34vw; }
+  .vw-nav { width: 38px; height: 56px; }
+}
+
+/* ---------- предложение установить программу ---------- */
+.install-bar {
+  position: fixed; z-index: 320; left: 50%; transform: translateX(-50%);
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  max-width: min(560px, calc(100vw - 24px));
+  padding: 12px 14px; border-radius: 14px;
+  background: var(--paper-2); border: 1px solid var(--line); box-shadow: var(--shadow);
+  font-size: 13px;
+}
+.install-bar .ico { width: 24px; height: 24px; color: var(--accent); }
+.install-bar div { flex: 1 1 200px; min-width: 0; line-height: 1.45; }
 </style>
 </head>
 <body>
@@ -894,6 +1065,8 @@ table.data tbody tr:hover { background: var(--neutral); }
       <button class="icon-btn accent" id="btnAdd" type="button" title="Добавить человека">
         <span class="lbl">Добавить</span></button>
       <button class="icon-btn" id="btnSync" type="button" title="Синхронизировать" hidden></button>
+      <button class="icon-btn" id="btnTrash" type="button" title="Корзина">
+        <span class="trash-count" id="trashCount" hidden></span></button>
       <button class="icon-btn" id="btnCalendar" type="button" title="Календарь дат"></button>
       <button class="icon-btn" id="btnMap" type="button" title="Карта мест"></button>
       <button class="icon-btn" id="btnSettings" type="button" title="Настройки">
@@ -1024,6 +1197,23 @@ table.data tbody tr:hover { background: var(--neutral); }
     upload: '<path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>' +
       '<polyline points="8 8 12 4 16 8"/><line x1="12" y1="4" x2="12" y2="16"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><polyline points="12 7 12 12 15.5 14"/>',
+    play: '<polygon points="7 4 20 12 7 20" fill="currentColor" stroke="none"/>',
+    pause: '<rect x="7" y="5" width="3.6" height="14" rx="1"/><rect x="13.4" y="5" width="3.6" height="14" rx="1"/>',
+    prev: '<polyline points="15 5 8 12 15 19"/>',
+    next: '<polyline points="9 5 16 12 9 19"/>',
+    rotate: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><polyline points="20 5 20 11 14 11"/>',
+    crop: '<path d="M6 2v16h16"/><path d="M2 6h16v16"/>',
+    info: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16.5"/>' +
+      '<circle cx="12" cy="7.8" r="1.1" fill="currentColor" stroke="none"/>',
+    folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    folderPlus: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' +
+      '<line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>',
+    grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/>' +
+      '<rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+    check: '<polyline points="4 12.5 9.5 18 20 6.5"/>',
+    star: '<path d="M12 3.4l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.6l5.9-.8z"/>',
+    download: '<path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>' +
+      '<polyline points="8 12 12 16 16 12"/><line x1="12" y1="4" x2="12" y2="16"/>',
     tree: '<circle cx="12" cy="4.6" r="2.4"/><circle cx="5.5" cy="19.4" r="2.4"/>' +
       '<circle cx="18.5" cy="19.4" r="2.4"/><path d="M12 7v4H5.5v6M12 11h6.5v6"/>',
     down: '<line x1="12" y1="4" x2="12" y2="18"/><polyline points="6 13 12 19 18 13"/>',
@@ -1268,7 +1458,7 @@ table.data tbody tr:hover { background: var(--neutral); }
       changes: [],
       tabs: [
         { id: 'tree', title: 'Дерево', icon: 'tree', builtin: true },
-        { id: 'photos', title: 'Фото', icon: 'photo', builtin: true },
+        { id: "photos", title: "Фото и файлы", icon: "photo", builtin: true },
         { id: 'changes', title: 'Изменения', icon: 'clock', builtin: true }
       ],
       /* Учётные записи лежат в самом дереве, а не на устройстве: иначе
@@ -1281,7 +1471,10 @@ table.data tbody tr:hover { background: var(--neutral); }
       /* следы удалённых записей: id -> когда удалили.
          Без них удаление, сделанное на одном устройстве, вернулось бы
          обратно при первой же синхронизации с другого. */
-      tombstones: {}
+      tombstones: {},
+      /* Корзина: удалённое не пропадает сразу, а ждёт здесь.
+         Сам файл с диска не стирается до окончательного удаления. */
+      trash: {}
     };
   }
 
@@ -1352,6 +1545,7 @@ table.data tbody tr:hover { background: var(--neutral); }
       if (!this.tree || !this.tree.persons) this.tree = emptyTree();
       if (!this.tree.tabs) this.tree.tabs = emptyTree().tabs;
       if (!this.tree.tombstones) this.tree.tombstones = {};
+      if (!this.tree.trash) this.tree.trash = {};
       if (!this.tree.meta.updated) this.tree.meta.updated = nowISO();
       try {
         this.deviceId = localStorage.getItem(LS_DEVICE);
@@ -1428,7 +1622,9 @@ table.data tbody tr:hover { background: var(--neutral); }
         treeImageFit: 'cover',   // cover | tile
         treeImageFade: 35,   // насколько приглушить, %
         showPhotos: true,
-        showDates: true
+        showDates: true,
+        nameOrder: 'given-first'   // given-first: Иван Петров · surname-first: Петров Иван
+
       };
     },
     loadPrefs: function (userId) {
@@ -1520,10 +1716,16 @@ table.data tbody tr:hover { background: var(--neutral); }
       var n = parts.join(' ').trim();
       return n || 'Без имени';
     },
+    /** Имя на эскизе. Порядок имени и фамилии выбирается в настройках,
+        отчество всегда идёт последним. */
     shortName: function (p) {
       if (!p) return '';
-      var n = [p.given, p.patronymic].filter(Boolean).join(' ');
-      return (n + ' ' + (p.surname || '')).trim() || 'Без имени';
+      var given = p.given || '', sur = p.surname || '', pat = p.patronymic || '';
+      var order = (this.prefs && this.prefs.nameOrder) || 'given-first';
+      var head = order === 'surname-first'
+        ? [sur, given].filter(Boolean).join(' ')
+        : [given, sur].filter(Boolean).join(' ');
+      return [head, pat].filter(Boolean).join(' ').trim() || 'Без имени';
     },
     /** имя для обращения в окнах: имя и фамилия, без отчества */
     callName: function (p) {
@@ -1677,21 +1879,112 @@ table.data tbody tr:hover { background: var(--neutral); }
         });
       });
     },
-    removeMedia: function (id, quiet) {
+    /** Заменить содержимое файла, сохранив его место в дереве и права доступа.
+        Нужно для правки снимка: id остаётся прежним, поэтому не рвутся ссылки
+        на главное фото и не плодятся дубликаты. */
+    replaceMedia: function (id, file) {
+      var self = this;
+      var m = this.tree.media[id];
+      if (!m) return Promise.reject(new Error('Файла нет в дереве'));
+      var isPrivate = m.acl && (m.acl.locked || m.acl.level === 'admin' || m.acl.level === 'owner');
+      var step = isPrivate ? encryptBlob(file) : Promise.resolve({ blob: file, enc: false });
+      return step.then(function (r) {
+        return blobPut(id, r.blob).then(function () {
+          m.size = file.size || 0;
+          m.mime = file.type || m.mime;
+          m.encrypted = r.enc;
+          m.updated = nowISO();
+          m.uploaded = false;          // изменённый файл должен уехать заново
+          self.log('media', 'Изменён файл «' + m.name + '»', m.personId);
+          self.save();
+          return m;
+        });
+      });
+    },
+
+    /** Удаление файла: по умолчанию в корзину, сам файл остаётся на диске.
+        hard — окончательно, без возврата. */
+    removeMedia: function (id, quiet, hard) {
       var m = this.tree.media[id];
       if (!m) return;
       var p = this.person(m.personId);
+      var wasPhoto = p && p.photo === id;
       if (p) {
         p.media = (p.media || []).filter(function (x) { return x !== id; });
-        if (p.photo === id) p.photo = (p.media || []).filter(function (x) {
+        if (wasPhoto) p.photo = (p.media || []).filter(function (x) {
           return (this.tree.media[x] || {}).kind === 'photo';
         }.bind(this))[0] || null;
       }
       delete this.tree.media[id];
       this.bury(id);
-      blobDel(id);
+      if (hard) blobDel(id);
+      else this.toTrash(id, { what: 'media', rec: m, personId: m.personId, wasPhoto: wasPhoto });
       if (p) p.updated = nowISO();
-      if (!quiet) { this.log('media', 'Удалён файл «' + m.name + '»', m.personId); this.save(); }
+      if (!quiet) {
+        this.log('media', (hard ? 'Удалён навсегда файл «' : 'В корзину: файл «') + m.name + '»', m.personId);
+        this.save();
+      }
+    },
+
+    /* --- корзина --- */
+    toTrash: function (id, item) {
+      this.tree.trash = this.tree.trash || {};
+      item.at = nowISO();
+      item.by = this.session ? this.session.displayName : 'система';
+      item.id = id;
+      this.tree.trash[id] = item;
+    },
+    trashList: function () {
+      var t = this.tree.trash || {}, out = [];
+      for (var id in t) out.push(t[id]);
+      return out.sort(function (a, b) { return (b.at || '').localeCompare(a.at || ''); });
+    },
+    /** Вернуть из корзины. Отметка времени ставится новая, иначе при
+        синхронизации чужое устройство снова сочтёт запись удалённой. */
+    restoreTrash: function (id) {
+      var t = this.tree.trash || {}, it = t[id];
+      if (!it) return false;
+      var stamp = nowISO();
+      if (it.what === 'media') {
+        var m = it.rec;
+        m.updated = stamp;
+        this.tree.media[id] = m;
+        var p = this.person(it.personId);
+        if (p) {
+          p.media = p.media || [];
+          if (p.media.indexOf(id) < 0) p.media.push(id);
+          if (it.wasPhoto && !p.photo) p.photo = id;
+          p.updated = stamp;
+        }
+        this.log('media', 'Файл «' + m.name + '» возвращён из корзины', it.personId);
+      } else if (it.what === 'field') {
+        var p2 = this.person(it.personId);
+        if (!p2) return false;
+        p2.fields = p2.fields || [];
+        p2.fields.push(it.rec);
+        p2.updated = stamp;
+        this.log('edit', 'Запись возвращена из корзины: ' + this.fullName(p2), it.personId);
+      }
+      delete this.tree.tombstones[id];
+      delete t[id];
+      this.save();
+      return true;
+    },
+    /** Убрать из корзины окончательно: вот теперь файл стирается с диска. */
+    purgeTrash: function (id) {
+      var t = this.tree.trash || {}, it = t[id];
+      if (!it) return false;
+      if (it.what === 'media') blobDel(id);
+      delete t[id];
+      this.save();
+      return true;
+    },
+    emptyTrash: function () {
+      var t = this.tree.trash || {}, self = this, n = 0;
+      Object.keys(t).forEach(function (id) { self.purgeTrash(id); n++; });
+      if (n) this.log('delete', 'Корзина очищена: ' + n + ' ' + (n === 1 ? 'запись' : 'записей'));
+      this.save();
+      return n;
     },
     mediaOf: function (personId) {
       var t = this.tree, out = [];
@@ -3588,6 +3881,18 @@ table.data tbody tr:hover { background: var(--neutral); }
       }
     });
 
+    /* --- корзина: общая для всех, иначе удалённое у одного нельзя вернуть
+           с другого устройства. Запись уходит из корзины, когда её либо
+           вернули (появилась снова в media), либо стёрли насовсем. --- */
+    out.trash = out.trash || {};
+    var rtr = remote.trash || {};
+    for (var trid in rtr) {
+      if (!out.trash[trid] || newer(rtr[trid].at, out.trash[trid].at)) out.trash[trid] = rtr[trid];
+    }
+    for (var trid2 in out.trash) {
+      if (out.media[trid2] || (out.persons[trid2])) delete out.trash[trid2];   // уже вернули
+    }
+
     /* --- учётные записи: по id, побеждает более поздняя правка --- */
     var users = {}, uorder = [];
     (out.users || []).concat(remote.users || []).forEach(function (u) {
@@ -4431,6 +4736,876 @@ table.data tbody tr:hover { background: var(--neutral); }
   global.MiniMap = MiniMap;
 })(window);
 </script>
+<script>/* Семейное Древо — раздел «Фото и файлы».
+
+   Что здесь: папки, три вида отображения, выделение нескольких файлов,
+   скачивание (по одному, выделенные, всё, папкой) и действия над выделенным
+   — удалить, сделать главным снимком, изменить, кому виден файл.
+
+   Папки живут отдельным списком (tree.folders), а у файла хранится только
+   folderId. Так папку можно переименовать, не трогая файлы, и пустая папка
+   не исчезает сама собой. */
+(function (global) {
+  'use strict';
+
+  var S = global.Store, U = S.util;
+  function esc(s) { return global.TreeView.esc(s); }
+  function I(n) { return global.Icon(n); }
+
+  function plural(n, a, b, c) {
+    var m = n % 100, k = n % 10;
+    if (m > 10 && m < 20) return c;
+    if (k === 1) return a;
+    if (k >= 2 && k <= 4) return b;
+    return c;
+  }
+
+  var Files = {
+    sel: {},                 // выделенные id
+    folderId: null,          // открытая папка; null — все файлы
+    editing: false,          // режим изменения
+
+    /* ---------- папки ---------- */
+    folders: function () {
+      var f = S.tree.folders || {};
+      var out = [];
+      for (var id in f) out.push(f[id]);
+      return out.sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'ru'); });
+    },
+    addFolder: function (name) {
+      S.tree.folders = S.tree.folders || {};
+      var id = U.uid('fld');
+      S.tree.folders[id] = { id: id, name: name, created: new Date().toISOString(),
+        updated: new Date().toISOString() };
+      S.save();
+      return id;
+    },
+    renameFolder: function (id, name) {
+      var f = (S.tree.folders || {})[id];
+      if (!f) return;
+      f.name = name; f.updated = new Date().toISOString();
+      S.save();
+    },
+    /** Удаляем только папку: файлы из неё возвращаются в общий список. */
+    dropFolder: function (id) {
+      var f = (S.tree.folders || {})[id];
+      if (!f) return;
+      S.allMedia().forEach(function (m) { if (m.folderId === id) { m.folderId = null; m.updated = new Date().toISOString(); } });
+      delete S.tree.folders[id];
+      S.bury(id);
+      S.log('delete', 'Удалена папка «' + f.name + '»');
+      S.save();
+    },
+
+    /* ---------- что показываем ---------- */
+    list: function () {
+      var self = this;
+      var all = S.allMedia().filter(function (m) { return S.canSee(m.acl); });
+      if (this.folderId) all = all.filter(function (m) { return m.folderId === self.folderId; });
+      var order = this.sort || 'added';
+      var by = {
+        added: function (a, b) { return (b.added || '').localeCompare(a.added || ''); },
+        name: function (a, b) { return (a.caption || a.name || '').localeCompare(b.caption || b.name || '', 'ru'); },
+        person: function (a, b) {
+          return S.fullName(S.person(a.personId)).localeCompare(S.fullName(S.person(b.personId)), 'ru');
+        },
+        size: function (a, b) { return (b.size || 0) - (a.size || 0); },
+        kind: function (a, b) { return (a.kind || '').localeCompare(b.kind || ''); }
+      };
+      return all.slice().sort(by[order] || by.added);
+    },
+
+    selected: function () {
+      var self = this;
+      return this.list().filter(function (m) { return self.sel[m.id]; });
+    },
+
+    /* ---------- отрисовка ---------- */
+    render: function () {
+      var host = document.querySelector('#pane-photos .pane-scroll');
+      if (!host) return;
+      var self = this;
+      var view = (S.prefs.filesView || 'tiles');
+      var items = this.list();
+      var folders = this.folders();
+      var cur = this.folderId ? (S.tree.folders || {})[this.folderId] : null;
+      var nSel = this.selected().length;
+
+      var head =
+        '<div class="files-top">' +
+        '<div class="files-path">' +
+        (cur ? '<button class="btn btn-sm" id="flUp">' + I('left') + ' Все файлы</button>' +
+               '<span class="files-here">' + I('folder') + ' ' + esc(cur.name) + '</span>'
+             : '<h2 style="margin:0">Фото и файлы</h2>') +
+        '</div>' +
+        '<div class="files-tools">' +
+        '<button class="btn btn-sm" id="flNewFolder" title="Создать папку">' + I('folderPlus') +
+        '<span class="lbl"> Папка</span></button>' +
+        '<button class="btn btn-sm" id="flEdit" aria-pressed="' + (this.editing) + '" title="Изменить">' +
+        I('check') + '<span class="lbl"> Выбрать</span></button>' +
+        '<span class="files-views">' +
+        [['tiles', 'grid', 'Крупные плитки'], ['small', 'photo', 'Мелкие плитки'], ['list', 'list', 'Список']]
+          .map(function (v) {
+            return '<button class="btn btn-sm" data-view="' + v[0] + '" aria-pressed="' +
+              (view === v[0]) + '" title="' + v[2] + '">' + I(v[1]) + '</button>';
+          }).join('') + '</span>' +
+        '<button class="btn btn-sm" id="flSaveAll" title="Скачать всё">' + I('download') +
+        '<span class="lbl"> Скачать всё</span></button>' +
+        '</div></div>';
+
+      var sortBar = '<div class="sort-bar"><span class="note">Порядок:</span>' +
+        [['added', 'по дате'], ['name', 'по названию'], ['person', 'по человеку'],
+         ['kind', 'по виду'], ['size', 'по размеру']].map(function (l) {
+          return '<button class="btn btn-sm" data-sort="' + l[0] + '" aria-pressed="' +
+            ((self.sort || 'added') === l[0]) + '">' + l[1] + '</button>';
+        }).join('') + '</div>';
+
+      var bar = this.editing
+        ? '<div class="files-bar">' +
+          '<span>' + (nSel ? 'Выбрано: ' + nSel : 'Ничего не выбрано') + '</span>' +
+          '<button class="btn btn-sm" id="flAll">Выбрать все</button>' +
+          '<button class="btn btn-sm" id="flNone">Снять</button>' +
+          '<span class="spacer"></span>' +
+          '<button class="btn btn-sm" id="flGet"' + (nSel ? '' : ' disabled') + '>' +
+          I('download') + ' Скачать</button>' +
+          '<button class="btn btn-sm" id="flMove"' + (nSel ? '' : ' disabled') + '>' +
+          I('folder') + ' В папку</button>' +
+          '<button class="btn btn-sm" id="flMain"' + (nSel === 1 ? '' : ' disabled') + '>' +
+          I('star') + ' Сделать главным</button>' +
+          '<button class="btn btn-sm" id="flAcl"' + (nSel ? '' : ' disabled') + '>' +
+          I('lock') + ' Кому видно</button>' +
+          '<button class="btn btn-sm btn-danger" id="flDel"' + (nSel ? '' : ' disabled') + '>' +
+          I('trash') + ' Удалить</button>' +
+          '</div>'
+        : '';
+
+      var fldHtml = (!this.folderId && folders.length)
+        ? '<div class="folder-row">' + folders.map(function (f) {
+            var n = S.allMedia().filter(function (m) { return m.folderId === f.id; }).length;
+            return '<button class="folder-tile" data-folder="' + esc(f.id) + '">' +
+              I('folder') + '<span class="f-name">' + esc(f.name) + '</span>' +
+              '<span class="f-count">' + n + '</span></button>';
+          }).join('') + '</div>'
+        : '';
+
+      var body;
+      if (!items.length) {
+        body = '<div class="empty">' + (this.folderId ? 'В этой папке пока пусто.'
+          : 'Файлов пока нет.<br>Откройте карточку человека и добавьте фотографии или документы.') + '</div>';
+      } else if (view === 'list') {
+        body = '<div class="table-wrap"><table class="data"><tbody>' + items.map(function (m) {
+          var who = S.person(m.personId);
+          return '<tr data-id="' + esc(m.id) + '" class="file-row' + (self.sel[m.id] ? ' is-sel' : '') + '">' +
+            (self.editing ? '<td style="width:30px"><input type="checkbox" data-pick="' + esc(m.id) + '"' +
+              (self.sel[m.id] ? ' checked' : '') + '></td>' : '') +
+            '<td style="width:34px">' + I(self.iconOf(m)) + '</td>' +
+            '<td>' + esc(m.caption || m.name) + '</td>' +
+            '<td>' + esc(who ? S.fullName(who) : '') + '</td>' +
+            '<td style="white-space:nowrap">' + Math.round((m.size || 0) / 1024) + ' КБ</td>' +
+            '<td style="white-space:nowrap">' + (m.added ? new Date(m.added).toLocaleDateString('ru-RU') : '') + '</td>' +
+            '</tr>';
+        }).join('') + '</tbody></table></div>';
+      } else {
+        body = '<div class="photo-wall' + (view === 'small' ? ' small' : '') + '">' +
+          items.map(function (m) {
+            var who = S.person(m.personId);
+            return '<div class="media-tile' + (self.sel[m.id] ? ' is-sel' : '') +
+              '" data-id="' + esc(m.id) + '" title="' + esc(m.name) + '">' +
+              (self.editing ? '<input class="tile-pick" type="checkbox" data-pick="' + esc(m.id) + '"' +
+                (self.sel[m.id] ? ' checked' : '') + '>' : '') +
+              '<span class="tile-ico">' + I(self.iconOf(m)) + '</span>' +
+              (m.kind === 'video' ? '<span class="tile-play">' + I('play') + '</span>' : '') +
+              '<span class="m-name">' + esc(m.caption || (who ? S.fullName(who) : m.name)) + '</span></div>';
+          }).join('') + '</div>';
+      }
+
+      host.innerHTML = head + fldHtml + sortBar + bar + body;
+      this.paintThumbs(host);
+      this.bind(host);
+    },
+
+    /** Обновить только пометки и нижнюю панель, не трогая сам список. */
+    repaintSelection: function (host) {
+      host = host || document.querySelector('#pane-photos .pane-scroll');
+      if (!host) return;
+      var self = this;
+      host.querySelectorAll('[data-id]').forEach(function (el) {
+        var on = !!self.sel[el.dataset.id];
+        el.classList.toggle('is-sel', on);
+        var c = el.querySelector('[data-pick]');
+        if (c) c.checked = on;
+      });
+      var n = this.selected().length;
+      var bar = host.querySelector('.files-bar');
+      if (!bar) return;
+      var label = bar.querySelector('span');
+      if (label) label.textContent = n ? 'Выбрано: ' + n : 'Ничего не выбрано';
+      ['#flGet', '#flMove', '#flAcl', '#flDel'].forEach(function (id) {
+        var b = bar.querySelector(id);
+        if (b) b.disabled = !n;
+      });
+      var main = bar.querySelector('#flMain');
+      if (main) main.disabled = n !== 1;
+    },
+
+    iconOf: function (m) {
+      return m.kind === 'photo' ? 'photo' : m.kind === 'audio' ? 'mic'
+        : m.kind === 'video' ? 'play' : 'note';
+    },
+
+    /** Подставить настоящие картинки в плитки — по мере готовности. */
+    paintThumbs: function (host) {
+      host.querySelectorAll('.media-tile[data-id]').forEach(function (el) {
+        var m = S.tree.media[el.dataset.id];
+        if (!m || m.kind !== 'photo') return;
+        S.mediaURL(m.id).then(function (url) {
+          if (!url || !el.isConnected) return;
+          el.style.backgroundImage = 'url(' + url + ')';
+          el.classList.add('has-img');
+          global.App._mediaUrls.push(url);
+        });
+      });
+    },
+
+    bind: function (host) {
+      var self = this, App = global.App;
+
+      var up = host.querySelector('#flUp');
+      if (up) up.addEventListener('click', function () { self.folderId = null; self.render(); });
+
+      host.querySelectorAll('[data-folder]').forEach(function (b) {
+        b.addEventListener('click', function () { self.folderId = b.dataset.folder; self.render(); });
+        b.addEventListener('contextmenu', function (e) {
+          e.preventDefault();
+          self.folderMenu(b.dataset.folder);
+        });
+      });
+
+      host.querySelector('#flNewFolder').addEventListener('click', function () {
+        App.prompt('Новая папка', 'Как её назвать?', '', function (name) {
+          if (!name || !name.trim()) return;
+          self.addFolder(name.trim());
+          self.render();
+        });
+      });
+
+      host.querySelector('#flEdit').addEventListener('click', function () {
+        self.editing = !self.editing;
+        if (!self.editing) self.sel = {};
+        self.render();
+      });
+
+      host.querySelectorAll('[data-view]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          S.prefs.filesView = b.dataset.view;
+          S.savePrefs();
+          self.render();
+        });
+      });
+      host.querySelectorAll('[data-sort]').forEach(function (b) {
+        b.addEventListener('click', function () { self.sort = b.dataset.sort; self.render(); });
+      });
+
+      host.querySelector('#flSaveAll').addEventListener('click', function () {
+        self.download(self.list(), self.folderId
+          ? ((S.tree.folders[self.folderId] || {}).name || 'папка') : 'Все файлы');
+      });
+
+      host.querySelectorAll('[data-pick]').forEach(function (c) {
+        c.addEventListener('click', function (e) { e.stopPropagation(); });
+        c.addEventListener('change', function () {
+          if (c.checked) self.sel[c.dataset.pick] = 1; else delete self.sel[c.dataset.pick];
+          // перерисовывать весь список на каждую галочку нельзя: на сотне
+          // файлов это мигание и потеря места прокрутки
+          self.repaintSelection(host);
+        });
+      });
+
+      // открыть просмотрщик; в режиме выбора нажатие отмечает файл
+      function openOrPick(id) {
+        if (self.editing) {
+          if (self.sel[id]) delete self.sel[id]; else self.sel[id] = 1;
+          self.repaintSelection(host);
+          return;
+        }
+        global.Viewer.open(self.list(), id);
+      }
+      host.querySelectorAll('.media-tile[data-id]').forEach(function (el) {
+        el.addEventListener('click', function () { openOrPick(el.dataset.id); });
+      });
+      host.querySelectorAll('tr.file-row').forEach(function (tr) {
+        tr.addEventListener('click', function () { openOrPick(tr.dataset.id); });
+      });
+
+      var on = function (id, fn) { var b = host.querySelector(id); if (b) b.addEventListener('click', fn); };
+      on('#flAll', function () {
+        self.list().forEach(function (m) { self.sel[m.id] = 1; });
+        self.repaintSelection(host);
+      });
+      on('#flNone', function () { self.sel = {}; self.repaintSelection(host); });
+      on('#flGet', function () { self.download(self.selected(), 'Выбранные файлы'); });
+      on('#flMove', function () { self.moveDialog(self.selected()); });
+      on('#flMain', function () {
+        var m = self.selected()[0];
+        if (!m) return;
+        if (m.kind !== 'photo') { App.toast('Главным может быть только снимок'); return; }
+        S.updatePerson(m.personId, { photo: m.id });
+        App.toast('Теперь это главное фото');
+        App.tree.render();
+        self.render();
+      });
+      on('#flAcl', function () { self.aclDialog(self.selected()); });
+      on('#flDel', function () {
+        var list = self.selected();
+        App.confirm('Удалить ' + list.length + ' ' + plural(list.length, 'файл', 'файла', 'файлов') + '?',
+          'Файлы уйдут в корзину — оттуда их можно вернуть.', function () {
+            list.forEach(function (m) { S.removeMedia(m.id, true); });
+            S.save();
+            self.sel = {};
+            App.paintTrash();
+            App.tree.render();
+            self.render();
+            App.toast('Перенесено в корзину');
+          });
+      });
+    },
+
+    folderMenu: function (id) {
+      var self = this, App = global.App;
+      var f = (S.tree.folders || {})[id];
+      if (!f) return;
+      App.modal('Папка «' + f.name + '»',
+        '<p class="note">Если удалить папку, файлы из неё не пропадут — они вернутся в общий список.</p>',
+        [
+          { text: 'Переименовать', fn: function () {
+            App.closeModal();
+            App.prompt('Новое название', '', f.name, function (v) {
+              if (v && v.trim()) { self.renameFolder(id, v.trim()); self.render(); }
+            });
+          } },
+          { text: 'Удалить папку', danger: true, fn: function () {
+            App.closeModal();
+            self.dropFolder(id);
+            if (self.folderId === id) self.folderId = null;
+            self.render();
+          } }
+        ]);
+    },
+
+    moveDialog: function (list) {
+      var self = this, App = global.App;
+      var folders = this.folders();
+      App.modal('Переложить ' + list.length + ' ' + plural(list.length, 'файл', 'файла', 'файлов'),
+        '<div class="row"><label for="mvFld">Куда</label><select id="mvFld">' +
+        '<option value="">Без папки</option>' +
+        folders.map(function (f) { return '<option value="' + esc(f.id) + '">' + esc(f.name) + '</option>'; }).join('') +
+        '</select></div>' +
+        '<div class="btn-row"><button class="btn btn-sm" id="mvNew">+ Новая папка</button></div>',
+        [{ text: 'Переложить', primary: true, fn: function () {
+          var v = document.getElementById('mvFld').value || null;
+          var stamp = new Date().toISOString();
+          list.forEach(function (m) { m.folderId = v; m.updated = stamp; });
+          S.save();
+          App.closeModal();
+          self.sel = {};
+          self.render();
+          App.toast('Переложено');
+        } }]);
+      document.getElementById('mvNew').addEventListener('click', function () {
+        App.prompt('Новая папка', 'Как её назвать?', '', function (name) {
+          if (!name || !name.trim()) return;
+          var id = self.addFolder(name.trim());
+          var sel = document.getElementById('mvFld');
+          if (sel) {
+            var o = document.createElement('option');
+            o.value = id; o.textContent = name.trim();
+            sel.appendChild(o); sel.value = id;
+          }
+        });
+      });
+    },
+
+    aclDialog: function (list) {
+      var self = this, App = global.App;
+      App.modal('Кому видны эти файлы',
+        '<div class="row"><label for="faLvl">Доступ</label><select id="faLvl">' +
+        '<option value="public">Всем, кто открыл дерево</option>' +
+        '<option value="group">Только вошедшим</option>' +
+        '<option value="chosen">Только выбранным</option>' +
+        '<option value="admin">Только администратору</option>' +
+        '</select></div>' +
+        '<p class="note" id="faNote">Выбор применится сразу ко всем ' + list.length + ' файлам.</p>',
+        [{ text: 'Применить', primary: true, fn: function () {
+          var lvl = document.getElementById('faLvl').value;
+          var stamp = new Date().toISOString();
+          function apply(allow) {
+            list.forEach(function (m) {
+              m.acl = m.acl || {};
+              m.acl.level = lvl;
+              if (lvl === 'chosen') m.acl.allow = (allow || []).slice();
+              m.updated = stamp;
+            });
+            S.save();
+            App.closeAllModals();
+            self.sel = {};
+            self.render();
+            App.toast('Доступ изменён');
+          }
+          if (lvl === 'chosen') {
+            var tmp = { level: 'chosen', allow: [] };
+            App.pickViewers(tmp, function () { apply(tmp.allow); });
+          } else apply();
+        } }]);
+    },
+
+    /* ---------- скачивание ---------- */
+    /** Один файл отдаём как есть, несколько — архивом. */
+    download: function (list, zipName) {
+      var App = global.App;
+      if (!list || !list.length) { App.toast('Нечего скачивать'); return; }
+      if (list.length === 1) {
+        var m = list[0];
+        S.mediaBlob(m.id).then(function (b) {
+          if (!b) { App.toast('Файл не нашёлся на этом устройстве'); return; }
+          App.saveFile(b, m.name || 'файл');
+        });
+        return;
+      }
+      App.toast('Собираю архив…');
+      var files = [], i = 0, used = {};
+      (function step() {
+        if (i >= list.length) {
+          if (!files.length) { App.toast('Ни один файл не нашёлся на этом устройстве'); return; }
+          var blob = global.IO.zip(files);
+          App.saveFile(blob, (zipName || 'Файлы') + '.zip');
+          return;
+        }
+        var m = list[i++];
+        S.mediaBlob(m.id).then(function (b) {
+          if (!b) return step();
+          var name = m.name || (m.id + '.bin');
+          if (used[name]) name = name.replace(/(\.[^.]+)?$/, '-' + used[name] + '$1');
+          used[m.name] = (used[m.name] || 0) + 1;
+          return b.arrayBuffer().then(function (ab) {
+            files.push({ name: name, data: new Uint8Array(ab) });
+            step();
+          });
+        }, step);
+      })();
+    }
+  };
+
+  global.Files = Files;
+})(window);
+</script>
+<script>/* Семейное Древо — просмотрщик фотографий, видео и документов.
+
+   Повадки взяты у «Фотографий» Windows 10: открывается во весь экран,
+   стрелки листают, колесо приближает, пробел — пауза у видео, есть сведения
+   о файле и простое редактирование — поворот, отражение, обрезка.
+
+   Правка не затирает исходник: сохранить можно поверх или отдельной копией. */
+(function (global) {
+  'use strict';
+
+  var S = global.Store;
+  function esc(s) { return global.TreeView.esc(s); }
+  function I(n) { return global.Icon(n); }
+
+  var Viewer = {
+    list: [], i: 0, el: null, scale: 1, tx: 0, ty: 0,
+    editing: false, rot: 0, flip: false, crop: null,
+    urls: [],
+
+    open: function (list, id) {
+      var self = this;
+      // если просмотрщик уже открыт, сперва убираем старый: иначе окна
+      // наслаиваются друг на друга и видно нижнее
+      if (this.el) this.close();
+      this.list = (list || []).filter(function (m) { return S.canSee(m.acl); });
+      this.i = Math.max(0, this.list.findIndex(function (m) { return m.id === id; }));
+      if (!this.list.length) return;
+      this.build();
+      this.show();
+      // во весь экран — как в «Фотографиях»; если браузер не даст, останемся
+      // в своём полноэкранном слое, он и так на всё окно
+      if (this.el.requestFullscreen) this.el.requestFullscreen().catch(function () {});
+      document.addEventListener('keydown', this._key = function (e) { self.onKey(e); });
+    },
+
+    close: function () {
+      if (document.fullscreenElement) document.exitFullscreen().catch(function () {});
+      document.removeEventListener('keydown', this._key);
+      this.revoke();
+      if (this.el) { this.el.remove(); this.el = null; }
+    },
+    revoke: function () {
+      this.urls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} });
+      this.urls = [];
+    },
+
+    cur: function () { return this.list[this.i]; },
+
+    build: function () {
+      var self = this;
+      var el = document.createElement('div');
+      el.className = 'viewer';
+      el.innerHTML =
+        '<div class="vw-top">' +
+        '<span class="vw-title" id="vwTitle"></span>' +
+        '<span class="vw-count" id="vwCount"></span>' +
+        '<span class="spacer"></span>' +
+        '<button class="vw-btn" id="vwInfo" title="Сведения">' + I('info') + '</button>' +
+        '<button class="vw-btn" id="vwEdit" title="Изменить">' + I('crop') + '</button>' +
+        '<button class="vw-btn" id="vwGet" title="Скачать">' + I('download') + '</button>' +
+        '<button class="vw-btn" id="vwStar" title="Сделать главным фото">' + I('star') + '</button>' +
+        '<button class="vw-btn" id="vwDel" title="Удалить">' + I('trash') + '</button>' +
+        '<button class="vw-btn" id="vwFull" title="Во весь экран">' + I('fullscreen') + '</button>' +
+        '<button class="vw-btn" id="vwClose" title="Закрыть (Esc)">' + I('close') + '</button>' +
+        '</div>' +
+        '<button class="vw-nav prev" id="vwPrev" title="Предыдущий">' + I('prev') + '</button>' +
+        '<button class="vw-nav next" id="vwNext" title="Следующий">' + I('next') + '</button>' +
+        '<div class="vw-stage" id="vwStage"></div>' +
+        '<aside class="vw-info" id="vwPane" hidden></aside>' +
+        '<div class="vw-edit" id="vwEditBar" hidden>' +
+        '<button class="btn btn-sm" data-ed="rot">' + I('rotate') + ' Повернуть</button>' +
+        '<button class="btn btn-sm" data-ed="flip">Отразить</button>' +
+        '<button class="btn btn-sm" data-ed="crop">' + I('crop') + ' Обрезать</button>' +
+        '<span class="spacer"></span>' +
+        '<button class="btn btn-sm" data-ed="cancel">Отмена</button>' +
+        '<button class="btn btn-sm" data-ed="copy">Сохранить копией</button>' +
+        '<button class="btn btn-sm btn-primary" data-ed="save">Сохранить</button>' +
+        '</div>' +
+        '<div class="vw-zoom">' +
+        '<button class="vw-btn" id="vwOut" title="Отдалить">' + I('minus') + '</button>' +
+        '<span id="vwScale">100%</span>' +
+        '<button class="vw-btn" id="vwIn" title="Приблизить">' + I('plus') + '</button>' +
+        '<button class="vw-btn" id="vwFit" title="Вписать">' + I('expand') + '</button>' +
+        '</div>';
+      document.body.appendChild(el);
+      this.el = el;
+
+      var on = function (id, fn) { el.querySelector(id).addEventListener('click', fn); };
+      on('#vwClose', function () { self.close(); });
+      on('#vwPrev', function () { self.step(-1); });
+      on('#vwNext', function () { self.step(1); });
+      on('#vwIn', function () { self.zoom(1.25); });
+      on('#vwOut', function () { self.zoom(1 / 1.25); });
+      on('#vwFit', function () { self.fit(); });
+      on('#vwInfo', function () {
+        var pane = el.querySelector('#vwPane');
+        pane.hidden = !pane.hidden;
+        if (!pane.hidden) self.paintInfo();
+      });
+      on('#vwFull', function () {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else if (el.requestFullscreen) el.requestFullscreen().catch(function () {});
+      });
+      on('#vwGet', function () { global.Files.download([self.cur()], 'файл'); });
+      on('#vwStar', function () {
+        var m = self.cur();
+        if (m.kind !== 'photo') { global.App.toast('Главным может быть только снимок'); return; }
+        S.updatePerson(m.personId, { photo: m.id });
+        global.App.toast('Теперь это главное фото');
+        global.App.tree.render();
+      });
+      on('#vwDel', function () {
+        var m = self.cur();
+        global.App.confirm('Удалить «' + (m.caption || m.name) + '»?',
+          'Файл уйдёт в корзину — оттуда его можно вернуть.', function () {
+            S.removeMedia(m.id);
+            global.App.paintTrash();
+            global.App.tree.render();
+            self.list.splice(self.i, 1);
+            if (!self.list.length) { self.close(); }
+            else { if (self.i >= self.list.length) self.i = self.list.length - 1; self.show(); }
+            if (global.App.activeTab === 'photos') global.Files.render();
+          });
+      });
+      on('#vwEdit', function () { self.toggleEdit(); });
+
+      el.querySelectorAll('[data-ed]').forEach(function (b) {
+        b.addEventListener('click', function () { self.editAction(b.dataset.ed); });
+      });
+
+      var stage = el.querySelector('#vwStage');
+      stage.addEventListener('wheel', function (e) {
+        if (self.cur().kind !== 'photo') return;
+        e.preventDefault();
+        self.zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY);
+      }, { passive: false });
+
+      var drag = null;
+      stage.addEventListener('pointerdown', function (e) {
+        if (self.scale <= 1 || self.editing) return;
+        drag = { x: e.clientX, y: e.clientY, tx: self.tx, ty: self.ty };
+        stage.setPointerCapture(e.pointerId);
+      });
+      stage.addEventListener('pointermove', function (e) {
+        if (!drag) return;
+        self.tx = drag.tx + (e.clientX - drag.x);
+        self.ty = drag.ty + (e.clientY - drag.y);
+        self.applyT();
+      });
+      stage.addEventListener('pointerup', function () { drag = null; });
+      stage.addEventListener('dblclick', function () {
+        if (self.scale > 1) self.fit(); else self.zoom(2);
+      });
+    },
+
+    onKey: function (e) {
+      if (!this.el) return;
+      if (e.key === 'Escape') { e.preventDefault(); this.close(); }
+      else if (e.key === 'ArrowRight') this.step(1);
+      else if (e.key === 'ArrowLeft') this.step(-1);
+      else if (e.key === '+' || e.key === '=') this.zoom(1.25);
+      else if (e.key === '-') this.zoom(1 / 1.25);
+      else if (e.key === '0') this.fit();
+      else if (e.key === ' ') {
+        var v = this.el.querySelector('video');
+        if (v) { e.preventDefault(); if (v.paused) v.play(); else v.pause(); }
+      }
+    },
+
+    step: function (d) {
+      if (this.editing) return;
+      this.i = (this.i + d + this.list.length) % this.list.length;
+      this.show();
+    },
+
+    show: function () {
+      var self = this, m = this.cur();
+      if (!m) return;
+      this.scale = 1; this.tx = 0; this.ty = 0;
+      this.rot = 0; this.flip = false; this.crop = null;
+      this.editing = false;
+      this.el.querySelector('#vwEditBar').hidden = true;
+      this.el.querySelector('#vwTitle').textContent = m.caption || m.name || '';
+      this.el.querySelector('#vwCount').textContent = (this.i + 1) + ' из ' + this.list.length;
+      this.el.querySelector('#vwEdit').hidden = m.kind !== 'photo';
+      this.el.querySelector('#vwStar').hidden = m.kind !== 'photo';
+      var stage = this.el.querySelector('#vwStage');
+      stage.innerHTML = '<div class="vw-wait">Открываю…</div>';
+      this.revoke();
+
+      S.mediaURL(m.id).then(function (url) {
+        if (!url) {
+          stage.innerHTML = '<div class="vw-wait">Файла нет на этом устройстве.<br>' +
+            'Он подтянется при синхронизации.</div>';
+          return;
+        }
+        self.urls.push(url);
+        if (m.kind === 'photo') {
+          stage.innerHTML = '<img id="vwImg" src="' + url + '" alt="">';
+          var img = stage.querySelector('img');
+          img.addEventListener('load', function () { self.fit(); });
+        } else if (m.kind === 'video') {
+          self.showVideo(stage, m, url);
+        } else if (m.kind === 'audio') {
+          stage.innerHTML = '<div class="vw-doc">' + I('mic') +
+            '<div>' + esc(m.name) + '</div><audio controls src="' + url + '"></audio></div>';
+        } else {
+          stage.innerHTML = '<div class="vw-doc">' + I('note') +
+            '<div>' + esc(m.name) + '</div>' +
+            '<p class="note">Этот файл программа показать не умеет — скачайте его ' +
+            'и откройте в своей программе.</p>' +
+            '<button class="btn btn-sm" id="vwDocGet">' + I('download') + ' Скачать</button></div>';
+          var g = stage.querySelector('#vwDocGet');
+          if (g) g.addEventListener('click', function () { global.Files.download([m], 'файл'); });
+        }
+        if (!self.el.querySelector('#vwPane').hidden) self.paintInfo();
+      });
+    },
+
+    /* Видео: браузер умеет не всякий формат. Если не берёт — говорим прямо,
+       что это за формат и что с ним делать, вместо чёрного прямоугольника. */
+    showVideo: function (stage, m, url) {
+      var self = this;
+      stage.innerHTML = '<video id="vwVid" controls autoplay playsinline src="' + url + '"></video>';
+      var v = stage.querySelector('video');
+      v.addEventListener('error', function () {
+        var fmt = (m.name.match(/\.([a-z0-9]+)$/i) || [, ''])[1].toUpperCase();
+        stage.innerHTML = '<div class="vw-doc">' + I('play') +
+          '<div>' + esc(m.name) + '</div>' +
+          '<p class="note">Это видео браузер проигрывать не умеет' +
+          (fmt ? ' (' + esc(fmt) + ')' : '') + '. Чаще всего так бывает с записями ' +
+          'с телефона в формате HEVC и со старыми AVI.</p>' +
+          '<p class="note">Файл цел и хранится в дереве — скачайте его и откройте ' +
+          'любым проигрывателем на компьютере или телефоне.</p>' +
+          '<button class="btn btn-sm" id="vwVidGet">' + I('download') + ' Скачать видео</button></div>';
+        var g = stage.querySelector('#vwVidGet');
+        if (g) g.addEventListener('click', function () { global.Files.download([m], 'видео'); });
+      });
+    },
+
+    paintInfo: function () {
+      var m = this.cur(), who = S.person(m.personId);
+      var pane = this.el.querySelector('#vwPane');
+      var img = this.el.querySelector('#vwImg');
+      var rows = [
+        ['Название', m.caption || m.name],
+        ['Имя файла', m.name],
+        ['Человек', who ? S.fullName(who) : '—'],
+        ['Вид', { photo: 'фотография', video: 'видео', audio: 'запись звука' }[m.kind] || 'документ'],
+        ['Тип', m.mime || '—'],
+        ['Размер', Math.round((m.size || 0) / 1024) + ' КБ'],
+        ['Добавлен', m.added ? new Date(m.added).toLocaleString('ru-RU') : '—'],
+        ['Изменён', m.updated ? new Date(m.updated).toLocaleString('ru-RU') : '—'],
+        ['Защита', m.encrypted ? 'зашифрован' : 'обычный'],
+        ['Кому виден', { public: 'всем', group: 'вошедшим', chosen: 'выбранным',
+          admin: 'администратору' }[(m.acl || {}).level] || 'всем']
+      ];
+      if (img && img.naturalWidth) {
+        rows.splice(5, 0, ['Размер снимка', img.naturalWidth + ' × ' + img.naturalHeight + ' точек']);
+      }
+      if (m.folderId && S.tree.folders && S.tree.folders[m.folderId]) {
+        rows.splice(2, 0, ['Папка', S.tree.folders[m.folderId].name]);
+      }
+      pane.innerHTML = '<h3>Сведения</h3><table class="data"><tbody>' +
+        rows.map(function (r) {
+          return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    },
+
+    /* ---------- масштаб ---------- */
+    applyT: function () {
+      var img = this.el.querySelector('#vwImg');
+      if (!img) return;
+      img.style.transform = 'translate(' + this.tx + 'px,' + this.ty + 'px) scale(' + this.scale + ')' +
+        ' rotate(' + this.rot + 'deg)' + (this.flip ? ' scaleX(-1)' : '');
+      var s = this.el.querySelector('#vwScale');
+      if (s) s.textContent = Math.round(this.scale * 100) + '%';
+    },
+    zoom: function (k, cx, cy) {
+      var img = this.el.querySelector('#vwImg');
+      if (!img) return;
+      var ns = Math.min(8, Math.max(0.1, this.scale * k));
+      var r = img.getBoundingClientRect();
+      if (cx == null) { cx = r.left + r.width / 2; cy = r.top + r.height / 2; }
+      var kk = ns / this.scale;
+      var ox = cx - (r.left + r.width / 2), oy = cy - (r.top + r.height / 2);
+      this.tx = this.tx - ox * (kk - 1);
+      this.ty = this.ty - oy * (kk - 1);
+      this.scale = ns;
+      this.applyT();
+    },
+    fit: function () {
+      this.scale = 1; this.tx = 0; this.ty = 0;
+      this.applyT();
+    },
+
+    /* ---------- правка ---------- */
+    toggleEdit: function () {
+      if (this.cur().kind !== 'photo') return;
+      this.editing = !this.editing;
+      this.el.querySelector('#vwEditBar').hidden = !this.editing;
+      this.el.classList.toggle('is-editing', this.editing);
+      if (!this.editing) { this.rot = 0; this.flip = false; this.clearCrop(); this.applyT(); }
+    },
+    editAction: function (what) {
+      var self = this;
+      if (what === 'rot') { this.rot = (this.rot + 90) % 360; this.applyT(); }
+      else if (what === 'flip') { this.flip = !this.flip; this.applyT(); }
+      else if (what === 'crop') { this.startCrop(); }
+      else if (what === 'cancel') { this.toggleEdit(); this.show(); }
+      else if (what === 'save' || what === 'copy') { this.saveEdited(what === 'copy'); }
+    },
+
+    startCrop: function () {
+      var self = this, stage = this.el.querySelector('#vwStage');
+      var img = stage.querySelector('#vwImg');
+      if (!img) return;
+      this.clearCrop();
+      var box = document.createElement('div');
+      box.className = 'vw-crop';
+      stage.appendChild(box);
+      var r = img.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+      var c = { x: r.left - sr.left + r.width * 0.1, y: r.top - sr.top + r.height * 0.1,
+                w: r.width * 0.8, h: r.height * 0.8 };
+      function paint() {
+        box.style.left = c.x + 'px'; box.style.top = c.y + 'px';
+        box.style.width = c.w + 'px'; box.style.height = c.h + 'px';
+      }
+      paint();
+      var drag = null;
+      box.addEventListener('pointerdown', function (e) {
+        var b = box.getBoundingClientRect();
+        var corner = (e.clientX > b.right - 24 && e.clientY > b.bottom - 24);
+        drag = { x: e.clientX, y: e.clientY, c: { x: c.x, y: c.y, w: c.w, h: c.h }, corner: corner };
+        box.setPointerCapture(e.pointerId);
+      });
+      box.addEventListener('pointermove', function (e) {
+        if (!drag) return;
+        var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (drag.corner) { c.w = Math.max(24, drag.c.w + dx); c.h = Math.max(24, drag.c.h + dy); }
+        else { c.x = drag.c.x + dx; c.y = drag.c.y + dy; }
+        paint();
+      });
+      box.addEventListener('pointerup', function () { drag = null; });
+      this.crop = { box: box, rect: c, img: img };
+    },
+    clearCrop: function () {
+      if (this.crop && this.crop.box) this.crop.box.remove();
+      this.crop = null;
+    },
+
+    /** Перерисовываем снимок в холсте с учётом поворота, отражения и рамки. */
+    saveEdited: function (asCopy) {
+      var self = this, m = this.cur();
+      var img = this.el.querySelector('#vwImg');
+      if (!img) return;
+      var natural = { w: img.naturalWidth, h: img.naturalHeight };
+      var shown = img.getBoundingClientRect();
+      var sx = 0, sy = 0, sw = natural.w, sh = natural.h;
+      if (this.crop) {
+        var sr = this.el.querySelector('#vwStage').getBoundingClientRect();
+        var c = this.crop.rect;
+        var k = natural.w / shown.width;
+        sx = Math.max(0, (c.x + sr.left - shown.left) * k);
+        sy = Math.max(0, (c.y + sr.top - shown.top) * k);
+        sw = Math.min(natural.w - sx, c.w * k);
+        sh = Math.min(natural.h - sy, c.h * k);
+      }
+      var rot = this.rot, flip = this.flip;
+      var cv = document.createElement('canvas');
+      var swap = (rot === 90 || rot === 270);
+      cv.width = Math.round(swap ? sh : sw);
+      cv.height = Math.round(swap ? sw : sh);
+      var g = cv.getContext('2d');
+      g.translate(cv.width / 2, cv.height / 2);
+      g.rotate(rot * Math.PI / 180);
+      if (flip) g.scale(-1, 1);
+      g.drawImage(img, sx, sy, sw, sh, -sw / 2, -sh / 2, sw, sh);
+      cv.toBlob(function (blob) {
+        if (!blob) { global.App.toast('Не получилось сохранить'); return; }
+        var name = m.name || 'фото.jpg';
+        if (asCopy) name = name.replace(/(\.[^.]+)?$/, '-правка$1');
+        var file = new File([blob], name, { type: blob.type || 'image/jpeg' });
+        if (asCopy) {
+          S.addMedia(m.personId, file, { acl: m.acl }).then(function (nm) {
+            global.App.toast('Сохранено копией');
+            self.toggleEdit();
+            if (global.App.activeTab === 'photos') global.Files.render();
+            self.list.push(S.tree.media[nm.id || nm]);
+            self.i = self.list.length - 1;
+            self.show();
+          });
+        } else {
+          S.replaceMedia(m.id, file).then(function () {
+            global.App.toast('Сохранено');
+            self.toggleEdit();
+            global.App.tree.render();
+            if (global.App.activeTab === 'photos') global.Files.render();
+            self.show();
+          }, function (e) { global.App.toast('Не вышло: ' + e.message); });
+        }
+      }, 'image/jpeg', 0.92);
+    }
+  };
+
+  global.Viewer = Viewer;
+})(window);
+</script>
 <script>/* Семейное Древо — карточка персоны: сведения, медиа, записи, контакты, события, доступ, родня. */
 (function (global) {
   'use strict';
@@ -4980,11 +6155,20 @@ table.data tbody tr:hover { background: var(--neutral); }
       this.onChange();
     },
     delField: function (btn) {
-      var p = S.person(this.personId);
-      p.fields = (p.fields || []).filter(function (f) { return f.id !== btn.dataset.id; });
-      S.updatePerson(p.id, {});
-      this.renderBody();
-      this.onChange();
+      var self = this, p = S.person(this.personId);
+      var f = (p.fields || []).filter(function (x) { return x.id === btn.dataset.id; })[0];
+      if (!f) return;
+      var what = (f.label || f.title || 'запись');
+      global.App.confirm('Удалить «' + what + '»?',
+        'Запись уйдёт в корзину — её можно будет вернуть.', function () {
+          p.fields = (p.fields || []).filter(function (x) { return x.id !== f.id; });
+          S.toTrash(f.id, { what: 'field', rec: f, personId: p.id });
+          S.bury(f.id);
+          S.updatePerson(p.id, {});
+          self.renderBody();
+          self.onChange();
+          global.App.paintTrash();
+        });
     },
     addEvent: function () {
       this.commit();
@@ -5331,7 +6515,7 @@ table.data tbody tr:hover { background: var(--neutral); }
 
   /* Номер сборки. Виден на экране входа — по нему сразу понятно,
      обновилась ли программа на сайте и на телефоне. */
-  var BUILD = '12', BUILD_DATE = '2 ноября 2026';
+  var BUILD = '14', BUILD_DATE = '3 ноября 2026';
 
   var App = {
     BUILD: BUILD, BUILD_DATE: BUILD_DATE,
@@ -5414,26 +6598,26 @@ table.data tbody tr:hover { background: var(--neutral); }
       var mine = Object.keys(S.tree.persons || {}).length;
       var replacing = mine && !S.tree.meta.demo;
 
-      /* Человек пришёл по ссылке — значит дерево уже есть и заводить новое
-         ему незачем. Поэтому здесь одна кнопка, а уйти «заводить своё» можно
-         только с устройства, где своё дерево уже лежит. */
+      /* Человек пришёл по ссылке: единственное разумное действие — войти.
+         Поэтому одна кнопка и крестик, а объяснять устройство хранилища
+         тому, кто просто открыл присланную ссылку, незачем. */
       this.gate(
-        '<h1>Семейное Древо</h1>' +
+        '<button class="gate-close" id="jSkip" type="button" title="Закрыть" ' +
+        'aria-label="Закрыть">' + global.Icon('close') + '</button>' +
+        '<h1>' + (cfg.t ? 'Приглашение в семейное древо' : 'Вход на этом устройстве') + '</h1>' +
         '<p class="lede">' + (cfg.t
-          ? 'Вас пригласили в семейное древо. Сейчас программа заберёт его из общего ' +
-            'хранилища, а дальше вы напишете своё имя и придумаете логин с паролем.'
-          : 'Ссылка принесла настройки вашего хранилища. Программа заберёт дерево, ' +
-            'и вы войдёте тем же логином и паролем, что и на первом устройстве.') + '</p>' +
-        (replacing ? '<p class="note" style="color:var(--warn)">На этом устройстве уже есть своё ' +
-          'дерево (' + mine + ' персон). Оно будет заменено общим. Если в нём есть что-то ценное, ' +
-          'сначала сохраните копию.</p>' : '') +
+          ? 'Вас пригласили в семейное древо. Дальше вы напишете своё имя ' +
+            'и придумаете себе логин и пароль.'
+          : 'Это ваша ссылка. Войдёте тем же логином и паролем, что и на первом устройстве.') +
+        '</p>' +
+        (replacing ? '<p class="note" style="color:var(--warn)">Внимание: на этом устройстве уже есть ' +
+          'своё дерево, ' + mine + ' ' + plural(mine, 'человек', 'человека', 'человек') +
+          '. Оно будет заменено общим.</p>' : '') +
         '<div class="err" id="gErr"></div>' +
         '<div class="btn-row"><button class="btn btn-primary" id="jGo">' +
-        'Присоединиться к семейному древу</button>' +
-        (replacing ? '<button class="btn" id="jSkip">Оставить своё</button>' : '') + '</div>');
+        (cfg.t ? 'Присоединиться к семейному древу' : 'Войти') + '</button></div>');
 
-      var skip = document.getElementById('jSkip');
-      if (skip) skip.addEventListener('click', function () {
+      document.getElementById('jSkip').addEventListener('click', function () {
         location.hash = '';
         if (S.users.length) self.gateLogin(); else self.gateFirstRun();
       });
@@ -5444,10 +6628,10 @@ table.data tbody tr:hover { background: var(--neutral); }
         S.sync[cfg.m].key = cfg.k;
         if (cfg.m === 'supabase') S.sync.supabase.treeId = cfg.i || '';
         S.saveSync();
-        err('Забираем дерево…');
+        err('Присоединение…');
         Sy.peek().then(function (remote) {
           if (!remote || !remote.persons) {
-            err('По этим настройкам дерева не нашлось. Попросите отправителя проверить ссылку.');
+            err('По этой ссылке дерева не нашлось. Попросите отправителя создать ссылку заново.');
             return;
           }
           S.tree = remote;
@@ -5457,7 +6641,7 @@ table.data tbody tr:hover { background: var(--neutral); }
           S.dirty = false;
           S.saveSync();
           var n = Object.keys(remote.persons).length;
-          self.toast('Дерево получено: ' + n + ' ' + plural(n, 'персона', 'персоны', 'персон'));
+          self.toast('Готово. В дереве ' + n + ' ' + plural(n, 'человек', 'человека', 'человек'));
           if (cfg.t) { self.gateInvite(cfg.t); return; }
           location.hash = '';
           self.gateLogin();
@@ -5497,10 +6681,12 @@ table.data tbody tr:hover { background: var(--neutral); }
         '<b>' + esc(S.session.displayName) + '</b> · ' + (S.isAdmin() ? 'администратор' : 'пользователь');
       document.getElementById('treeName').textContent = S.tree.meta.name;
       this.renderTabs();
+      this.paintTrash();
       this.showTab('tree');
       setTimeout(function () { self.tree.fit(true); }, 60);
       this.startSync();
       this.watchForHistory();
+      this.watchInstall();
     },
 
     /* ============ показ пароля ============
@@ -5645,7 +6831,7 @@ table.data tbody tr:hover { background: var(--neutral); }
         '</select>' +
         '<div id="jFields"></div>' +
         '<div class="err" id="gErr"></div>' +
-        '<div class="btn-row"><button class="btn btn-primary" id="jGo">Забрать дерево</button>' +
+        '<div class="btn-row"><button class="btn btn-primary" id="jGo">Присоединиться</button>' +
         '<button class="btn" id="jBack">Назад</button></div>');
 
       function fields() {
@@ -5692,7 +6878,7 @@ table.data tbody tr:hover { background: var(--neutral); }
         if (!S.sync[m].url || !S.sync[m].key) return err('Заполните адрес и ключ');
         if (m === 'supabase' && !S.sync.supabase.treeId) return err('Укажите имя дерева');
         S.saveSync();
-        err('Забираем дерево…');
+        err('Присоединение…');
         Sy.peek().then(function (remote) {
           if (!remote || !remote.persons) {
             err('По этим настройкам дерева не нашлось. Проверьте адрес, ключ и имя дерева.');
@@ -5710,7 +6896,8 @@ table.data tbody tr:hover { background: var(--neutral); }
           S.sync.lastError = null;
           S.dirty = false;
           S.saveSync();
-          self.toast('Дерево получено: ' + Object.keys(remote.persons).length + ' персон');
+          var n2 = Object.keys(remote.persons).length;
+          self.toast('Готово. В дереве ' + n2 + ' ' + plural(n2, 'человек', 'человека', 'человек'));
           self.gateLogin();
         }, function (e) { err('Не вышло: ' + e.message); });
       });
@@ -5788,7 +6975,7 @@ table.data tbody tr:hover { background: var(--neutral); }
 
       if (old) {
         this.gate(
-          '<h1>Приглашение в дерево</h1>' +
+          '<h1>Придумайте пароль</h1>' +
           '<p class="lede">Вам открыт доступ к дереву «' + esc(S.tree.meta.name) +
           '». Придумайте пароль — логин уже заведён: <b>' + esc(old.login) + '</b>.</p>' +
           '<label for="gPass">Пароль</label><input id="gPass" type="password" autocomplete="new-password">' +
@@ -5813,10 +7000,10 @@ table.data tbody tr:hover { background: var(--neutral); }
 
       /* Обычный путь: человек сам пишет, как его зовут, и придумывает вход. */
       this.gate(
-        '<h1>Приглашение в дерево</h1>' +
-        '<p class="lede">Вас пригласили в семейное дерево «' + esc(S.tree.meta.name) + '»' +
-        (inv.by ? ', пригласил ' + esc(inv.by) : '') + '. Представьтесь и придумайте вход — ' +
-        'логин и пароль вы задаёте себе сами.</p>' +
+        '<h1>Знакомство</h1>' +
+        '<p class="lede">Дерево «' + esc(S.tree.meta.name) + '» открыто' +
+        (inv.by ? ', вас пригласил ' + esc(inv.by) : '') + '. Как вас записать и ' +
+        'под каким входом вы будете заходить?</p>' +
         '<label for="gName">Имя и фамилия</label><input id="gName" autocomplete="name">' +
         '<label for="gLogin">Логин</label><input id="gLogin" autocomplete="username" spellcheck="false">' +
         '<label for="gPass">Пароль</label><input id="gPass" type="password" autocomplete="new-password">' +
@@ -5835,7 +7022,7 @@ table.data tbody tr:hover { background: var(--neutral); }
         }
         if (p1.length < 6) return err('Пароль короче шести знаков');
         if (p1 !== p2) return err('Пароли не совпадают');
-        err('Заводим вас в дерево…');
+        err('Входим…');
         S.acceptInvite(token, login, p1, name).then(function (r) {
           if (r.error) { err(r.error); return; }
           S.setSession({ userId: r.user.id, login: r.user.login, role: r.user.role,
@@ -5914,6 +7101,7 @@ table.data tbody tr:hover { background: var(--neutral); }
             (rep.down ? ' · получено файлов: ' + rep.down : ''));
         }, function (e) { self.toast('Синхронизация не прошла: ' + e.message); });
       });
+      document.getElementById('btnTrash').addEventListener('click', function () { self.openTrash(); });
       document.getElementById('btnCalendar').addEventListener('click', function () { self.openCalendar(); });
       document.getElementById('btnMap').addEventListener('click', function () { self.openMap(); });
       document.getElementById('btnAdd').addEventListener('click', function () { self.addPerson(); });
@@ -6055,7 +7243,7 @@ table.data tbody tr:hover { background: var(--neutral); }
       var pane = document.getElementById('pane-' + (['tree', 'photos', 'changes', 'calendar', 'map', 'people'].indexOf(kind) >= 0 ? kind : 'notes'));
       pane.classList.add('active');
       if (kind === 'tree') { this.markView(); this.tree.render(); }
-      if (kind === 'photos') this.renderPhotos();
+      if (kind === 'photos') global.Files.render();
       if (kind === 'changes') this.renderChanges();
       if (kind === 'calendar') this.renderCalendar(document.querySelector('#pane-calendar .pane-scroll'));
       if (kind === 'people') this.renderPeople();
@@ -6084,59 +7272,8 @@ table.data tbody tr:hover { background: var(--neutral); }
         } }]);
     },
 
-    /* ============ вкладка «Фото» ============ */
-    renderPhotos: function () {
-      var host = document.querySelector('#pane-photos .pane-scroll'), self = this;
-      var all = S.allMedia().filter(function (m) { return m.kind === 'photo'; });
-      if (!all.length) {
-        host.innerHTML = '<div class="empty">Фотографий пока нет.<br>Откройте карточку человека и добавьте снимки — они соберутся здесь.</div>';
-        return;
-      }
-      var order = this._photoSort || 'added';
-      var sorters = {
-        added: function (a, b) { return (b.added || '').localeCompare(a.added || ''); },
-        person: function (a, b) {
-          return S.fullName(S.person(a.personId)).localeCompare(S.fullName(S.person(b.personId)), 'ru');
-        },
-        name: function (a, b) { return (a.caption || a.name || '').localeCompare(b.caption || b.name || '', 'ru'); },
-        size: function (a, b) { return (b.size || 0) - (a.size || 0); }
-      };
-      all = all.slice().sort(sorters[order] || sorters.added);
-      var labels = [['added', 'по дате добавления'], ['person', 'по человеку'],
-        ['name', 'по подписи'], ['size', 'по размеру']];
-      host.innerHTML = '<h2 style="margin-bottom:4px">Фотографии</h2>' +
-        '<p class="note" style="margin:0 0 10px">' + all.length + ' снимков' +
-        (all.some(function (m) { return !S.canSee(m.acl); }) ? ' · часть скрыта правами доступа' : '') + '</p>' +
-        '<div class="sort-bar"><span class="note">Порядок:</span>' +
-        labels.map(function (l) {
-          return '<button class="btn btn-sm" data-sort="' + l[0] + '" aria-pressed="' +
-            (order === l[0]) + '">' + l[1] + '</button>';
-        }).join('') + '</div>' +
-        '<div class="photo-wall">' + all.map(function (m) {
-          var who = S.person(m.personId);
-          return '<button class="media-tile" data-id="' + m.id + '" title="' + esc(m.name) + '">' +
-            global.Icon(S.canSee(m.acl) ? 'photo' : 'lock') +
-            '<span class="m-name">' + esc(who ? S.fullName(who) : m.name) + '</span></button>';
-        }).join('') + '</div>';
-      host.querySelectorAll('[data-sort]').forEach(function (b) {
-        b.addEventListener('click', function () {
-          self._photoSort = b.dataset.sort;
-          self.renderPhotos();
-        });
-      });
-      host.querySelectorAll('.media-tile').forEach(function (t) {
-        var m = S.tree.media[t.dataset.id];
-        t.addEventListener('click', function () { self.viewMedia(m.id); });
-        if (!S.canSee(m.acl)) return;
-        S.mediaURL(m.id).then(function (url) {
-          if (!url) return;
-          self._mediaUrls.push(url);
-          t.style.backgroundImage = 'url(' + url + ')';
-          var ic1 = t.querySelector('.ico');
-          if (ic1) ic1.remove();
-        });
-      });
-    },
+    /* ============ вкладка «Фото и файлы» ============
+       Сам раздел живёт в js/files.js: там папки, виды, выделение и скачивание. */
 
     /* ============ вкладка «Изменения» ============ */
     renderChanges: function () {
@@ -6669,11 +7806,15 @@ table.data tbody tr:hover { background: var(--neutral); }
             if (sheet) sheet.render();
           } },
           { text: 'Удалить', danger: true, fn: function () {
-            S.removeMedia(m.id);
-            self.closeModal();
-            if (sheet) sheet.render();
-            self.tree.render();
-            if (self.activeTab !== 'tree') self.showTab(self.activeTab);
+            self.confirm('Удалить «' + (m.caption || m.name) + '»?',
+              'Файл уйдёт в корзину — оттуда его можно вернуть.', function () {
+                S.removeMedia(m.id);
+                self.closeAllModals();
+                if (sheet) sheet.render();
+                self.tree.render();
+                self.paintTrash();
+                if (self.activeTab !== 'tree') self.showTab(self.activeTab);
+              });
           } },
           { text: 'Готово', primary: true, fn: function () {
             m.caption = document.getElementById('mvCap').value;
@@ -6814,6 +7955,12 @@ table.data tbody tr:hover { background: var(--neutral); }
           '<p class="note">Полоса идёт под 45° через угол фотокарточки. Толщина 0 убирает её совсем.</p>' +
           '<div class="set-row"><span>Показывать фото</span><input type="checkbox" id="stShowPh"' + (p.showPhotos ? ' checked' : '') + '></div>' +
           '<div class="set-row"><span>Показывать годы</span><input type="checkbox" id="stShowDt"' + (p.showDates ? ' checked' : '') + '></div>' +
+          '<div class="set-row"><span>Порядок имени</span><select id="stNameOrder">' +
+          '<option value="given-first"' + (p.nameOrder !== 'surname-first' ? ' selected' : '') +
+          '>Имя, затем фамилия</option>' +
+          '<option value="surname-first"' + (p.nameOrder === 'surname-first' ? ' selected' : '') +
+          '>Фамилия, затем имя</option></select></div>' +
+          '<p class="note">Отчество в обоих случаях идёт последним.</p>' +
           '<p class="note">Настройки оформления сохраняются отдельно для каждого пользователя — ' +
           'у остальных членов семьи дерево останется таким, каким они его настроили.</p></div>' +
           '</div>';
@@ -6857,6 +8004,9 @@ table.data tbody tr:hover { background: var(--neutral); }
         if (bgFade) bindRange('stBgFade', function (v) { p.treeImageFade = v; });
         document.getElementById('stShowPh').addEventListener('change', function () { p.showPhotos = this.checked; apply(); });
         document.getElementById('stShowDt').addEventListener('change', function () { p.showDates = this.checked; apply(); });
+        document.getElementById('stNameOrder').addEventListener('change', function () {
+          p.nameOrder = this.value; apply();
+        });
         document.getElementById('stAccent').addEventListener('click', function (e) {
           var b = e.target.closest('[data-c]');
           if (!b) return;
@@ -7015,6 +8165,8 @@ table.data tbody tr:hover { background: var(--neutral); }
           '<p class="note" style="margin-top:10px">Номер сборки виден и на экране входа. ' +
           'Если на телефоне он меньше, чем здесь, — откройте сайт и обновите страницу ещё раз.</p>' +
           '</div>' +
+          '<div class="set-card"><h3>Установить на это устройство</h3>' +
+          '<div id="abInstall"></div></div>' +
           '<div class="set-card"><h3>Проверить, всё ли на месте</h3>' +
           '<p class="note">Сверяет дерево само с собой: не потерялись ли файлы, нет ли ссылок ' +
           'на удалённых людей, доехали ли фотографии до общего хранилища.</p>' +
@@ -7022,6 +8174,7 @@ table.data tbody tr:hover { background: var(--neutral); }
           '<div id="abOut" class="note" style="margin-top:8px"></div></div>';
         var abc = document.getElementById('abCheck');
         if (abc) abc.addEventListener('click', function () { self.selfCheck(); });
+        this.paintInstall();
 
       } else if (which === 'sec') {
         var isAdmin = S.isAdmin();
@@ -7444,6 +8597,7 @@ table.data tbody tr:hover { background: var(--neutral); }
       this.tree.render();
       document.getElementById('treeName').textContent = S.tree.meta.name;
       this.renderTabs();
+      this.paintTrash();
       if (this.sheet && this.sheet.personId) {
         if (S.person(this.sheet.personId)) this.sheet.render();
         else this.sheet.close();
@@ -7779,9 +8933,11 @@ table.data tbody tr:hover { background: var(--neutral); }
         if (gone && !withPhoto) h += '<span class="node-mourn"></span>';
         return h + '</div>';
       }
+      // имена в образце строит та же функция, что и в дереве, — иначе образец
+      // показывал бы не то, что получится на самом деле
       stage.innerHTML = '<div class="pv-row">' +
-        node('f', 'Анна Петровна Смирнова', '1932', false) +
-        node('m', 'Пётр Смирнов', '1928 – 1994', true) + '</div>' +
+        node('f', S.shortName({ given: 'Анна', patronymic: 'Петровна', surname: 'Смирнова' }), '1932', false) +
+        node('m', S.shortName({ given: 'Пётр', surname: 'Смирнов' }), '1928 – 1994', true) + '</div>' +
         '<div class="preview-hint">Слева — живой человек, справа — с траурной полосой на углу.</div>';
     },
 
@@ -7865,6 +9021,192 @@ table.data tbody tr:hover { background: var(--neutral); }
         } }]);
       setTimeout(function () { var el = document.getElementById('pmVal'); if (el) el.focus(); }, 40);
     },
+    /* ============ установка на устройство ============
+       Программа ставится как обычное приложение: появляется значок, окно без
+       адресной строки, запуск без интернета. Браузер разрешает предложить это
+       только один раз и только по нажатию, поэтому событие приходится ловить
+       заранее и держать до нажатия кнопки. */
+    installReady: null,
+    watchInstall: function () {
+      var self = this;
+      global.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        self.installReady = e;
+        self.paintInstall();
+      });
+      global.addEventListener('appinstalled', function () {
+        self.installReady = null;
+        try { localStorage.setItem('drevo.installed', '1'); } catch (err) {}
+        self.paintInstall();
+        self.toast('Готово — программа установлена. Дальше запускайте её со значка.');
+      });
+      // плашку показываем один раз: навязываться не нужно
+      setTimeout(function () { self.offerInstall(); }, 4000);
+    },
+    isInstalled: function () {
+      try {
+        if (localStorage.getItem('drevo.installed') === '1') return true;
+      } catch (e) {}
+      return global.matchMedia && global.matchMedia('(display-mode: standalone)').matches;
+    },
+    offerInstall: function () {
+      if (!this.installReady || this.isInstalled()) return;
+      try { if (localStorage.getItem('drevo.installAsked') === '1') return; } catch (e) {}
+      var self = this;
+      var bar = document.createElement('div');
+      bar.className = 'install-bar';
+      bar.innerHTML =
+        '<span>' + global.Icon('download') + '</span>' +
+        '<div><b>Поставить на это устройство?</b><br>' +
+        '<span class="note">Появится значок, как у обычного приложения — ' +
+        'ссылку больше искать не придётся.</span></div>' +
+        '<button class="btn btn-sm btn-primary" id="ibGo">Установить</button>' +
+        '<button class="btn btn-sm" id="ibNo">Не сейчас</button>';
+      document.body.appendChild(bar);
+      function hide() {
+        try { localStorage.setItem('drevo.installAsked', '1'); } catch (e) {}
+        bar.remove();
+      }
+      bar.querySelector('#ibNo').addEventListener('click', hide);
+      bar.querySelector('#ibGo').addEventListener('click', function () {
+        hide();
+        self.doInstall();
+      });
+    },
+    doInstall: function () {
+      var self = this;
+      if (!this.installReady) { this.installHelp(); return; }
+      var e = this.installReady;
+      this.installReady = null;
+      e.prompt();
+      e.userChoice.then(function (r) {
+        if (r && r.outcome === 'accepted') self.toast('Устанавливаю…');
+        self.paintInstall();
+      });
+    },
+    /** Если браузер сам не предлагает — объясняем, где нажать. */
+    installHelp: function () {
+      var ua = navigator.userAgent;
+      var steps;
+      if (/iPhone|iPad|iPod/i.test(ua)) {
+        steps = '<li>Нажмите «Поделиться» внизу экрана</li>' +
+          '<li>Выберите «На экран «Домой»»</li>' +
+          '<li>Нажмите «Добавить»</li>';
+      } else if (/Android/i.test(ua)) {
+        steps = '<li>Откройте меню браузера (три точки справа вверху)</li>' +
+          '<li>Выберите «Установить приложение» или «Добавить на главный экран»</li>' +
+          '<li>Подтвердите</li>';
+      } else {
+        steps = '<li>В адресной строке справа нажмите значок установки ' +
+          '(монитор со стрелкой)</li>' +
+          '<li>Либо меню браузера → «Установить «Семейное Древо»»</li>' +
+          '<li>Появится ярлык на рабочем столе и пункт в «Пуске»</li>';
+      }
+      this.modal('Установка на это устройство',
+        '<p class="note">Программа ставится как обычное приложение: свой значок, ' +
+        'окно без адресной строки, запуск без интернета.</p>' +
+        '<ol class="note" style="margin:10px 0 0 18px;line-height:1.9">' + steps + '</ol>' +
+        (location.protocol === 'file:'
+          ? '<p class="note" style="color:var(--warn);margin-top:10px">Сейчас программа открыта ' +
+            'из файла на диске — так установить нельзя. Откройте её по адресу в интернете.</p>' : ''),
+        []);
+    },
+    paintInstall: function () {
+      var box = document.getElementById('abInstall');
+      if (!box) return;
+      if (this.isInstalled()) {
+        box.innerHTML = '<p class="note">Программа уже установлена на это устройство.</p>';
+        return;
+      }
+      box.innerHTML = '<p class="note">Появится значок, как у обычного приложения: ' +
+        'запуск без адресной строки и без интернета, ссылку искать не нужно.</p>' +
+        '<div class="btn-row"><button class="btn btn-sm btn-primary" id="abInstallGo">' +
+        global.Icon('download') + ' Установить</button>' +
+        '<button class="btn btn-sm" id="abInstallHelp">Как это сделать вручную</button></div>';
+      var self = this;
+      box.querySelector('#abInstallGo').addEventListener('click', function () { self.doInstall(); });
+      box.querySelector('#abInstallHelp').addEventListener('click', function () { self.installHelp(); });
+    },
+
+    /* ============ корзина ============ */
+    /** Значок и счётчик в верхней панели. */
+    paintTrash: function () {
+      var btn = document.getElementById('btnTrash');
+      if (!btn) return;
+      var n = S.trashList().length;
+      btn.innerHTML = global.Icon('trash') +
+        '<span class="trash-count" id="trashCount"' + (n ? '' : ' hidden') + '>' + n + '</span>';
+      btn.title = n ? 'Корзина: ' + n + ' ' + plural(n, 'запись', 'записи', 'записей') : 'Корзина пуста';
+      btn.setAttribute('aria-label', btn.title);
+      btn.classList.toggle('has-items', !!n);
+    },
+
+    openTrash: function () {
+      var self = this;
+      var items = S.trashList();
+      var body = items.length
+        ? '<p class="note" style="margin:0 0 10px">Удалённое лежит здесь, пока его не убрать совсем. ' +
+          'Файлы занимают место на устройстве до окончательного удаления.</p>' +
+          '<div class="list">' + items.map(function (it) {
+            var name = it.what === 'media'
+              ? (it.rec.caption || it.rec.name || 'файл')
+              : ((it.rec.label || it.rec.title || 'запись') +
+                 (it.rec.value ? ': ' + String(it.rec.value).slice(0, 40) : ''));
+            var who = S.person(it.personId);
+            return '<div class="list-item">' +
+              '<span class="mini-ph">' + global.Icon(it.what === 'media'
+                ? (it.rec.kind === 'photo' ? 'photo' : it.rec.kind === 'audio' ? 'mic'
+                  : it.rec.kind === 'video' ? 'play' : 'note')
+                : 'note') + '</span>' +
+              '<div class="li-main"><div>' + esc(name) + '</div>' +
+              '<div class="li-sub">' + esc(who ? S.fullName(who) : 'без человека') + ' · удалил ' +
+              esc(it.by || '—') + ', ' + new Date(it.at).toLocaleString('ru-RU',
+                { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) + '</div></div>' +
+              '<button class="btn btn-sm" data-back="' + esc(it.id) + '">Вернуть</button>' +
+              '<button class="btn btn-sm btn-danger" data-kill="' + esc(it.id) +
+              '" title="Удалить навсегда" aria-label="Удалить навсегда">' + global.Icon('close') + '</button>' +
+              '</div>';
+          }).join('') + '</div>'
+        : '<div class="empty">Корзина пуста.<br>Сюда попадают удалённые файлы и записи — ' +
+          'оттуда их можно вернуть.</div>';
+
+      this.modal('Корзина', body,
+        items.length ? [{ text: 'Очистить корзину', danger: true, fn: function () {
+          self.confirm('Очистить корзину?',
+            'Будет стёрто навсегда: ' + items.length + ' ' +
+            plural(items.length, 'запись', 'записи', 'записей') + '. Вернуть уже не получится.',
+            function () {
+              S.emptyTrash();
+              self.closeAllModals();
+              self.paintTrash();
+              self.toast('Корзина очищена');
+              if (self.activeTab !== 'tree') self.showTab(self.activeTab);
+            });
+        } }] : [], { wide: true });
+
+      var back = document.getElementById('modalBack');
+      back.querySelectorAll('[data-back]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          S.restoreTrash(b.dataset.back);
+          self.closeModal();
+          self.paintTrash();
+          self.tree.render();
+          if (self.sheet && self.sheet.personId) self.sheet.render();
+          if (self.activeTab !== 'tree') self.showTab(self.activeTab);
+          self.openTrash();
+          self.toast('Возвращено');
+        });
+      });
+      back.querySelectorAll('[data-kill]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          S.purgeTrash(b.dataset.kill);
+          self.closeModal();
+          self.paintTrash();
+          self.openTrash();
+        });
+      });
+    },
+
     /* ============ откат изменений ============ */
     /** Список точек восстановления. how: session | hour | day | all */
     historyDialog: function (how) {
