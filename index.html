@@ -797,6 +797,10 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
   background: color-mix(in srgb, var(--warn) 12%, var(--paper-2));
 }
 .sheet-bar .bar-count { flex: 1 1 auto; font-size: 12px; color: var(--ink-soft); min-width: 0; }
+/* сохранять нечего — полоса остаётся на месте, но не бросается в глаза */
+.sheet-bar.quiet { background: var(--paper-2); }
+.sheet-bar.quiet .bar-count { color: var(--ink-faint); }
+.sheet-bar button[disabled] { opacity: .45; pointer-events: none; }
 
 /* ---------- строка «на карте» ---------- */
 .map-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -964,7 +968,10 @@ tr.file-row.is-sel { background: color-mix(in srgb, var(--accent) 14%, transpare
    дружит с масштабированием — картинка прыгала и по краям появлялись полоски. */
 .vw-stage img {
   position: absolute; left: 50%; top: 50%;
-  transform-origin: center center; will-change: transform;
+  transform-origin: center center;
+  /* ширину снимку задаёт просмотрщик — никаких внешних ограничений,
+     иначе картинка то сжимается, то считается заново не в том размере */
+  max-width: none; max-height: none;
   image-rendering: auto; -webkit-user-drag: none; user-select: none;
 }
 .vw-stage video { max-width: 100%; max-height: 100%; background: #000; }
@@ -1227,6 +1234,33 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
   background: var(--neutral) center/cover no-repeat; border: 1px solid var(--line);
 }
 .fi-on { flex: 0 0 auto; width: 17px; height: 17px; }
+
+/* ---------- кто на снимке ---------- */
+.fe-wrap { position: relative; display: block; max-width: 100%; margin: 0 auto 12px; }
+.fe-wrap img { display: block; max-width: 100%; max-height: 46vh; border-radius: 10px; margin: 0 auto; }
+.fe-box {
+  position: absolute; border: 2px solid var(--warn); border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.35); cursor: pointer;
+}
+.fe-box.named { border-color: var(--good); }
+.fe-box b {
+  position: absolute; left: -1px; top: -18px; font-size: 11px; line-height: 16px;
+  padding: 0 5px; border-radius: 5px; background: var(--warn); color: #fff;
+}
+.fe-box.named b { background: var(--good); }
+.fe-list { display: flex; flex-direction: column; gap: 6px; max-height: 34vh; overflow: auto; }
+.fe-row {
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--paper);
+}
+.fe-num {
+  flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--neutral); color: var(--ink-soft);
+  font-size: 11px; line-height: 20px; text-align: center;
+}
+.fe-cut { flex: 0 0 auto; width: 56px; height: 56px; border-radius: 8px; background: var(--neutral); }
+.fe-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
+.fe-main select { max-width: 280px; }
 .fi-main { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
 .fi-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fi-sub { font-size: 11px; color: var(--ink-faint); }
@@ -3239,6 +3273,17 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
     this.tx = rect.width / 2 - ((box.x1 + box.x2) / 2) * this.scale;
     this.ty = rect.height / 2 - ((box.y1 + box.y2) / 2) * this.scale;
     this.applyTransform();
+  };
+
+  /** Подвести к человеку, не трогая раскладку.
+      Раньше календарь, карта и поиск звали setFocus — и дерево
+      перестраивалось от этого человека, будто нажали «в центр дерева».
+      Человек шёл посмотреть день рождения, а возвращался к другому дереву.
+      Теперь, если он уже нарисован, мы просто подвозим к нему полотно. */
+  Tree.prototype.reveal = function (id) {
+    var есть = this.cards.some(function (c) { return c.id === id; });
+    if (!есть) { this.setFocus(id); return; }
+    this.centerOn(id);
   };
 
   Tree.prototype.centerOn = function (id) {
@@ -5491,15 +5536,217 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
   global.Faces = Faces;
 })(window);
 </script>
-<script>/* Семейное Древо — разбор папки со снимками.
+<script>/* Семейное Древо — узнавание лиц в фоне.
 
-   Человек указывает папку с фотографиями, программа:
-   1) читает дату съёмки из самого снимка и раскладывает по папкам с годами;
-   2) ищет на снимке лица и предлагает, кто это, сверяясь с теми, кого уже знает;
-   3) показывает всё списком — и только после подтверждения добавляет в дерево.
+   Человек добавляет снимки и идёт заниматься своими делами. Программа
+   сама, не торопясь, просматривает их: ищет лица и сверяет с теми, кого
+   уже знает по карточкам. Кого узнала уверенно — подписывает; остальное
+   оставляет человеку, кнопка «Кто на снимке» рядом.
 
-   Ничего не добавляется молча: ошибиться машина может, и исправлять потом
-   пятьдесят снимков хуже, чем один раз посмотреть список. */
+   Очередь лежит в памяти устройства. Закрыли программу на середине —
+   при следующем запуске разбор продолжится с того места, где встал.
+   Совсем «во сне», при закрытой вкладке, браузер считать не даёт:
+   страница останавливается вместе с окном. */
+(function (global) {
+  'use strict';
+
+  var S = global.Store;
+
+  var FaceQueue = {
+    ids: [],          // что осталось посмотреть
+    busy: false,
+    halt: false,
+    seen: 0,
+    found: 0,
+
+    key: function () {
+      return 'drevo.faces.todo.' + ((S.session && S.session.userId) || 'me');
+    },
+    load: function () {
+      try { this.ids = JSON.parse(localStorage.getItem(this.key()) || '[]') || []; }
+      catch (e) { this.ids = []; }
+      return this.ids;
+    },
+    keep: function () {
+      try { localStorage.setItem(this.key(), JSON.stringify(this.ids)); } catch (e) {}
+    },
+
+    /** Поставить снимки в очередь. Уже стоящие и уже разобранные пропускаем. */
+    add: function (ids) {
+      var have = {}, self = this;
+      this.ids.forEach(function (i) { have[i] = 1; });
+      (ids || []).forEach(function (id) {
+        var m = S.tree.media[id];
+        if (!m || m.kind !== 'photo' || have[id]) return;
+        have[id] = 1;
+        self.ids.push(id);
+      });
+      this.keep();
+      return this.ids.length;
+    },
+
+    /** Все снимки, которых программа ещё ни разу не смотрела. */
+    addUnscanned: function () {
+      var ids = S.allMedia().filter(function (m) {
+        return m.kind === 'photo' && !m.scanned;
+      }).map(function (m) { return m.id; });
+      this.add(ids);
+      return ids.length;
+    },
+
+    left: function () { return this.ids.length; },
+
+    /** Показать, чем занята, в разделе «Фото и файлы». */
+    say: function (text) {
+      var el = document.getElementById('faceState');
+      if (el) el.textContent = text || '';
+    },
+
+    /** Запустить разбор. Повторный вызов ничего не ломает: очередь одна. */
+    run: function (opts) {
+      var self = this;
+      opts = opts || {};
+      this.load();
+      if (this.busy || !this.ids.length) return Promise.resolve(0);
+      /* Если библиотеки узнавания рядом с программой нет, второй раз за
+         сеанс об этом не напоминаем: снимки всё равно уже добавлены. */
+      if (this.blocked && !opts.loud) return Promise.resolve(0);
+      if (!S.persons().length) return Promise.resolve(0);
+      this.busy = true; this.halt = false;
+      this.seen = 0; this.found = 0;
+
+      this.say('Смотрю лица на снимках: осталось ' + this.ids.length);
+      return global.Faces.ensure(function (t) { self.say(t); }).then(function () {
+        // если программа ещё никого не знает в лицо — знакомим по главным фото
+        if (!global.Faces.known().length) {
+          return global.Faces.learnFromPhotos(function (i, n, who) {
+            self.say('Запоминаю лица из карточек: ' + i + ' из ' + n + ' · ' + who);
+          });
+        }
+      }).then(function () {
+        return self.step();
+      }).then(function () {
+        self.busy = false;
+        self.say('');
+        if (self.found && !opts.quiet) {
+          global.App.toast('Узнала людей на ' + self.found + ' ' +
+            plural(self.found, 'снимке', 'снимках', 'снимках'));
+        } else if (!self.found && opts.loud) {
+          global.App.toast('Знакомых лиц на этих снимках не нашлось');
+        }
+        if (global.App.activeTab === 'photos' && global.Files) global.Files.render();
+        return self.found;
+      }, function (e) {
+        self.busy = false;
+        self.blocked = true;
+        self.say('');
+        if (opts.loud) global.App.toast('Узнавание лиц не вышло: ' + e.message);
+        return 0;
+      });
+    },
+
+    pause: function () { this.halt = true; },
+
+    step: function () {
+      var self = this;
+      if (this.halt || !this.ids.length) return Promise.resolve();
+      var id = this.ids[0];
+      var m = S.tree.media[id];
+      if (!m || m.kind !== 'photo') { this.ids.shift(); this.keep(); return this.next(); }
+      this.say('Смотрю лица: осталось ' + this.ids.length);
+
+      return S.mediaBlob(id).then(function (blob) {
+        if (!blob) throw new Error('файла нет на этом устройстве');
+        return global.Faces.scanBlob(blob);
+      }).then(function (r) {
+        self.applyFaces(m, (r && r.faces) || []);
+        self.seen++;
+      }).catch(function () {
+        /* Не открылся, не расшифровался, нет на устройстве — не беда:
+           помечаем просмотренным, чтобы очередь не ходила по кругу. */
+        m.scanned = true;
+      }).then(function () {
+        self.ids.shift();
+        self.keep();
+        S.save(true);
+        return self.next();
+      });
+    },
+
+    /** Передышка между снимками: страница должна оставаться живой. */
+    next: function () {
+      var self = this;
+      return new Promise(function (go) {
+        var run = function () { go(self.step()); };
+        if (global.requestIdleCallback) global.requestIdleCallback(run, { timeout: 400 });
+        else setTimeout(run, 60);
+      });
+    },
+
+    /** Что нашли на снимке — записать в его карточку. */
+    applyFaces: function (m, faces) {
+      var known = global.Faces.known();
+      // крупные и чёткие лица рассматриваем первыми: по ним ошибиться труднее
+      faces = faces.slice().sort(function (a, b) {
+        return (b.box.w * b.box.h * b.score) - (a.box.w * a.box.h * a.score);
+      });
+      var tags = [], named = [], main = null;
+      faces.forEach(function (f) {
+        var mt = global.Faces.match(f.descriptor, known);
+        var who = (mt && mt.sure) ? mt.personId : '';
+        tags.push({ x: f.box.x, y: f.box.y, w: f.box.w, h: f.box.h, person: who });
+        if (!who) return;
+        if (named.indexOf(who) < 0) named.push(who);
+        var area = f.box.w * f.box.h;
+        if (!main || area > main.area) main = { id: who, area: area };
+      });
+      m.faces = tags;
+      m.scanned = true;
+      m.updated = new Date().toISOString();
+      if (!tags.length || !named.length) return;
+
+      this.found++;
+      /* Снимок отдаём тому, чьё лицо крупнее: обычно он и есть герой кадра.
+         Остальных узнанных записываем в подпись, чтобы групповое фото
+         не потеряло имён. Если у снимка уже есть хозяин — не трогаем. */
+      if (!m.personId && main) {
+        m.personId = main.id;
+        var p = S.person(main.id);
+        if (p) {
+          p.media = p.media || [];
+          if (p.media.indexOf(m.id) < 0) p.media.push(m.id);
+          if (!p.photo) p.photo = m.id;
+          S.log('media', 'Узнала на снимке «' + (m.caption || m.name) + '»: ' +
+            S.fullName(p), main.id);
+        }
+      }
+      if (named.length > 1 && !m.caption) {
+        m.caption = 'На снимке: ' + named.map(function (id) {
+          return S.callName(S.person(id));
+        }).filter(Boolean).join(', ');
+      }
+    }
+  };
+
+  function plural(n, a, b, c) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return a;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return b;
+    return c;
+  }
+
+  global.FaceQueue = FaceQueue;
+})(window);
+</script>
+<script>/* Семейное Древо — «Кто на снимке».
+
+   Окно показывает найденные на фотографии лица и даёт каждому имя.
+   Нужно оно в двух случаях: программа никого не узнала (старый снимок,
+   человек снят сбоку, таких лиц она ещё не видела) и программа ошиблась.
+
+   Каждое подтверждённое имя программа запоминает: в следующий раз этого
+   человека она узнает сама, в том числе на других устройствах — отпечатки
+   лиц едут вместе с деревом. */
 (function (global) {
   'use strict';
 
@@ -5507,251 +5754,223 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
   function esc(s) { return global.TreeView.esc(s); }
   function I(n) { return global.Icon(n); }
 
-  var FaceImport = {
-    view: null,
-    items: [],
-    rejected: {},        // кого человек уже отклонял в этом разборе
+  var FaceEdit = {
+    mediaId: null,
+    faces: [],        // {descriptor, box, person}
+    url: null,
 
-    start: function (view) {
-      var self = this;
-      this.view = view;
-      var inp = document.createElement('input');
-      inp.type = 'file';
-      inp.multiple = true;
-      inp.accept = 'image/*';
-      try { inp.webkitdirectory = true; } catch (e) {}
-      inp.addEventListener('change', function () {
-        var files = Array.prototype.slice.call(inp.files || [])
-          .filter(function (f) { return /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic)$/i.test(f.name); });
-        if (!files.length) { global.App.toast('Снимков в папке не нашлось'); return; }
-        self.process(files);
-      });
-      inp.click();
-    },
-
-    process: function (files) {
+    open: function (mediaId, after) {
       var self = this, App = global.App;
-      App.modal('Разбираю снимки',
-        '<p class="note" id="fiState">Готовлюсь…</p>' +
-        '<div class="fi-bar"><div id="fiFill"></div></div>' +
-        '<p class="note" id="fiCount"></p>', []);
-      var state = document.getElementById('fiState');
-      var fill = document.getElementById('fiFill');
-      var count = document.getElementById('fiCount');
-      function say(t) { if (state) state.textContent = t; }
+      var m = S.tree.media[mediaId];
+      if (!m || m.kind !== 'photo') { App.toast('Лица ищутся только на снимках'); return; }
+      this.mediaId = mediaId;
+      this.after = after || function () {};
+      this.faces = [];
 
-      this.items = [];
-      var known = null;
+      App.modal('Кто на снимке',
+        '<p class="note" id="feState">Смотрю снимок…</p>' +
+        '<div class="fi-bar"><div id="feFill" style="width:40%"></div></div>', []);
 
-      global.Faces.ensure(say).then(function () {
-        // если программа ещё никого не знает, знакомим её по главным фото
-        if (!global.Faces.known().length) {
-          return global.Faces.learnFromPhotos(function (i, n, who) {
-            say('Запоминаю лица из карточек: ' + i + ' из ' + n + ' · ' + who);
-          });
-        }
+      var blob = null;
+      S.mediaBlob(mediaId).then(function (b) {
+        if (!b) throw new Error('Файла нет на этом устройстве — он подтянется при синхронизации');
+        blob = b;
+        return global.Faces.ensure(function (t) {
+          var el = document.getElementById('feState');
+          if (el && t) el.textContent = t;
+        });
       }).then(function () {
-        known = global.Faces.known();
-        var i = 0;
-        function step() {
-          if (i >= files.length) return Promise.resolve();
-          var f = files[i++];
-          if (count) count.textContent = i + ' из ' + files.length + ' · ' + f.name;
-          if (fill) fill.style.width = Math.round(i / files.length * 100) + '%';
-          say('Смотрю снимки…');
-          return Promise.all([
-            global.Faces.shotDate(f),
-            global.Faces.scanBlob(f).catch(function () { return { faces: [] }; })
-          ]).then(function (r) {
-            var date = r[0];
-            var faces = (r[1] && r[1].faces) || [];
-            // крупные и чёткие лица рассматриваем первыми — они надёжнее
-            faces.sort(function (a, b) {
-              return (b.box.w * b.box.h * b.score) - (a.box.w * a.box.h * a.score);
-            });
-            var guesses = faces.map(function (fc) {
-              var m = global.Faces.match(fc.descriptor, known, self.rejected);
-              return { descriptor: fc.descriptor, box: fc.box, match: m };
-            });
-            /* Кому отдать снимок: тому, чьё лицо на нём крупнее — обычно
-               это и есть главный герой кадра. Остальных узнанных запишем
-               в подпись, чтобы групповое фото не потеряло имён. */
-            var named = [], main = null, guess = null;
-            guesses.forEach(function (g) {
-              if (!g.match) return;
-              var area = g.box.w * g.box.h;
-              if (g.match.sure) {
-                if (named.indexOf(g.match.personId) < 0) named.push(g.match.personId);
-                if (!main || area > main.area) main = { g: g, area: area };
-              } else if (!guess || area > guess.area) {
-                guess = { g: g, area: area };     // неуверенную догадку только показываем
-              }
-            });
-            self.items.push({
-              file: f, date: date, faces: guesses,
-              personId: main ? main.g.match.personId : '',
-              distance: main ? main.g.match.distance : (guess ? guess.g.match.distance : null),
-              hint: !main && guess ? guess.g.match.personId : '',
-              named: named,
-              year: date ? date.slice(0, 4) : null
-            });
-            return step();
-          });
-        }
-        return step();
-      }).then(function () {
-        App.closeAllModals();
-        self.review();
-      }, function (e) {
+        return global.Faces.scanBlob(blob);
+      }).then(function (r) {
+        self.url = URL.createObjectURL(blob);
+        global.App._mediaUrls.push(self.url);
+        var known = global.Faces.known();
+        self.faces = ((r && r.faces) || []).map(function (f) {
+          var mt = global.Faces.match(f.descriptor, known);
+          return {
+            descriptor: f.descriptor, box: f.box, score: f.score,
+            person: self.saved(m, f.box) || ((mt && mt.sure) ? mt.personId : ''),
+            hint: (mt && !mt.sure) ? mt.personId : '',
+            distance: mt ? mt.distance : null
+          };
+        }).sort(function (a, b) { return a.box.x - b.box.x; });
+        self.draw(r);
+      }).catch(function (e) {
         App.closeAllModals();
         App.modal('Не получилось', '<p class="note">' + esc(e.message) + '</p>', []);
       });
     },
 
-    /** Список разобранного: что куда ляжет, с возможностью поправить. */
-    review: function () {
+    /** Имя, которое уже стояло у этой рамки раньше. */
+    saved: function (m, box) {
+      var best = '', bestOverlap = 0.3;
+      (m.faces || []).forEach(function (t) {
+        if (!t.person) return;
+        var x1 = Math.max(t.x, box.x), y1 = Math.max(t.y, box.y);
+        var x2 = Math.min(t.x + t.w, box.x + box.w), y2 = Math.min(t.y + t.h, box.y + box.h);
+        if (x2 <= x1 || y2 <= y1) return;
+        var over = (x2 - x1) * (y2 - y1);
+        var all = t.w * t.h + box.w * box.h - over;
+        var k = over / all;
+        if (k > bestOverlap) { bestOverlap = k; best = t.person; }
+      });
+      return best;
+    },
+
+    draw: function (scan) {
       var self = this, App = global.App;
+      var m = S.tree.media[this.mediaId];
       var people = S.persons().slice().sort(function (a, b) {
         return S.fullName(a).localeCompare(S.fullName(b), 'ru');
       });
-      var opts = '<option value="">— ничей, просто в галерею —</option>' + people.map(function (p) {
+      var opts = '<option value="">— не указан —</option>' + people.map(function (p) {
         return '<option value="' + esc(p.id) + '">' + esc(S.fullName(p)) + '</option>';
       }).join('');
 
-      var found = this.items.filter(function (x) { return x.personId; }).length;
-      var years = {};
-      this.items.forEach(function (x) { if (x.year) years[x.year] = (years[x.year] || 0) + 1; });
-      var yearsText = Object.keys(years).sort().map(function (y) {
-        return y + ' (' + years[y] + ')';
-      }).join(', ');
+      var w = (scan && scan.width) || 1, h = (scan && scan.height) || 1;
+      var boxes = this.faces.map(function (f, i) {
+        return '<span class="fe-box" data-box="' + i + '" style="' +
+          'left:' + (f.box.x / w * 100) + '%;top:' + (f.box.y / h * 100) + '%;' +
+          'width:' + (f.box.w / w * 100) + '%;height:' + (f.box.h / h * 100) + '%">' +
+          '<b>' + (i + 1) + '</b></span>';
+      }).join('');
 
-      var body =
-        '<p class="note">Снимков: <b>' + this.items.length + '</b>. Узнано лиц: <b>' + found + '</b>.' +
-        (yearsText ? '<br>Годы съёмки: ' + esc(yearsText) + ' — для них создам папки.' : '') + '</p>' +
-        '<p class="note">Добавятся все отмеченные снимки. У кого лицо узналось — встанет и в карточку ' +
-        'человека; остальные просто лягут в галерею, людей к ним можно выбрать здесь или потом. ' +
-        'Снимите отметку у того, что добавлять не нужно.</p>' +
-        '<div class="btn-row" style="margin:0 0 8px">' +
-        '<button class="btn btn-sm" id="fiAll">Отметить все</button>' +
-        '<button class="btn btn-sm" id="fiNone">Снять все</button></div>' +
-        '<div class="set-row" style="margin:8px 0"><span>Раскладывать по папкам с годами</span>' +
-        '<input type="checkbox" id="fiYears" checked></div>' +
-        '<div class="fi-list">' + this.items.map(function (x, i) {
-          var who = x.personId ? S.person(x.personId) : null;
-          return '<div class="fi-row" data-i="' + i + '">' +
-            '<input type="checkbox" class="fi-on" data-i="' + i + '" checked ' +
-            'title="добавлять этот снимок">' +
-            '<span class="fi-thumb" data-thumb="' + i + '"></span>' +
-            '<span class="fi-main">' +
-            '<span class="fi-name">' + esc(x.file.name) + '</span>' +
-            '<span class="fi-sub">' +
-            (x.date ? 'снято ' + esc(x.date) : 'даты в снимке нет') +
-            ' · лиц: ' + x.faces.length +
-            (x.distance != null ? ' · ' + global.Faces.confidence(x.distance) : '') +
-            (x.hint ? ' · похоже на: ' + esc(S.callName(S.person(x.hint))) + ', проверьте' : '') +
-            (x.named && x.named.length > 1
-              ? ' · на снимке: ' + esc(x.named.map(function (id) {
-                  return S.callName(S.person(id));
-                }).join(', '))
-              : '') +
-            '</span></span>' +
-            '<select class="fi-who" data-i="' + i + '">' + opts + '</select>' +
-            '</div>';
-        }).join('') + '</div>',
-        buttons = [{ text: 'Добавить в дерево', primary: true, fn: function () { self.apply(); } }];
+      var rows = this.faces.length
+        ? this.faces.map(function (f, i) {
+            return '<div class="fe-row" data-i="' + i + '">' +
+              '<span class="fe-num">' + (i + 1) + '</span>' +
+              '<canvas class="fe-cut" data-cut="' + i + '" width="56" height="56"></canvas>' +
+              '<span class="fe-main">' +
+              '<select class="fe-who" data-i="' + i + '">' + opts + '</select>' +
+              '<span class="note">' +
+              (f.hint ? 'похоже на: ' + esc(S.callName(S.person(f.hint))) + ', проверьте'
+                      : f.person ? 'узнан' + (f.distance != null
+                          ? ' · ' + global.Faces.confidence(f.distance) : '')
+                      : 'не узнан') +
+              '</span></span></div>';
+          }).join('')
+        : '<p class="note">Лиц на этом снимке программа не нашла. ' +
+          'Так бывает с мелкими, боковыми и сильно выцветшими фотографиями.</p>';
 
-      App.modal('Что нашлось', body, buttons, { wide: true });
+      App.closeAllModals();
+      App.modal('Кто на снимке',
+        '<div class="fe-wrap"><img src="' + this.url + '" alt="">' + boxes + '</div>' +
+        '<div class="fe-list">' + rows + '</div>' +
+        '<p class="note">Подтверждённые имена программа запоминает и дальше узнаёт ' +
+        'этих людей сама.</p>',
+        this.faces.length
+          ? [{ text: 'Сохранить', primary: true, fn: function () { self.save(); } }]
+          : [],
+        { wide: true });
 
-      // выставляем выбранных людей и рисуем эскизы
-      this.items.forEach(function (x, i) {
-        var sel = document.querySelector('.fi-who[data-i="' + i + '"]');
-        if (sel) sel.value = x.personId || '';     // догадку не подставляем, только показываем
-        var th = document.querySelector('[data-thumb="' + i + '"]');
-        if (th) {
-          var url = URL.createObjectURL(x.file);
-          th.style.backgroundImage = 'url(' + url + ')';
-          global.App._mediaUrls.push(url);
+      /* Рамки лежат в долях от снимка, поэтому обёртка должна быть ровно
+         по картинке. Сама по себе она шире: ширину ей задаёт окно, а
+         картинку ужимает ограничение по высоте — рамки уезжали вправо. */
+      var wrap = document.querySelector('.fe-wrap');
+      var big = wrap && wrap.querySelector('img');
+      if (big) {
+        var поРазмеру = function () {
+          wrap.style.width = big.clientWidth + 'px';
+          wrap.style.height = big.clientHeight + 'px';
+        };
+        if (big.complete && big.clientWidth) поРазмеру();
+        big.addEventListener('load', поРазмеру);
+        if (global.ResizeObserver) {
+          this._ro = new global.ResizeObserver(поРазмеру);
+          this._ro.observe(big);
         }
+      }
+
+      // подставляем выбранных и режем лица для списка
+      this.faces.forEach(function (f, i) {
+        var sel = document.querySelector('.fe-who[data-i="' + i + '"]');
+        if (sel) sel.value = f.person || '';
+        self.cut(i);
       });
-      document.getElementById('fiAll').addEventListener('click', function () {
-        document.querySelectorAll('.fi-on').forEach(function (c) { c.checked = true; });
-      });
-      document.getElementById('fiNone').addEventListener('click', function () {
-        document.querySelectorAll('.fi-on').forEach(function (c) { c.checked = false; });
-      });
-      document.querySelectorAll('.fi-who').forEach(function (sel) {
+      document.querySelectorAll('.fe-who').forEach(function (sel) {
         sel.addEventListener('change', function () {
-          var it = self.items[+sel.dataset.i];
-          /* Человек поправил нашу догадку — запоминаем ошибку, чтобы в
-             следующий раз к этому лицу придираться строже. */
-          if (it.personId && it.personId !== sel.value) self.rejected[it.personId] = 1;
-          it.personId = sel.value;
+          self.faces[+sel.dataset.i].person = sel.value;
+          self.markBoxes();
         });
+      });
+      document.querySelectorAll('[data-box]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var sel = document.querySelector('.fe-who[data-i="' + b.dataset.box + '"]');
+          if (sel) { sel.focus(); sel.scrollIntoView({ block: 'nearest' }); }
+        });
+      });
+      this.markBoxes();
+    },
+
+    markBoxes: function () {
+      var self = this;
+      document.querySelectorAll('[data-box]').forEach(function (b) {
+        b.classList.toggle('named', !!self.faces[+b.dataset.box].person);
       });
     },
 
-    apply: function () {
-      var self = this, App = global.App;
-      var byYear = document.getElementById('fiYears');
-      var useYears = !byYear || byYear.checked;
-      /* Добавляем все отмеченные снимки, а не только узнанные: человек
-         отдал папку целиком, и терять из неё фотографии нельзя. Узнанное
-         лицо лишь дополнительно привязывает снимок к карточке человека. */
-      var list = this.items.filter(function (x, i) {
-        var c = document.querySelector('.fi-on[data-i="' + i + '"]');
-        return !c || c.checked;
-      });
-      if (!list.length) { App.toast('Все снимки сняты с отметки — добавлять нечего'); return; }
+    /** вырезать лицо в кружок рядом со списком */
+    cut: function (i) {
+      var f = this.faces[i];
+      var cv = document.querySelector('[data-cut="' + i + '"]');
+      if (!cv || !f) return;
+      var img = new Image();
+      img.onload = function () {
+        var pad = Math.round(f.box.w * 0.15);
+        var sx = Math.max(0, f.box.x - pad), sy = Math.max(0, f.box.y - pad);
+        var sw = Math.min(img.naturalWidth - sx, f.box.w + pad * 2);
+        var sh = Math.min(img.naturalHeight - sy, f.box.h + pad * 2);
+        cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+      };
+      img.src = this.url;
+    },
 
-      App.modal('Добавляю', '<p class="note" id="fiState2">…</p>' +
-        '<div class="fi-bar"><div id="fiFill2"></div></div>', []);
-      var st = document.getElementById('fiState2'), fl = document.getElementById('fiFill2');
-
-      // папки с годами заводим один раз
-      var folders = {};
-      if (useYears) {
-        var have = {};
-        (S.tree.folders && Object.keys(S.tree.folders) || []).forEach(function (id) {
-          have[S.tree.folders[id].name] = id;
-        });
-        list.forEach(function (x) {
-          if (!x.year || folders[x.year]) return;
-          folders[x.year] = have[x.year] || self.view.addFolder(x.year);
-        });
-      }
-
-      var i = 0;
-      (function step() {
-        if (i >= list.length) {
-          S.save();
-          App.closeAllModals();
-          App.tree.render();
-          App.paintTrash();
-          self.view.render();
-          var кЛюдям = list.filter(function (x) { return x.personId; }).length;
-          App.toast('Добавлено снимков: ' + list.length +
-            (кЛюдям ? ', из них к людям: ' + кЛюдям : ''));
-          return;
+    save: function () {
+      var m = S.tree.media[this.mediaId];
+      if (!m) return;
+      var named = [], main = null;
+      var tags = this.faces.map(function (f) {
+        if (f.person) {
+          // имя подтвердил человек — запоминаем отпечаток, это самый ценный случай
+          global.Faces.remember(f.person, f.descriptor);
+          if (named.indexOf(f.person) < 0) named.push(f.person);
+          var area = f.box.w * f.box.h;
+          if (!main || area > main.area) main = { id: f.person, area: area };
         }
-        var x = list[i++];
-        if (st) st.textContent = i + ' из ' + list.length;
-        if (fl) fl.style.width = Math.round(i / list.length * 100) + '%';
-        var caption = (x.named && x.named.length > 1)
-          ? 'На снимке: ' + x.named.map(function (id) { return S.callName(S.person(id)); }).join(', ')
-          : '';
-        S.addMedia(x.personId, x.file, { date: x.date || '', caption: caption }).then(function (m) {
-          if (useYears && x.year && folders[x.year]) m.folderId = folders[x.year];
-          // запоминаем лицо: в следующий раз узнаем увереннее
-          if (x.personId) x.faces.forEach(function (f) {
-            if (!f.match || f.match.personId === x.personId) global.Faces.remember(x.personId, f.descriptor);
-          });
-          step();
-        }, step);
-      })();
+        return { x: f.box.x, y: f.box.y, w: f.box.w, h: f.box.h, person: f.person };
+      });
+      m.faces = tags;
+      m.scanned = true;
+      m.updated = new Date().toISOString();
+
+      if (main && !m.personId) {
+        m.personId = main.id;
+        var p = S.person(main.id);
+        if (p) {
+          p.media = p.media || [];
+          if (p.media.indexOf(m.id) < 0) p.media.push(m.id);
+          if (!p.photo) p.photo = m.id;
+        }
+      }
+      if (named.length > 1) {
+        m.caption = 'На снимке: ' + named.map(function (id) {
+          return S.callName(S.person(id));
+        }).filter(Boolean).join(', ');
+      }
+      S.log('media', 'Отмечены лица на снимке «' + (m.caption || m.name) + '»',
+        m.personId || '');
+      S.save();
+      global.App.closeAllModals();
+      global.App.toast(named.length
+        ? 'Запомнила: ' + named.map(function (id) { return S.callName(S.person(id)); }).join(', ')
+        : 'Сохранено');
+      global.App.tree.render();
+      if (global.App.activeTab === 'photos' && global.Files) global.Files.render();
+      this.after();
     }
   };
 
-  global.FaceImport = FaceImport;
+  global.FaceEdit = FaceEdit;
 })(window);
 </script>
 <script>/* Семейное Древо — раздел «Фото и файлы».
@@ -5826,6 +6045,90 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       S.save();
     },
 
+    /* ---------- добавление ---------- */
+    pickAdd: function (folder) {
+      var self = this;
+      global.App.pickFiles(function (files) { self.addFiles(files, folder); }, { folder: !!folder });
+    },
+
+    /** Положить выбранное в дерево. Папку раскладываем по годам съёмки,
+        а снимки отправляем в очередь на узнавание лиц — она разберёт их
+        потом, не держа человека у экрана. */
+    addFiles: function (files, byYear) {
+      var self = this, App = global.App;
+      var list = Array.prototype.slice.call(files || []).filter(function (f) {
+        // мусор из системных папок брать незачем
+        return f.size > 0 && !/^\./.test(f.name) && f.name !== 'Thumbs.db';
+      });
+      if (!list.length) { App.toast('Файлов не нашлось'); return; }
+
+      App.askAccess(function (acl) {
+        App.modal('Добавляю файлы',
+          '<p class="note" id="afState">Готовлюсь…</p>' +
+          '<div class="fi-bar"><div id="afFill"></div></div>', []);
+        var st = document.getElementById('afState'), fl = document.getElementById('afFill');
+        var added = [], photos = [], folders = {};
+
+        function dates() {
+          if (!byYear) return Promise.resolve({});
+          var out = {}, i = 0;
+          function step() {
+            if (i >= list.length) return Promise.resolve(out);
+            var f = list[i++];
+            if (st) st.textContent = 'Смотрю даты съёмки: ' + i + ' из ' + list.length;
+            if (!/^image\//.test(f.type)) return step();
+            return global.Faces.shotDate(f).then(function (d) {
+              if (d) out[f.name + ':' + f.size] = d;
+              return step();
+            }, step);
+          }
+          return step();
+        }
+
+        dates().then(function (byName) {
+          var have = {};
+          (S.tree.folders && Object.keys(S.tree.folders) || []).forEach(function (id) {
+            have[S.tree.folders[id].name] = id;
+          });
+          var i = 0;
+          function step() {
+            if (i >= list.length) return Promise.resolve();
+            var f = list[i++];
+            if (st) st.textContent = 'Добавляю: ' + i + ' из ' + list.length + ' · ' + f.name;
+            if (fl) fl.style.width = Math.round(i / list.length * 100) + '%';
+            var date = byName[f.name + ':' + f.size] || '';
+            return S.addMedia(self.personId || '', f, { acl: acl, date: date })
+              .then(function (m) {
+                added.push(m.id);
+                if (m.kind === 'photo') photos.push(m.id);
+                var year = date ? date.slice(0, 4) : null;
+                if (byYear && year) {
+                  if (!folders[year]) folders[year] = have[year] || self.addFolder(year);
+                  m.folderId = folders[year];
+                } else if (self.folderId) {
+                  m.folderId = self.folderId;
+                }
+              }, function () {})
+              .then(step);
+          }
+          return step();
+        }).then(function () {
+          S.save();
+          App.closeAllModals();
+          App.tree.render();
+          self.render();
+          var годы = Object.keys(folders).sort();
+          App.toast('Добавлено: ' + added.length + ' ' +
+            plural(added.length, 'файл', 'файла', 'файлов') +
+            (годы.length ? ' · папки: ' + годы.join(', ') : ''));
+          if (photos.length) {
+            global.FaceQueue.add(photos);
+            global.FaceQueue.run();
+          }
+        });
+      });
+    },
+
     /* ---------- что показываем ---------- */
     list: function () {
       var self = this;
@@ -5871,9 +6174,16 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       /* Шапка: сперва то, чем пользуются каждый день, остальное — под «⋯».
          Раньше десяток кнопок стоял в ряд и терялось главное. */
       var head = '<div class="files-top">' +
-        (this.personId
-          ? '<button class="btn btn-primary btn-sm" data-act="pickFile">Добавить файлы</button>'
-          : (cur ? '' : '<h2 style="margin:0 10px 0 0">Галерея</h2>')) +
+        (this.personId || cur ? '' : '<h2 style="margin:0 10px 0 0">Галерея</h2>') +
+        /* Одна кнопка на всё добавление: и отдельные файлы, и папка целиком.
+           Раньше папка пряталась в «⋯» отдельным пунктом, и её не находили. */
+        '<div class="menu-wrap">' +
+        '<button class="btn btn-primary btn-sm" id="flAdd">' + I('upload') +
+        ' Добавить файлы</button>' +
+        '<div class="menu" id="flAddMenu" hidden>' +
+        '<button data-ai="files">' + I('upload') + ' Выбрать файлы</button>' +
+        '<button data-ai="folder">' + I('folderPlus') + ' Выбрать папку целиком</button>' +
+        '</div></div>' +
         (cur ? '<button class="btn btn-sm" id="flUp" title="Выйти из папки">' +
                I('up') + ' Все файлы</button>' +
                '<span class="files-here">' + I('folder') + ' ' + esc(cur.name) + '</span>'
@@ -5904,7 +6214,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
             ((self.sort || 'added') === l[0] ? ' class="on"' : '') + '>' + l[1] + '</button>';
         }).join('') +
         '<div class="menu-head">Действия</div>' +
-        '<button data-mi="folderImport">' + I('folderPlus') + ' Добавить папку со снимками</button>' +
+        '<button data-mi="faces">' + I('person') + ' Узнать лица на снимках</button>' +
         '<button data-mi="select">' + I('check') + ' Выбрать несколько</button>' +
         '<button data-mi="saveAll">' + I('download') + ' Скачать всё</button>' +
         '</div></div></div>';
@@ -5921,6 +6231,8 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
           I('folder') + ' В папку</button>' +
           '<button class="btn btn-sm" id="flMain"' + (nSel === 1 ? '' : ' disabled') + '>' +
           I('star') + ' Главным</button>' +
+          '<button class="btn btn-sm" id="flFaces"' + (nSel ? '' : ' disabled') + '>' +
+          I('person') + ' Узнать лица</button>' +
           '<button class="btn btn-sm" id="flAcl"' + (nSel ? '' : ' disabled') + '>' +
           I('lock') + ' Кому видно</button>' +
           '<button class="btn btn-sm btn-danger" id="flDel"' + (nSel ? '' : ' disabled') + '>' +
@@ -5930,6 +6242,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
         : '';
 
       host.innerHTML = head + '<div id="recState" class="note"></div>' +
+        '<div id="faceState" class="note"></div>' +
         bar + this.foldersHtml() + this.itemsHtml(items, view, tile);
       this.paintThumbs(host);
       this.bind(host);
@@ -6089,6 +6402,36 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       var self = this, App = global.App;
       var on = function (sel, fn) { var b = host.querySelector(sel); if (b) b.addEventListener('click', fn); };
 
+      // «Добавить файлы» — меню из двух пунктов
+      var add = host.querySelector('#flAdd'), addMenu = host.querySelector('#flAddMenu');
+      if (add && addMenu) {
+        add.addEventListener('click', function (e) {
+          e.stopPropagation();
+          addMenu.hidden = !addMenu.hidden;
+          if (!addMenu.hidden) {
+            var close = function (ev) {
+              if (addMenu.contains(ev.target)) return;
+              addMenu.hidden = true;
+              document.removeEventListener('click', close);
+            };
+            setTimeout(function () { document.addEventListener('click', close); }, 0);
+          }
+        });
+        addMenu.querySelectorAll('[data-ai]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            addMenu.hidden = true;
+            self.pickAdd(b.dataset.ai === 'folder');
+          });
+        });
+      }
+      on('#flFaces', function () {
+        var ids = self.selected().filter(function (m) { return m.kind === 'photo'; })
+          .map(function (m) { return m.id; });
+        if (!ids.length) { App.toast('Выберите снимки'); return; }
+        if (ids.length === 1) { global.FaceEdit.open(ids[0], function () { self.render(); }); return; }
+        global.FaceQueue.add(ids);
+        global.FaceQueue.run({ loud: true });
+      });
       on('#flWho', function () { self.pickPeople(); });
       on('#flWhoAll', function () { self.people = null; self.render(); });
       on('#flUp', function () { self.folderId = null; self.render(); });
@@ -6221,8 +6564,13 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
         S.prefs.filesView = mi.slice(5); S.savePrefs(); this.render();
       } else if (mi.indexOf('sort-') === 0) {
         this.sort = mi.slice(5); this.render();
-      } else if (mi === 'folderImport') {
-        global.FaceImport.start(this);
+      } else if (mi === 'faces') {
+        var n = global.FaceQueue.addUnscanned();
+        if (!n && !global.FaceQueue.left()) {
+          App.toast('Все снимки уже просмотрены. Поправить имена можно в самом снимке — кнопка «Кто на снимке».');
+          return;
+        }
+        global.FaceQueue.run({ loud: true });
       } else if (mi === 'select') {
         this.editing = true; this.render();
       } else if (mi === 'saveAll') {
@@ -6425,6 +6773,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
         '<span class="vw-count" id="vwCount"></span>' +
         '<span class="spacer"></span>' +
         '<button class="vw-btn" id="vwInfo" title="Сведения">' + I('info') + '</button>' +
+        '<button class="vw-btn" id="vwFaces" title="Кто на снимке">' + I('person') + '</button>' +
         '<button class="vw-btn" id="vwEdit" title="Изменить">' + I('crop') + '</button>' +
         '<button class="vw-btn" id="vwGet" title="Скачать">' + I('download') + '</button>' +
         '<button class="vw-btn" id="vwStar" title="Сделать главным фото">' + I('star') + '</button>' +
@@ -6492,6 +6841,16 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
           });
       });
       on('#vwEdit', function () { self.toggleEdit(); });
+      on('#vwFaces', function () {
+        var m = self.cur();
+        if (!m) return;
+        /* Просмотрщик открыт во весь экран, и окно поверх него браузер
+           просто не покажет. Поэтому снимок закрываем, разбираем лица —
+           и возвращаемся к нему же. */
+        var list = self.list.slice();
+        self.close();
+        global.FaceEdit.open(m.id, function () { global.Viewer.open(list, m.id); });
+      });
 
       el.querySelectorAll('[data-ed]').forEach(function (b) {
         b.addEventListener('click', function () { self.editAction(b.dataset.ed); });
@@ -6545,13 +6904,14 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
     show: function () {
       var self = this, m = this.cur();
       if (!m) return;
-      this.scale = 1; this.tx = 0; this.ty = 0;
+      this.scale = 1; this.tx = 0; this.ty = 0; this._baked = null;
       this.rot = 0; this.flip = false; this.crop = null;
       this.editing = false;
       this.el.querySelector('#vwEditBar').hidden = true;
       this.el.querySelector('#vwTitle').textContent = m.caption || m.name || '';
       this.el.querySelector('#vwCount').textContent = (this.i + 1) + ' из ' + this.list.length;
       this.el.querySelector('#vwEdit').hidden = m.kind !== 'photo';
+      this.el.querySelector('#vwFaces').hidden = m.kind !== 'photo';
       this.el.querySelector('#vwStar').hidden = m.kind !== 'photo';
       var stage = this.el.querySelector('#vwStage');
       stage.innerHTML = '<div class="vw-wait">Открываю…</div>';
@@ -6645,14 +7005,34 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
     /* ---------- масштаб ----------
        Масштаб считается от настоящего размера снимка, а «вписать» подбирает
        его так, чтобы фотография целиком помещалась в окно. */
-    applyT: function () {
+    /* Размер снимка задаём самой картинке, а не transform. Уменьшенная
+       через transform фотография выглядит мыльной: видеокарта берёт грубую
+       выборку из полного кадра, и мелкие детали смазываются — потому при
+       увеличении резкость будто «возвращалась». Заданная ширина
+       пересчитывается браузером честно, и снимок резкий с первого взгляда.
+       На время жеста (колесо, щипок) оставляем transform — так плавнее, —
+       а через мгновение после него размер пересчитывается. */
+    applyT: function (live) {
       var img = this.el.querySelector('#vwImg');
       if (!img) return;
+      var k = 1, nw = img.naturalWidth, nh = img.naturalHeight;
+      if (nw && nh) {
+        if (!live || this._baked == null) this._baked = this.scale;
+        img.style.width = Math.max(1, Math.round(nw * this._baked)) + 'px';
+        img.style.height = Math.max(1, Math.round(nh * this._baked)) + 'px';
+        k = this.scale / this._baked;
+      }
       img.style.transform = 'translate(-50%,-50%) translate(' + Math.round(this.tx) + 'px,' +
-        Math.round(this.ty) + 'px) scale(' + this.scale + ')' +
+        Math.round(this.ty) + 'px) scale(' + k + ')' +
         ' rotate(' + this.rot + 'deg)' + (this.flip ? ' scaleX(-1)' : '');
       var s = this.el.querySelector('#vwScale');
       if (s) s.textContent = Math.round(this.scale * 100) + '%';
+    },
+    /** довести размер картинки до текущего масштаба, когда жест закончился */
+    bakeSoon: function () {
+      var self = this;
+      clearTimeout(this._bakeT);
+      this._bakeT = setTimeout(function () { self.applyT(); }, 160);
     },
     zoom: function (k, cx, cy) {
       var img = this.el.querySelector('#vwImg');
@@ -6668,7 +7048,8 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       this.tx = this.tx - (cx - mx) * (kk - 1);
       this.ty = this.ty - (cy - my) * (kk - 1);
       this.scale = ns;
-      this.applyT();
+      this.applyT(true);
+      this.bakeSoon();
     },
     fit: function () {
       var img = this.el.querySelector('#vwImg');
@@ -6921,7 +7302,10 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
         return '<button role="tab" data-act="tab" data-tab="' + t[0] + '">' + t[1] + '</button>';
       }).join('') + '</div>' +
       '<div class="sheet-body" id="shBody"></div>' +
-      '<div class="sheet-bar" id="shBar" hidden>' +
+      /* Полоса сохранения стоит всегда. Раньше она появлялась только после
+         правки, и кнопку «Сохранить» просто не находили глазами: человек
+         не знал, записалось введённое или нет. */
+      '<div class="sheet-bar" id="shBar">' +
       '<span class="bar-count"></span>' +
       '<button class="btn btn-sm" data-act="discard">Отменить</button>' +
       '<button class="btn btn-sm btn-primary" data-act="commit">Сохранить</button>' +
@@ -7218,10 +7602,11 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
     var bar = this.el.querySelector('#shBar');
     if (!bar) return;
     var n = this.pending ? this.pending.length : 0;
-    bar.hidden = !n;
-    if (!n) return;
-    bar.querySelector('.bar-count').textContent =
-      'Не сохранено: ' + n + ' ' + plural(n, 'правка', 'правки', 'правок');
+    bar.classList.toggle('quiet', !n);
+    bar.querySelector('.bar-count').textContent = n
+      ? 'Не сохранено: ' + n + ' ' + plural(n, 'правка', 'правки', 'правок')
+      : 'Всё сохранено';
+    bar.querySelectorAll('button').forEach(function (b) { b.disabled = !n; });
   };
 
   Sheet.prototype.commit = function () {
@@ -7446,21 +7831,6 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
           self.onChange();
           global.App.paintTrash();
         });
-    },
-    pickFile: function () {
-      var self = this;
-      global.App.pickFiles(function (files) {
-        global.App.askAccess(function (acl) {
-          var queue = Array.prototype.slice.call(files);
-          (function next() {
-            if (!queue.length) { self.renderBody(); self.renderHead(); self.onChange(); return; }
-            S.addMedia(self.personId, queue.shift(), { acl: acl }).then(next, function (e) {
-              self.toast('Файл не добавился: ' + e.message);
-              next();
-            });
-          })();
-        });
-      });
     },
     openMedia: function (btn) { global.App.viewMedia(btn.dataset.id, this); },
     recVoice: function (btn) { this.recordVoice(btn); },
@@ -7866,7 +8236,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
 
   /* Номер сборки. Виден на экране входа — по нему сразу понятно,
      обновилась ли программа на сайте и на телефоне. */
-  var BUILD = '18', BUILD_DATE = '3 ноября 2026';
+  var BUILD = '19', BUILD_DATE = '3 ноября 2026';
 
   /** «90 секунд», «5 мин», «1 ч» — чтобы подпись читалась, а не считалась */
   function everyText(sec) {
@@ -8074,6 +8444,12 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       this.startSync();
       this.watchForHistory();
       this.watchInstall();
+      /* Недосмотренные снимки. Программу могли закрыть на середине разбора —
+         очередь пережила закрытие, продолжаем с того же места. Ждём минуту:
+         сначала человек должен увидеть своё дерево, а не крутящийся разбор. */
+      setTimeout(function () {
+        if (global.FaceQueue && global.FaceQueue.load().length) global.FaceQueue.run();
+      }, 60000);
     },
 
     /* ============ показ пароля ============
@@ -8539,13 +8915,19 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
         var root = S.tree.meta.rootId && S.person(S.tree.meta.rootId)
           ? S.tree.meta.rootId : Object.keys(S.tree.persons)[0];
         if (!root) return;
+        /* Возврат к виду по умолчанию целиком: и точка отсчёта, и
+           расстановка. «В центр дерева» ставит другого человека корнем —
+           эта кнопка отменяет всё, что он наменял. */
+        S.prefs.layout = S.prefs.layout || 'vertical';
+        self.tree.setMode(S.prefs.layout);
+        self.markView();
         self.tree.setFocus(root);
         self.tree.fit(true);
-        self.toast('Дерево снова от начала');
+        self.toast('Дерево снова по умолчанию');
       });
-      document.getElementById('modalBack').addEventListener('click', function (e) {
-        if (e.target.id === 'modalBack') self.closeModal();
-      });
+      /* Щелчок мимо окна раньше его закрывал — и набранное в форме
+         пропадало от случайного промаха. Закрывают теперь только крестик,
+         кнопки окна и Esc. */
       document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') { self.closeModal(); document.getElementById('qResults').hidden = true; }
       });
@@ -8579,7 +8961,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
         b.addEventListener('click', function () {
           var r = res[+b.dataset.i];
           box.hidden = true;
-          if (r.person) { self.showTab('tree'); self.tree.setFocus(r.person.id); self.sheet.open(r.person.id); }
+          if (r.person) { self.showTab('tree'); self.tree.reveal(r.person.id); self.sheet.open(r.person.id); }
         });
       });
       box.querySelectorAll('[data-ph]').forEach(function (el) {
@@ -8853,7 +9235,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
         });
         host.querySelectorAll('[data-id]').forEach(function (b) {
           b.addEventListener('click', function () {
-            self.showTab('tree'); self.tree.setFocus(b.dataset.id); self.sheet.open(b.dataset.id);
+            self.showTab('tree'); self.tree.reveal(b.dataset.id); self.sheet.open(b.dataset.id);
           });
         });
       }
@@ -8940,7 +9322,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       host.querySelectorAll('.cal-day[data-person]').forEach(function (d) {
         d.addEventListener('click', function () {
           self.showTab('tree');
-          self.tree.setFocus(d.dataset.person);
+          self.tree.reveal(d.dataset.person);
           self.sheet.open(d.dataset.person);
         });
       });
@@ -9064,7 +9446,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
           if (!list.length) return;
           if (list.length === 1) {
             self.showTab('tree');
-            self.tree.setFocus(list[0].person.id);
+            self.tree.reveal(list[0].person.id);
             self.sheet.open(list[0].person.id);
             return;
           }
@@ -9080,7 +9462,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
             b.addEventListener('click', function () {
               self.closeAllModals();
               self.showTab('tree');
-              self.tree.setFocus(b.dataset.go);
+              self.tree.reveal(b.dataset.go);
               self.sheet.open(b.dataset.go);
             });
           });
@@ -9117,7 +9499,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       box.querySelectorAll('[data-person]').forEach(function (b) {
         b.addEventListener('click', function () {
           self.showTab('tree');
-          self.tree.setFocus(b.dataset.person);
+          self.tree.reveal(b.dataset.person);
           self.sheet.open(b.dataset.person);
         });
       });
@@ -9153,7 +9535,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       m.onPin = function (pin) {
         self.closeAllModals();
         self.showTab('tree');
-        self.tree.setFocus(pin.personId);
+        self.tree.reveal(pin.personId);
         self.sheet.open(pin.personId);
       };
     },
@@ -9166,7 +9548,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       var self = this;
       this.map.onPin = function (p) {
         self.showTab('tree');
-        self.tree.setFocus(p.personId);
+        self.tree.reveal(p.personId);
         self.sheet.open(p.personId);
       };
     },
@@ -9364,11 +9746,23 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
     },
 
     /* ============ медиа ============ */
-    pickFiles: function (cb) {
+    /** Выбор файлов. opts.folder — выбрать папку целиком, со всем,
+        что в ней лежит; вложенные папки тоже попадут. */
+    pickFiles: function (cb, opts) {
+      var self = this;
       var inp = document.createElement('input');
       inp.type = 'file'; inp.multiple = true;
-      inp.accept = 'image/*,audio/*,video/*,.pdf,.doc,.docx,.txt,.rtf';
-      inp.addEventListener('change', function () { if (inp.files.length) cb(inp.files); });
+      if (opts && opts.folder) {
+        /* accept с выбором папки лучше не ставить: часть браузеров на этом
+           показывает пустой список и выбрать нечего. Отсеем лишнее сами. */
+        try { inp.webkitdirectory = true; inp.directory = true; } catch (e) {}
+      } else {
+        inp.accept = 'image/*,audio/*,video/*,.pdf,.doc,.docx,.txt,.rtf';
+      }
+      inp.addEventListener('change', function () {
+        if (inp.files && inp.files.length) cb(inp.files);
+        else self.toast('Ничего не выбрано');
+      });
       inp.click();
     },
     /** Спросить, кому будут видны добавляемые файлы. */
