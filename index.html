@@ -800,7 +800,7 @@ table.data th { font-size: 11px; text-transform: uppercase; letter-spacing: .06e
 /* сохранять нечего — полоса остаётся на месте, но не бросается в глаза */
 .sheet-bar.quiet { background: var(--paper-2); }
 .sheet-bar.quiet .bar-count { color: var(--ink-faint); }
-.sheet-bar button[disabled] { opacity: .45; pointer-events: none; }
+
 
 /* ---------- строка «на карте» ---------- */
 .map-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -942,15 +942,24 @@ tr.file-row.is-sel { background: color-mix(in srgb, var(--accent) 14%, transpare
 .viewer {
   position: fixed; inset: 0; z-index: 400; background: #0d0c0b; color: #f2ece1;
   display: grid; grid-template-rows: auto 1fr auto;
+  /* Ширину задаёт экран, а не содержимое. Без этого ряд кнопок сверху
+     растягивал просмотрщик шире телефона, и снимок уезжал за край:
+     «вписан» он был в ту, растянутую, область. */
+  grid-template-columns: minmax(0, 1fr);
+  width: 100vw; max-width: 100vw; overflow: hidden;
   user-select: none;
 }
 .vw-top {
   display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  min-width: 0; flex-wrap: nowrap;
   padding-top: max(8px, env(safe-area-inset-top, 0px));
   background: rgba(0,0,0,.5); position: relative; z-index: 3;
 }
 .vw-top .spacer { flex: 1 1 auto; }
-.vw-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
+.vw-title {
+  font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 46vw; flex: 0 1 auto; min-width: 0;
+}
 .vw-count { color: #b5ac9d; font-size: 12px; font-family: var(--font-data); }
 .vw-btn {
   border: 0; background: transparent; color: #e8e1d5; padding: 7px; border-radius: 9px;
@@ -962,6 +971,7 @@ tr.file-row.is-sel { background: color-mix(in srgb, var(--accent) 14%, transpare
 
 .vw-stage {
   position: relative; overflow: hidden; display: grid; place-items: center;
+  min-width: 0; min-height: 0;
   touch-action: none;
 }
 /* Снимок позиционируем сами: браузерное «вписывание» через max-width плохо
@@ -1031,7 +1041,10 @@ tr.file-row.is-sel { background: color-mix(in srgb, var(--accent) 14%, transpare
   background: #fff; border-radius: 3px; cursor: nwse-resize;
 }
 @media (max-width: 560px) {
-  .vw-title { max-width: 34vw; }
+  .vw-title { max-width: 26vw; }
+  .vw-count { display: none; }
+  .vw-btn { padding: 5px; }
+  .vw-btn .ico { width: 17px; height: 17px; }
   .vw-nav { width: 38px; height: 56px; }
 }
 
@@ -1187,8 +1200,8 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
 /* ---------- меню «ещё» в разделе файлов ---------- */
 .menu-wrap { position: relative; }
 .menu {
-  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40;
-  min-width: 232px; padding: 6px;
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 160;
+  min-width: 232px; width: max-content; max-width: min(92vw, 420px); padding: 6px;
   background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: var(--shadow); max-height: 70vh; overflow: auto;
 }
@@ -1197,7 +1210,10 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
   display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
   border: 0; background: transparent; color: var(--ink);
   padding: 7px 9px; border-radius: 8px; font-size: 13px;
+  /* название пункта не переносим и не обрезаем — меню шире, чем длиннее текст */
+  white-space: nowrap;
 }
+.menu button .ico { flex: 0 0 auto; }
 .menu button:hover { background: var(--neutral); }
 .menu button.on { background: color-mix(in srgb, var(--accent) 14%, transparent); font-weight: 700; }
 .menu button.danger { color: var(--bad); }
@@ -5231,11 +5247,38 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
     /** насколько похожими считаем лица: меньше — строже */
     threshold: 0.5,
 
-    /** Путь к библиотеке и моделям рядом с программой. */
-    base: function () {
-      var href = location.href.split('#')[0].split('?')[0];
-      return href.replace(/[^/]*$/, '') + 'face/';
+    /** Где искать библиотеку и модели.
+        Рядом с программой — главный вариант: так узнавание работает без
+        интернета. Но папку face легко забыть выложить на сайт, а на
+        GitHub Pages программа часто лежит в подпапке — поэтому пробуем
+        несколько мест по очереди, а последним — открытое хранилище
+        библиотеки в интернете. Хоть откуда, лишь бы человек не остался
+        с неработающей кнопкой. */
+    places: function () {
+      var here = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
+      var out = [{ где: 'рядом с программой', lib: here + 'face/face-api.js', models: here + 'face/model' }];
+      var seg = (location.pathname || '').split('/').filter(Boolean);
+      if (seg.length > 1 && location.origin.indexOf('http') === 0) {
+        var корень = location.origin + '/' + seg[0] + '/face/';
+        out.push({ где: 'в корне сайта', lib: корень + 'face-api.js', models: корень + 'model' });
+      }
+      if (location.origin.indexOf('http') === 0) {
+        out.push({ где: 'в корне сайта', lib: location.origin + '/face/face-api.js',
+                   models: location.origin + '/face/model' });
+      }
+      var cdn = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/';
+      out.push({ где: 'из интернета', сеть: true, lib: cdn + 'dist/face-api.js', models: cdn + 'model' });
+      // одинаковые адреса убираем, чтобы не стучаться дважды
+      var было = {};
+      return out.filter(function (x) {
+        if (было[x.lib]) return false;
+        было[x.lib] = 1;
+        return true;
+      });
     },
+
+    /** Откуда в итоге загрузились — показываем в настройках. */
+    source: '',
 
     /** Подгрузить библиотеку и модели. Возвращает обещание. */
     ensure: function (onProgress) {
@@ -5243,21 +5286,30 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       if (this.ready) return Promise.resolve(true);
       if (this.loading) return this.loading;
       var say = onProgress || function () {};
+      var места = this.places(), i = 0, беды = [];
 
-      this.loading = new Promise(function (done, fail) {
-        say('Загружаю распознавание лиц…');
-        var s = document.createElement('script');
-        s.src = self.base() + 'face-api.js';
-        s.onload = function () { done(global.faceapi); };
-        s.onerror = function () {
-          fail(new Error('Не нашлась папка face рядом с программой. ' +
-            'Выложите её на сайт вместе с остальными файлами.'));
-        };
-        document.head.appendChild(s);
-      }).then(function (api) {
-        self.api = api;
+      function библиотека() {
+        if (global.faceapi) return Promise.resolve(места[Math.max(0, i - 1)]);
+        if (i >= места.length) {
+          return Promise.reject(new Error('Не удалось загрузить узнавание лиц. ' +
+            'Проверил: ' + беды.join('; ') + '. Папку face нужно выложить на сайт ' +
+            'рядом с программой — она есть в архиве «Сайт.zip».'));
+        }
+        var место = места[i++];
+        say(место.сеть ? 'Загружаю узнавание лиц из интернета…' : 'Загружаю узнавание лиц…');
+        return new Promise(function (ok) {
+          var s = document.createElement('script');
+          s.src = место.lib;
+          s.onload = function () { ok(место); };
+          s.onerror = function () { беды.push(место.lib); ok(null); };
+          document.head.appendChild(s);
+        }).then(function (взяли) { return взяли || библиотека(); });
+      }
+
+      function модели(место, запас) {
+        var api = global.faceapi;
         say('Готовлю модели…');
-        var m = self.base() + 'model';
+        var m = место.models;
         /* Берём «тяжёлые» модели. Лёгкие (tiny) быстрее, но на семейных
            снимках — групповых, старых, снятых сбоку — они пропускают людей
            и хуже выравнивают лицо перед расчётом отпечатка, отчего разные
@@ -5268,7 +5320,22 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
           api.nets.faceRecognitionNet.loadFromUri(m),
           api.nets.tinyFaceDetector.loadFromUri(m),     // быстрый режим: лёгкий поиск лиц
           api.nets.faceLandmark68TinyNet.loadFromUri(m) // и лёгкая разметка к нему
-        ]);
+        ]).then(function () {
+          self.api = api;
+          self.source = место.где;
+          return true;
+        }, function (e) {
+          беды.push(m);
+          if (!запас.length) throw new Error('Библиотека нашлась, а модели — нет. ' +
+            'Проверил: ' + беды.join('; ') + '. В папке face должна лежать папка model ' +
+            'со всеми файлами из архива «Сайт.zip».');
+          return модели(запас.shift(), запас);
+        });
+      }
+
+      this.loading = библиотека().then(function (место) {
+        var запас = места.filter(function (x) { return x !== место; });
+        return модели(место, запас);
       }).then(function () {
         self.ready = true;
         say('');
@@ -5640,7 +5707,13 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
         self.busy = false;
         self.blocked = true;
         self.say('');
-        if (opts.loud) global.App.toast('Узнавание лиц не вышло: ' + e.message);
+        /* Молчать нельзя: человек ждёт, что лица разберутся сами, и не
+           поймёт, почему ничего не происходит. Но и повторять одно и то
+           же при каждой папке незачем — говорим один раз за сеанс. */
+        if (opts.loud || !self.toldOnce) {
+          self.toldOnce = true;
+          global.App.toast('Узнавание лиц не вышло: ' + e.message);
+        }
         return 0;
       });
     },
@@ -6398,6 +6471,50 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       });
     },
 
+    /* Меню раньше висело на `position:absolute; right:0` внутри кнопки.
+       У кнопки слева (как «Добавить файлы») оно уезжало за левый край, а в
+       карточке человека его обрезала прокрутка. Теперь кладём его по
+       месту кнопки и следим, чтобы целиком попало в окно. */
+    dropdown: function (btn, menu) {
+      var self = this;
+      if (!btn || !menu) return;
+      function place() {
+        var r = btn.getBoundingClientRect();
+        menu.style.position = 'fixed';
+        menu.style.right = 'auto';
+        menu.style.maxHeight = '';
+        var w = menu.offsetWidth, h = menu.offsetHeight;
+        var left = Math.min(Math.max(8, r.left), Math.max(8, global.innerWidth - w - 8));
+        var top = r.bottom + 6;
+        if (top + h > global.innerHeight - 8) {
+          // не влезло снизу — показываем над кнопкой, а совсем некуда — поджимаем
+          if (r.top - 6 > h) top = r.top - h - 6;
+          else { top = 8; menu.style.maxHeight = (global.innerHeight - 16) + 'px'; }
+        }
+        menu.style.left = Math.round(left) + 'px';
+        menu.style.top = Math.round(top) + 'px';
+      }
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!menu.hidden) { menu.hidden = true; return; }
+        menu.hidden = false;
+        place();
+        var close = function (ev) {
+          if (ev && ev.type === 'click' && menu.contains(ev.target)) return;
+          menu.hidden = true;
+          document.removeEventListener('click', close);
+          global.removeEventListener('resize', close);
+          global.removeEventListener('scroll', close, true);
+        };
+        setTimeout(function () {
+          document.addEventListener('click', close);
+          global.addEventListener('resize', close);
+          global.addEventListener('scroll', close, true);
+        }, 0);
+      });
+      self._place = place;
+    },
+
     bind: function (host) {
       var self = this, App = global.App;
       var on = function (sel, fn) { var b = host.querySelector(sel); if (b) b.addEventListener('click', fn); };
@@ -6405,18 +6522,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       // «Добавить файлы» — меню из двух пунктов
       var add = host.querySelector('#flAdd'), addMenu = host.querySelector('#flAddMenu');
       if (add && addMenu) {
-        add.addEventListener('click', function (e) {
-          e.stopPropagation();
-          addMenu.hidden = !addMenu.hidden;
-          if (!addMenu.hidden) {
-            var close = function (ev) {
-              if (addMenu.contains(ev.target)) return;
-              addMenu.hidden = true;
-              document.removeEventListener('click', close);
-            };
-            setTimeout(function () { document.addEventListener('click', close); }, 0);
-          }
-        });
+        this.dropdown(add, addMenu);
         addMenu.querySelectorAll('[data-ai]').forEach(function (b) {
           b.addEventListener('click', function () {
             addMenu.hidden = true;
@@ -6439,18 +6545,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       // меню «ещё»
       var more = host.querySelector('#flMore'), menu = host.querySelector('#flMenu');
       if (more && menu) {
-        more.addEventListener('click', function (e) {
-          e.stopPropagation();
-          menu.hidden = !menu.hidden;
-          if (!menu.hidden) {
-            var close = function (ev) {
-              if (menu.contains(ev.target)) return;
-              menu.hidden = true;
-              document.removeEventListener('click', close);
-            };
-            setTimeout(function () { document.addEventListener('click', close); }, 0);
-          }
-        });
+        this.dropdown(more, menu);
         var size = menu.querySelector('#flSize');
         if (size) {
           size.addEventListener('click', function (e) { e.stopPropagation(); });
@@ -7602,16 +7697,22 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
     var bar = this.el.querySelector('#shBar');
     if (!bar) return;
     var n = this.pending ? this.pending.length : 0;
+    /* Кнопки остаются рабочими всегда: серая кнопка читается как сломанная,
+       а нажать «Сохранить» лишний раз ничему не вредит. */
     bar.classList.toggle('quiet', !n);
     bar.querySelector('.bar-count').textContent = n
       ? 'Не сохранено: ' + n + ' ' + plural(n, 'правка', 'правки', 'правок')
       : 'Всё сохранено';
-    bar.querySelectorAll('button').forEach(function (b) { b.disabled = !n; });
   };
 
   Sheet.prototype.commit = function () {
     var p = S.person(this.personId);
-    if (!p || !this.hasPending()) { this.pending = []; this.paintBar(); return; }
+    if (!p) return;
+    if (!this.hasPending()) {
+      this.pending = []; this.paintBar();
+      this.toast('Всё уже сохранено');
+      return;
+    }
     this.pending.forEach(function (x) { try { x.apply(); } catch (e) { console.error(e); } });
     this.pending = [];
     S.updatePerson(p.id, {});
@@ -8236,7 +8337,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
 
   /* Номер сборки. Виден на экране входа — по нему сразу понятно,
      обновилась ли программа на сайте и на телефоне. */
-  var BUILD = '19', BUILD_DATE = '3 ноября 2026';
+  var BUILD = '20', BUILD_DATE = '3 ноября 2026';
 
   /** «90 секунд», «5 мин», «1 ч» — чтобы подпись читалась, а не считалась */
   function everyText(sec) {
@@ -10095,8 +10196,9 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
           '<p class="note"><b>Быстро</b> — втрое быстрее, подходит для сотен снимков сразу, ' +
           'но пропускает мелкие лица и снятые сбоку. Чтобы ошибок не было, в этом режиме ' +
           'программа реже подставляет имя сама и чаще спрашивает вас.</p>' +
-          '<p class="note">Выбор действует для кнопки «Добавить папку со снимками» ' +
-          'в разделе «Фото и файлы».</p></div>' +
+          '<p class="note">Выбор действует для разбора снимков в разделе «Фото и файлы».</p>' +
+          '<div class="btn-row"><button class="btn btn-sm" id="stFaceTest">Проверить, работает ли</button></div>' +
+          '<p class="note" id="stFaceSay"></p></div>' +
           '<div class="set-card"><h3>Сохранить копию</h3>' +
           '<p class="note">Полный архив: дерево в GEDCOM, схема в SVG, все фотографии и файлы. ' +
           'Записи с замком попадают в архив зашифрованными.</p>' +
@@ -10128,6 +10230,20 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
           '<button class="btn btn-sm" id="imTxt">Из текста</button>' +
           '<button class="btn btn-sm" id="imJson">Из полной копии (ZIP)</button>' +
           '</div></div>';
+        document.getElementById('stFaceTest').addEventListener('click', function () {
+          var say = document.getElementById('stFaceSay');
+          this.disabled = true;
+          say.textContent = 'Проверяю…';
+          global.Faces.ensure(function (t) { if (t) say.textContent = t; }).then(function () {
+            say.innerHTML = 'Узнавание готово. Модели взяты <b>' +
+              esc(global.Faces.source || 'рядом с программой') + '</b>.';
+          }, function (e) {
+            say.innerHTML = '<b>Не вышло.</b> ' + esc(e.message);
+          }).then(function () {
+            var b = document.getElementById('stFaceTest');
+            if (b) b.disabled = false;
+          });
+        });
         document.getElementById('stFaceMode').addEventListener('change', function () {
           p.faceFast = this.value === 'fast';
           S.savePrefs();
