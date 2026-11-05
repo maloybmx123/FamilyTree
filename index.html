@@ -3521,6 +3521,13 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       var m = raw.match(/^\s*(\d+)\s+(@[^@]+@\s+)?(\w+)\s?(.*)$/);
       if (!m) return;
       var lvl = +m[1], xref = (m[2] || '').trim(), tag = m[3], val = m[4] || '';
+      /* MyHeritage пишет теги с языком: NAME__RU, GIVN__RU, PLAC__RU.
+         Для нас это те же NAME, GIVN, PLAC — иначе из выгрузки
+         Family Tree Builder приезжают люди без единого имени.
+         Там же @ в почте удваивается — возвращаем обратно. */
+      var lang = tag.match(/^(_?[A-Z]+)__[A-Z]{2,3}$/);
+      if (lang) tag = lang[1];
+      if (tag === 'EMAIL') val = val.replace(/@@/g, '@');
       var node = { lvl: lvl, xref: xref, tag: tag, val: val, kids: [] };
       if (lvl === 0) { cur = node; recs.push(node); stack = [node]; return; }
       if (!stack.length) return;
@@ -3548,7 +3555,10 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
           var sur = (nm.match(/\/([^\/]*)\//) || [])[1] || '';
           var giv = nm.replace(/\/[^\/]*\//, '').trim();
           var gn = kid(nameNode, 'GIVN'), sn = kid(nameNode, 'SURN');
-          p.surname = (sn && sn.val) || sur;
+          var mn = kid(nameNode, '_MARNM');     // фамилия по мужу
+          var род = (sn && sn.val) || sur;
+          if (mn && mn.val && mn.val !== род) { p.surname = mn.val; p.maiden = род; }
+          else p.surname = род;
           var parts = ((gn && gn.val) || giv).split(/\s+/).filter(Boolean);
           p.given = parts[0] || '';
           p.patronymic = parts.slice(1).join(' ');
@@ -3568,6 +3578,19 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
         }
         var note = kid(r, 'NOTE');
         if (note) p.note = note.val;
+        /* Место жительства: в выгрузке это отдельная запись RESI,
+           внутри которой адрес, почта и телефоны. */
+        kids(r, 'RESI').forEach(function (x) {
+          var место = ((kid(x, 'PLAC') || {}).val || (kid(x, 'ADDR') || {}).val || '').trim();
+          if (место) p.fields.push({ id: U.uid('f'), label: 'Адрес', value: место,
+            type: 'text', acl: { level: 'group', locked: false } });
+          (x.kids || []).forEach(function (k) {
+            if (k.tag === 'EMAIL') p.fields.push({ id: U.uid('f'), label: 'Почта',
+              value: k.val, type: 'email', acl: { level: 'group', locked: false } });
+            if (k.tag === 'PHON') p.fields.push({ id: U.uid('f'), label: 'Телефон',
+              value: k.val, type: 'phone', acl: { level: 'group', locked: false } });
+          });
+        });
         kids(r, 'PHON').forEach(function (x) {
           p.fields.push({ id: U.uid('f'), label: 'Телефон', value: x.val, type: 'phone', acl: { level: 'group', locked: false } });
         });
@@ -8337,7 +8360,7 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
 
   /* Номер сборки. Виден на экране входа — по нему сразу понятно,
      обновилась ли программа на сайте и на телефоне. */
-  var BUILD = '20', BUILD_DATE = '3 ноября 2026';
+  var BUILD = '21', BUILD_DATE = '5 ноября 2026';
 
   /** «90 секунд», «5 мин», «1 ч» — чтобы подпись читалась, а не считалась */
   function everyText(sec) {
@@ -9034,8 +9057,9 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
       });
     },
     markView: function () {
+      var layout = (S.prefs || {}).layout || 'vertical';
       document.querySelectorAll('#viewdock [data-view]').forEach(function (b) {
-        b.setAttribute('aria-pressed', b.dataset.view === S.prefs.layout ? 'true' : 'false');
+        b.setAttribute('aria-pressed', b.dataset.view === layout ? 'true' : 'false');
       });
     },
 
@@ -10989,7 +11013,10 @@ table.data.cal-kinds td:nth-child(2), table.data.cal-kinds td:nth-child(3) {
         function () {
           incoming.changes = incoming.changes || S.tree.changes || [];
           incoming.tabs = incoming.tabs || S.tree.tabs;
-          incoming.users = incoming.users || S.tree.users || [];
+          /* В выгрузке из чужой программы (GEDCOM, текст) учётных записей нет,
+             и пустой список вытеснял наши: человека выбрасывало из программы
+             с просьбой войти заново, а входить уже было некем. */
+          if (!incoming.users || !incoming.users.length) incoming.users = S.tree.users || [];
           incoming.invites = incoming.invites || [];
           incoming.meta.salt = incoming.meta.salt || S.tree.meta.salt;
           delete incoming.meta.demo;
